@@ -697,7 +697,7 @@ def render_farmer_module(language="English", field_results=None):
                     rtl(info["pashto"], "#a78bfa")
 
         st.divider()
-        main_crop_sel = st.selectbox("Your crop", list(SEED_DATABASE.keys()), key="fert_crop")
+        main_crop_sel = st.selectbox("Your crop", list(SEED_DATABASE.keys()), key="fertilizer_crop_select")
         if st.button("📋 Get fertilizer plan for my field", type="primary"):
             sys = f"""Fertilizer expert for Afghan farmers.
             Field: {field_area}ha, NDVI={field_ndvi}, Water={field_water}, Crop={main_crop_sel}
