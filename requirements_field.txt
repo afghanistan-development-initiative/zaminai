@@ -1,0 +1,6 @@
+earthengine-api>=0.1.370
+pandas>=2.0.0
+plotly>=5.18.0
+folium>=0.15.0
+streamlit-folium>=0.18.0
+anthropic>=0.25.0
