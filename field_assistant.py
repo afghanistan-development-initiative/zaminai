@@ -773,3 +773,10 @@ Sentinel-2 · CHIRPS · ERA5 · Google Earth Engine · Real satellite data<br>
 Maiwand Jan Alamzoi · m.alamzoi123@gmail.com
 </div>
 """, unsafe_allow_html=True)
+
+# ─── FARMER INTELLIGENCE MODULE ──────────────────────────────────────────────
+from farmer_module import render_farmer_module
+render_farmer_module(
+    language=language,
+    field_results=st.session_state.get("field_results")
+)
