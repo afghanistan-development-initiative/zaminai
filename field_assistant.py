@@ -16,8 +16,8 @@ import json
 
 # ─── PAGE CONFIG ─────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="ADI Field Assistant — Afghanistan",
-    page_icon="🌾",
+    page_title="ZaminAI — Smart Farming Intelligence",
+    page_icon="🌱",
     layout="wide",
     initial_sidebar_state="collapsed"  # collapsed for mobile
 )
@@ -219,7 +219,7 @@ def generate_recommendations(ndvi, mndwi, rain_mm, area_ha):
 # ─── HEADER ──────────────────────────────────────────────────────────────────
 col_title, col_lang = st.columns([3,1])
 with col_title:
-    st.title("🌾 Afghanistan Field AI Assistant")
+    st.title("🌱 ZaminAI — Smart Farming Intelligence")
     st.markdown("**ADI × WUR × FAO** — Real satellite data for every field")
 with col_lang:
     language = st.selectbox("🌐", ["English", "دری (Dari)", "پښتو (Pashto)"], label_visibility="collapsed")
