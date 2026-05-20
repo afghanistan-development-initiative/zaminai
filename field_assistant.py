@@ -117,7 +117,7 @@ def analyze_field(geometry_coords, year=2024):
 
         # NDVI for multiple years for trend
         ndvi_trend = {}
-        for yr in [2019, 2021, 2022, 2023, 2024]:
+        for yr in [2019, 2020, 2021, 2022, 2023, 2024]:
             try:
                 s2_yr = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
                          .filterBounds(region)
@@ -133,13 +133,57 @@ def analyze_field(geometry_coords, year=2024):
             except:
                 ndvi_trend[yr] = 0
 
+        # Monthly NDVI for current year
+        monthly_ndvi = {}
+        months = ["Jan","Feb","Mar","Apr","May","Jun",
+                  "Jul","Aug","Sep","Oct","Nov","Dec"]
+        month_ranges = [
+            ("01-01","01-31"),("02-01","02-28"),("03-01","03-31"),
+            ("04-01","04-30"),("05-01","05-31"),("06-01","06-30"),
+            ("07-01","07-31"),("08-01","08-31"),("09-01","09-30"),
+            ("10-01","10-31"),("11-01","11-30"),("12-01","12-31"),
+        ]
+        for i, (start, end) in enumerate(month_ranges):
+            try:
+                s2_m = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+                        .filterBounds(region)
+                        .filterDate(f"{year}-{start}", f"{year}-{end}")
+                        .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 20))
+                        .median().clip(region))
+                ndvi_m = s2_m.normalizedDifference(["B8","B4"])
+                val = ndvi_m.reduceRegion(
+                    reducer=ee.Reducer.mean(),
+                    geometry=region, scale=30, maxPixels=1e9
+                ).getInfo().get("nd", 0)
+                monthly_ndvi[months[i]] = round(val or 0, 4)
+            except:
+                monthly_ndvi[months[i]] = None
+
+        # Monthly rainfall
+        monthly_rain = {}
+        for i, (start, end) in enumerate(month_ranges):
+            try:
+                rain_m = (ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY")
+                          .filterBounds(region)
+                          .filterDate(f"{year}-{start}", f"{year}-{end}")
+                          .select("precipitation").sum().clip(region))
+                val = rain_m.reduceRegion(
+                    reducer=ee.Reducer.mean(),
+                    geometry=region, scale=5000, maxPixels=1e9
+                ).getInfo().get("precipitation", 0)
+                monthly_rain[months[i]] = round(val or 0, 1)
+            except:
+                monthly_rain[months[i]] = 0
+
         return {
-            "ndvi":       round(ndvi_val, 4),
-            "mndwi":      round(mndwi_val, 4),
-            "rain_mm":    round(rain_val, 1),
-            "area_ha":    area_ha,
-            "ndvi_trend": ndvi_trend,
-            "status":     "success"
+            "ndvi":         round(ndvi_val, 4),
+            "mndwi":        round(mndwi_val, 4),
+            "rain_mm":      round(rain_val, 1),
+            "area_ha":      area_ha,
+            "ndvi_trend":   ndvi_trend,
+            "monthly_ndvi": monthly_ndvi,
+            "monthly_rain": monthly_rain,
+            "status":       "success"
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -637,7 +681,7 @@ RESPONSE RULES:
                         api_key=st.secrets["anthropic"]["api_key"]
                     )
                     response = client.messages.create(
-                        model="claude-sonnet-4-20250514",
+                        model="claude-sonnet-4-5",
                         max_tokens=400,
                         system=system_prompt,
                         messages=[
