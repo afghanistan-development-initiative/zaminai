@@ -1,6 +1,6 @@
 """
 Afghanistan Field AI Assistant
-ADI x WUR x FAO Rome 2025
+Afghanistan Development Initiative · zaminai.org
 Mobile-ready — GPS location — Plot drawing — Voice input/output — AI in Dari/Pashto/English
 Author: Maiwand Jan Alamzoi
 """
@@ -220,7 +220,7 @@ def generate_recommendations(ndvi, mndwi, rain_mm, area_ha):
 col_title, col_lang = st.columns([3,1])
 with col_title:
     st.title("🌱 ZaminAI — Smart Farming Intelligence")
-    st.markdown("**ADI × WUR × FAO** — Real satellite data for every field")
+    st.markdown("**Afghanistan Development Initiative** — Real satellite data for every field")
 with col_lang:
     language = st.selectbox("🌐", ["English", "دری (Dari)", "پښتو (Pashto)"], label_visibility="collapsed")
 
@@ -764,19 +764,22 @@ with tab_history:
         </div>
         """, unsafe_allow_html=True)
 
+# ─── FARMER INTELLIGENCE MODULE ─────────────────────────────────────────────
+try:
+    from farmer_module import render_farmer_module
+    render_farmer_module(
+        language=language,
+        field_results=st.session_state.get("field_results")
+    )
+except Exception as e:
+    st.info(f"Farmer module loading: {e}")
+
 # ─── FOOTER ──────────────────────────────────────────────────────────────────
 st.divider()
 st.markdown("""
 <div style="text-align:center;color:#6b8f65;font-family:monospace;font-size:11px;line-height:2">
-Afghanistan Development Initiative (ADI) · WUR Wageningen · FAO Rome 2025<br>
+Afghanistan Development Initiative (ADI) · zaminai.org<br>
 Sentinel-2 · CHIRPS · ERA5 · Google Earth Engine · Real satellite data<br>
 Maiwand Jan Alamzoi · m.alamzoi123@gmail.com
 </div>
 """, unsafe_allow_html=True)
-
-# ─── FARMER INTELLIGENCE MODULE ──────────────────────────────────────────────
-from farmer_module import render_farmer_module
-render_farmer_module(
-    language=language,
-    field_results=st.session_state.get("field_results")
-)
