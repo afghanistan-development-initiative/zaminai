@@ -1,7 +1,7 @@
 """
 ZaminAI — Complete Afghan Farmer Intelligence Module
 Covers: Profile | Irrigation | Fertilizer | Machinery | Seeds | Market | Programs | Photo | Feedback
-Author: Maiwand Jan Alamzoi — ADI x WUR x FAO Rome 2025
+Author: Maiwand Jan Alamzoi — Afghanistan Development Initiative · zaminai.org
 """
 
 import streamlit as st
@@ -13,6 +13,65 @@ import anthropic
 # ═══════════════════════════════════════════════════════════════════════
 # DATABASES
 # ═══════════════════════════════════════════════════════════════════════
+
+SEED_DATABASE = {
+    "Wheat": {
+        "varieties": ["Mazar-99", "Herat-99", "Roshan"],
+        "water_mm": 450, "value_usd_ha": 400,
+        "best_for": "Cold winters, low-medium water",
+        "plant": "October–November", "harvest": "June–July",
+        "where_to_buy": "Ministry of Agriculture offices, local cooperatives"
+    },
+    "Flax": {
+        "varieties": ["Local Afghan flax", "Certified imported"],
+        "water_mm": 350, "value_usd_ha": 800,
+        "best_for": "Very low water, sandy soil",
+        "plant": "April–May", "harvest": "August–September",
+        "where_to_buy": "FAO distribution centers, provincial agriculture departments"
+    },
+    "Saffron": {
+        "varieties": ["Afghan Red Gold"],
+        "water_mm": 300, "value_usd_ha": 15000,
+        "best_for": "Dry climate, well-drained soil",
+        "plant": "August–September", "harvest": "October–November",
+        "where_to_buy": "Herat and Balkh agricultural centers"
+    },
+    "Chickpeas": {
+        "varieties": ["Kabuli", "Desi"],
+        "water_mm": 300, "value_usd_ha": 600,
+        "best_for": "Drought tolerant, low input",
+        "plant": "March–April", "harvest": "July–August",
+        "where_to_buy": "Local markets, agricultural cooperatives"
+    },
+    "Vegetables": {
+        "varieties": ["Tomato", "Onion", "Potato", "Cucumber"],
+        "water_mm": 500, "value_usd_ha": 2000,
+        "best_for": "High value, local market",
+        "plant": "April–May", "harvest": "July–October",
+        "where_to_buy": "Local seed shops"
+    },
+    "Cotton": {
+        "varieties": ["Upland cotton", "Local variety"],
+        "water_mm": 700, "value_usd_ha": 600,
+        "best_for": "High water availability only",
+        "plant": "April–May", "harvest": "September–October",
+        "where_to_buy": "Cotton processing companies"
+    },
+    "Almonds": {
+        "varieties": ["Mamra almond", "Sangi almond"],
+        "water_mm": 400, "value_usd_ha": 3000,
+        "best_for": "Long term investment, 3yr establishment",
+        "plant": "February–March", "harvest": "August–September",
+        "where_to_buy": "Herat and Kandahar nurseries"
+    },
+    "Rice": {
+        "varieties": ["Afghan long grain", "Basmati"],
+        "water_mm": 1200, "value_usd_ha": 500,
+        "best_for": "Irrigated lowlands only — high water",
+        "plant": "May–June", "harvest": "September–October",
+        "where_to_buy": "Local seed shops"
+    },
+}
 
 IRRIGATION_SYSTEMS = {
     "Flood irrigation (كاريز/جوی)": {
