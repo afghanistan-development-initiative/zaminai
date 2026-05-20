@@ -296,12 +296,65 @@ with tab_map:
             horizontal=True,
             label_visibility="collapsed"
         )
-
     with col2:
         analysis_year = st.selectbox("Analysis year", [2024, 2023, 2022, 2021, 2019], index=0)
 
+    # GPS auto-draw section
+    auto_draw_coords = None
+    if location_method == "📍 Use my GPS location":
+        st.markdown("""
+        <div style="background:#052e16;border-left:3px solid #16a34a;padding:10px 14px;
+        border-radius:4px;font-size:13px;color:#86efac;margin-bottom:10px">
+        📍 <strong>Option 1</strong> — Click the <strong>⊕ crosshair button</strong> on the map → then draw your field manually<br>
+        🤖 <strong>Option 2</strong> — Enter your GPS coordinates below → app draws your field automatically
+        </div>""", unsafe_allow_html=True)
+
+        col_gps1, col_gps2, col_gps3 = st.columns([1,1,1])
+        with col_gps1:
+            gps_lat = st.number_input("My latitude", value=0.0, format="%.6f",
+                                       help="Open Google Maps → long press your location → copy the first number")
+        with col_gps2:
+            gps_lon = st.number_input("My longitude", value=0.0, format="%.6f",
+                                       help="Open Google Maps → long press your location → copy the second number")
+        with col_gps3:
+            # Smart field size options with jereb + hectare
+            field_size = st.selectbox(
+                "My field size",
+                options=[0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0],
+                index=2,
+                format_func=lambda x: (
+                    f"{round(x*5,1)} jereb ({x} ha)" if x < 1 else
+                    f"{round(x*5)} jereb ({x} ha)"
+                ),
+                help="Not sure? Average Afghan smallholder farm = 2-5 jereb (0.4-1 ha)"
+            )
+        
+        if gps_lat != 0.0 and gps_lon != 0.0:
+            # Calculate bbox from center point + field size
+            import math
+            # Degrees per meter at this latitude
+            lat_deg = field_size * 100 / 111320  # approx degrees for field size in ha
+            lon_deg = field_size * 100 / (111320 * math.cos(math.radians(gps_lat)))
+            half_lat = lat_deg / 2
+            half_lon = lon_deg / 2
+            auto_draw_coords = [
+                [gps_lat - half_lat, gps_lon - half_lon],
+                [gps_lat - half_lat, gps_lon + half_lon],
+                [gps_lat + half_lat, gps_lon + half_lon],
+                [gps_lat + half_lat, gps_lon - half_lon],
+                [gps_lat - half_lat, gps_lon - half_lon],
+            ]
+            map_center = [gps_lat, gps_lon]
+            map_zoom = 16
+            jereb = round(field_size * 5, 1)
+            st.success(f"✓ Field ready to draw — {jereb} jereb ({field_size} ha) at your location. Click 'Analyse this field' below.")
+        else:
+            map_center = [34.5, 67.7]
+            map_zoom = 6
+            st.caption("💡 Tip: Open Google Maps on your phone → long press your field → copy the coordinates shown")
+
     # Set map center based on selection
-    if location_method == "🏘️ Select province":
+    elif location_method == "🏘️ Select province":
         province = st.selectbox("Select province / ولایت", list(AFGHAN_PROVINCES.keys()))
         map_center = AFGHAN_PROVINCES[province]["center"]
         map_zoom = 11
@@ -312,11 +365,10 @@ with tab_map:
         with col_lon:
             lon = st.number_input("Longitude", value=68.87, format="%.4f")
         map_center = [lat, lon]
-        map_zoom = 13
+        map_zoom = 14
     else:
-        map_center = [34.5, 67.7]  # Afghanistan center
+        map_center = [34.5, 67.7]
         map_zoom = 6
-        st.info("📍 Click 'Locate me' button on the map (crosshair icon) to jump to your GPS location")
 
     # Build the map
     m = folium.Map(
@@ -348,6 +400,28 @@ with tab_map:
         flyTo=True,
         zoom=14
     ).add_to(m)
+
+    # Auto-draw polygon from GPS coordinates
+    if auto_draw_coords:
+        folium.Polygon(
+            locations=auto_draw_coords,
+            color="#4ade80",
+            fill=True,
+            fill_color="#4ade80",
+            fill_opacity=0.15,
+            weight=2,
+            popup=f"Your field — {round(field_size*5,1)} jereb ({field_size} ha)",
+            tooltip=f"✓ Your field — {round(field_size*5,1)} jereb"
+        ).add_to(m)
+        # Add centre marker
+        folium.Marker(
+            location=[gps_lat, gps_lon],
+            popup="Your location",
+            icon=folium.Icon(color="green", icon="leaf", prefix="glyphicon")
+        ).add_to(m)
+        # Store coords for analysis
+        st.session_state["auto_coords"] = auto_draw_coords
+        st.session_state["auto_area_ha"] = field_size
 
     # Drawing tools — rectangle and polygon
     Draw(
