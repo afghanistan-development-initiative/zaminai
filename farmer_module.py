@@ -534,7 +534,7 @@ def get_ai_response(system, messages, max_tokens=400):
     try:
         client = anthropic.Anthropic(api_key=st.secrets["anthropic"]["api_key"])
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-5",
             max_tokens=max_tokens,
             system=system,
             messages=messages
@@ -987,7 +987,7 @@ Analyse and provide:
 Be specific. Respond in the language the farmer used in their description."""})
 
                     response = client.messages.create(
-                        model="claude-sonnet-4-20250514",
+                        model="claude-sonnet-4-5",
                         max_tokens=700,
                         messages=[{"role":"user","content":content}]
                     )
