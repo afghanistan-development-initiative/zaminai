@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZaminAI — Smart Farming Intelligence for the World</title>
+<meta name="description" content="Real satellite data for every field. AI recommendations in any language. Built for 500 million smallholder farmers worldwide.">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f0f7f1;--bg2:#e8f5ea;--bg3:#d4edda;
+  --w:#ffffff;--s1:#f4fbf5;
+  --g:#16a34a;--gl:#22c55e;--gd:#052e16;--gb:#dcfce7;
+  --b:#0284c7;--bb:#e0f2fe;
+  --a:#d97706;--ab:#fef3c7;
+  --r:#dc2626;--rb:#fee2e2;
+  --p:#7c3aed;--pb:#ede9fe;
+  --t:#0f2d16;--m:#3d6b47;--m2:#6b9e74;
+  --br:#c8e6cc;--br2:#a8d5ad;
+  --D:'Bebas Neue',sans-serif;
+  --B:'DM Sans',sans-serif;
+  --M:'DM Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--t);font-family:var(--B);overflow-x:hidden;}
+
+/* ── CURSOR ── */
+#cur{position:fixed;width:10px;height:10px;background:var(--g);border-radius:50%;pointer-events:none;z-index:9999;}
+#ring{position:fixed;width:36px;height:36px;border:2px solid rgba(22,163,74,0.35);border-radius:50%;pointer-events:none;z-index:9998;transition:all 0.15s;}
+
+/* ── NAV ── */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:1rem 5rem;background:rgba(240,247,241,0.94);backdrop-filter:blur(20px);border-bottom:1px solid var(--br);}
+.logo{font-family:var(--D);font-size:28px;letter-spacing:0.05em;color:var(--g);text-decoration:none;display:flex;align-items:center;gap:8px;}
+.logo-dot{width:8px;height:8px;background:var(--g);border-radius:50%;animation:pulse 2s infinite;}
+.nv{display:flex;gap:2.5rem;align-items:center;}
+.nv a{font-family:var(--M);font-size:11px;color:var(--m);text-decoration:none;letter-spacing:0.1em;text-transform:uppercase;transition:color 0.2s;}
+.nv a:hover{color:var(--g);}
+.lang-sw{display:flex;gap:6px;}
+.lsw{font-family:var(--M);font-size:11px;padding:5px 12px;border:1px solid var(--br);border-radius:20px;background:var(--w);color:var(--m);cursor:none;transition:all 0.2s;text-decoration:none;}
+.lsw:hover,.lsw.on{background:var(--gb);border-color:var(--g);color:var(--g);}
+.nc{font-family:var(--M);font-size:12px;padding:9px 22px;background:var(--g);color:white;text-decoration:none;font-weight:500;letter-spacing:0.06em;border-radius:4px;transition:all 0.2s;cursor:none;}
+.nc:hover{background:var(--gd);}
+@media(max-width:768px){nav{padding:1rem 1.5rem;}.nv{display:none;}}
+
+/* ── HERO ── */
+.hero{position:relative;min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:9rem 5rem 5rem;overflow:hidden;}
+
+/* Field texture background */
+.hero-bg{position:absolute;inset:0;z-index:0;
+  background:
+    linear-gradient(135deg,#f0f7f1 0%,#e8f5ea 45%,#d4edda 100%),
+    repeating-linear-gradient(168deg,
+      rgba(34,197,94,0.055) 0px,rgba(34,197,94,0.055) 3px,
+      transparent 3px,transparent 11px,
+      rgba(34,197,94,0.035) 11px,rgba(34,197,94,0.035) 14px,
+      transparent 14px,transparent 25px
+    );}
+.hero-bg::after{content:'';position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 60% 55% at 72% 52%,rgba(34,197,94,0.16) 0%,transparent 60%),
+    radial-gradient(ellipse 40% 40% at 10% 80%,rgba(2,132,199,0.07) 0%,transparent 50%),
+    radial-gradient(ellipse 50% 50% at 50% 50%,rgba(255,255,255,0.6) 0%,transparent 70%);}
+.hgrid{position:absolute;inset:0;z-index:1;background-image:linear-gradient(rgba(22,163,74,0.055) 1px,transparent 1px),linear-gradient(90deg,rgba(22,163,74,0.055) 1px,transparent 1px);background-size:52px 52px;pointer-events:none;}
+.scan{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden;}
+.sl{position:absolute;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(22,163,74,0.35),transparent);animation:scan linear infinite;}
+.sl:nth-child(1){animation-duration:11s;}.sl:nth-child(2){animation-duration:17s;animation-delay:5s;}.sl:nth-child(3){animation-duration:13s;animation-delay:9s;}
+.dpts{position:absolute;inset:0;z-index:2;pointer-events:none;}
+.dp{position:absolute;width:7px;height:7px;background:var(--g);border-radius:50%;opacity:0;animation:blink 3s ease-in-out infinite;}
+.dp::after{content:'';position:absolute;inset:-4px;border:1px solid rgba(22,163,74,0.35);border-radius:50%;animation:ripple 3s ease-in-out infinite;}
+
+.hc{position:relative;z-index:3;}
+.htag{display:inline-flex;align-items:center;gap:8px;font-family:var(--M);font-size:11px;letter-spacing:0.12em;color:var(--g);background:var(--w);border:1px solid var(--br2);padding:6px 14px;border-radius:20px;margin-bottom:2rem;opacity:0;animation:fadeUp 0.7s ease 0.2s forwards;}
+.pd{width:6px;height:6px;background:var(--g);border-radius:50%;animation:pulse 2s infinite;}
+.htitle{font-family:var(--D);font-size:clamp(72px,12vw,165px);line-height:0.87;letter-spacing:-0.01em;margin-bottom:2rem;opacity:0;animation:fadeUp 0.8s ease 0.4s forwards;}
+.t1{display:block;color:var(--g);}
+.t2{display:block;color:rgba(22,163,74,0.16);}
+.t3{display:block;font-family:var(--M);font-size:0.09em;letter-spacing:0.22em;color:var(--m2);margin-top:1rem;text-transform:uppercase;}
+.hdesc{font-size:18px;color:var(--m);max-width:540px;line-height:1.75;font-weight:300;margin-bottom:3rem;opacity:0;animation:fadeUp 0.8s ease 0.6s forwards;}
+.hbtns{display:flex;gap:1rem;margin-bottom:4rem;opacity:0;animation:fadeUp 0.8s ease 0.8s forwards;flex-wrap:wrap;}
+.bp{font-family:var(--M);font-size:13px;padding:15px 36px;background:var(--g);color:white;cursor:none;font-weight:500;letter-spacing:0.06em;text-decoration:none;border-radius:4px;transition:all 0.25s;display:inline-flex;align-items:center;gap:8px;}
+.bp:hover{background:var(--gd);transform:translateY(-2px);box-shadow:0 8px 24px rgba(22,163,74,0.22);}
+.bg2{font-family:var(--M);font-size:13px;padding:15px 36px;background:var(--w);color:var(--t);border:1px solid var(--br2);cursor:none;text-decoration:none;border-radius:4px;transition:all 0.25s;}
+.bg2:hover{border-color:var(--g);color:var(--g);}
+.hstats{display:flex;gap:3rem;padding-top:2rem;border-top:1px solid var(--br);opacity:0;animation:fadeUp 0.8s ease 1s forwards;flex-wrap:wrap;}
+.sv{font-family:var(--D);font-size:46px;color:var(--g);line-height:1;}
+.sl2{font-family:var(--M);font-size:10px;color:var(--m2);letter-spacing:0.1em;text-transform:uppercase;margin-top:4px;}
+
+/* ── MARQUEE ── */
+.mq{background:var(--g);padding:13px 0;overflow:hidden;}
+.mq-t{display:flex;gap:2.5rem;animation:mq 38s linear infinite;white-space:nowrap;}
+.mq-i{font-family:var(--M);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.75);display:flex;align-items:center;gap:0.75rem;flex-shrink:0;}
+.mq-d{width:4px;height:4px;background:rgba(255,255,255,0.4);border-radius:50%;}
+
+/* ── SHARED SECTION STYLES ── */
+.eye{font-family:var(--M);font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:var(--g);margin-bottom:0.75rem;}
+.sh{font-family:var(--D);font-size:clamp(44px,6vw,92px);line-height:0.9;letter-spacing:-0.01em;color:var(--t);margin-top:0.5rem;}
+.ss{font-size:16px;color:var(--m);font-weight:300;margin-top:1.25rem;line-height:1.75;}
+section{position:relative;z-index:1;}
+
+/* ── GLOBAL MAP SECTION ── */
+.global{padding:8rem 5rem;background:var(--w);border-top:1px solid var(--br);}
+.global-layout{display:grid;grid-template-columns:1fr 1fr;gap:5rem;align-items:center;margin-top:4rem;}
+.world-vis{background:var(--bg);border:1px solid var(--br);border-radius:16px;padding:2.5rem;position:relative;overflow:hidden;}
+.world-vis::before{content:'🌍';position:absolute;font-size:120px;opacity:0.06;right:-10px;top:50%;transform:translateY(-50%);}
+.region-list{display:flex;flex-direction:column;gap:2px;}
+.region{display:flex;align-items:center;gap:1rem;padding:0.9rem 1rem;border-radius:8px;transition:background 0.2s;cursor:none;}
+.region:hover{background:var(--gb);}
+.region-flag{font-size:20px;width:28px;text-align:center;flex-shrink:0;}
+.region-info{flex:1;}
+.region-name{font-size:14px;font-weight:500;color:var(--t);}
+.region-detail{font-family:var(--M);font-size:10px;color:var(--m2);margin-top:2px;letter-spacing:0.04em;}
+.region-status{font-family:var(--M);font-size:10px;padding:3px 10px;border-radius:20px;}
+.st-live{background:var(--gb);color:var(--g);}
+.st-dev{background:var(--ab);color:var(--a);}
+.st-plan{background:#f3f4f6;color:#6b7280;}
+.global-text .ss{max-width:480px;}
+.global-stats{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:2.5rem;}
+.gs{background:var(--bg);border:1px solid var(--br);border-radius:10px;padding:1.25rem;}
+.gs-v{font-family:var(--D);font-size:36px;color:var(--g);line-height:1;}
+.gs-l{font-family:var(--M);font-size:10px;color:var(--m2);text-transform:uppercase;letter-spacing:0.08em;margin-top:4px;line-height:1.4;}
+
+/* ── PLATFORM ARCHITECTURE ── */
+.platform{padding:8rem 5rem;background:var(--bg2);border-top:1px solid var(--br);}
+.pa{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:4rem;}
+.pac{background:var(--w);border:1px solid var(--br);border-radius:12px;padding:2rem;transition:box-shadow 0.25s;}
+.pac:hover{box-shadow:0 6px 24px rgba(22,163,74,0.1);}
+.pat{font-family:var(--D);font-size:20px;letter-spacing:0.04em;color:var(--g);margin-bottom:1.5rem;display:flex;align-items:center;gap:8px;}
+.pai{display:flex;align-items:flex-start;gap:10px;padding:0.6rem 0;border-bottom:1px solid var(--br);font-size:12px;}
+.pai:last-child{border-bottom:none;}
+.pad{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:4px;}
+.pan{color:var(--t);font-size:12px;font-weight:500;}
+.padt{font-family:var(--M);font-size:10px;color:var(--m2);margin-top:1px;}
+
+/* ── FEATURES ── */
+.features{padding:8rem 5rem;background:var(--w);border-top:1px solid var(--br);}
+.fg{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:4rem;}
+.fc{background:var(--bg);border:1px solid var(--br);border-radius:12px;padding:2.5rem;opacity:0;transform:translateY(20px);transition:opacity 0.5s,transform 0.5s,box-shadow 0.25s;}
+.fc.vis{opacity:1;transform:translateY(0);}
+.fc:hover{box-shadow:0 8px 28px rgba(22,163,74,0.1);transform:translateY(-3px);}
+.fi{font-size:36px;margin-bottom:1.5rem;display:block;}
+.fn{font-family:var(--M);font-size:10px;color:var(--m2);letter-spacing:0.1em;margin-bottom:0.75rem;text-transform:uppercase;}
+.ft{font-family:var(--D);font-size:26px;letter-spacing:0.02em;margin-bottom:1rem;color:var(--t);}
+.fd{font-size:13px;color:var(--m);line-height:1.75;font-weight:300;}
+.ftag{display:inline-block;font-family:var(--M);font-size:10px;padding:3px 8px;border-radius:20px;margin-top:0.75rem;}
+.ftag.live{background:var(--gb);color:var(--g);}
+.ftag.soon{background:var(--ab);color:var(--a);}
+
+/* ── HOW IT WORKS ── */
+.how{padding:8rem 5rem;background:var(--bg2);border-top:1px solid var(--br);}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:2rem;margin-top:5rem;position:relative;}
+.steps::before{content:'';position:absolute;top:28px;left:8%;right:8%;height:1px;background:linear-gradient(90deg,transparent,var(--br2),var(--br2),transparent);}
+.step{text-align:center;opacity:0;transform:translateY(20px);transition:all 0.5s;}
+.step.vis{opacity:1;transform:translateY(0);}
+.step-ico{width:56px;height:56px;background:var(--gb);border:2px solid var(--br2);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;font-size:22px;position:relative;z-index:1;}
+.step-n{font-family:var(--D);font-size:18px;color:var(--g);margin-bottom:0.5rem;}
+.step-t{font-family:var(--D);font-size:20px;letter-spacing:0.03em;margin-bottom:0.5rem;color:var(--t);}
+.step-d{font-size:13px;color:var(--m);line-height:1.7;font-weight:300;}
+
+/* ── CALCULATOR ── */
+.calc{padding:8rem 5rem;background:var(--w);border-top:1px solid var(--br);}
+.calc-wrap{display:grid;grid-template-columns:1fr 1fr;gap:3rem;margin-top:4rem;align-items:start;}
+.calc-form{background:var(--bg);border:1px solid var(--br);border-radius:12px;padding:2rem;}
+.ci{margin-bottom:1.25rem;}
+.ci label{font-family:var(--M);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--m);display:block;margin-bottom:6px;}
+.ci select{width:100%;padding:10px 12px;border:1px solid var(--br2);border-radius:6px;background:var(--w);font-family:var(--B);font-size:13px;color:var(--t);outline:none;transition:border 0.2s;}
+.ci select:focus{border-color:var(--g);}
+.ci input[type=range]{width:100%;padding:4px 0;accent-color:var(--g);}
+.rv{font-family:var(--D);font-size:28px;color:var(--g);margin-top:4px;}
+.cbtn{width:100%;padding:13px;background:var(--g);color:white;border:none;border-radius:6px;font-family:var(--M);font-size:13px;font-weight:500;letter-spacing:0.08em;cursor:none;margin-top:1.25rem;transition:all 0.2s;}
+.cbtn:hover{background:var(--gd);}
+.results{background:var(--gd);border-radius:12px;padding:2rem;}
+.res-head{font-family:var(--M);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.45);margin-bottom:1.5rem;}
+.res-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;}
+.ri{background:rgba(255,255,255,0.07);border-radius:8px;padding:1.25rem;}
+.rv2{font-family:var(--D);font-size:32px;color:#4ade80;line-height:1;}
+.rl{font-family:var(--M);font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.08em;margin-top:4px;line-height:1.4;}
+.rec-box{background:rgba(255,255,255,0.06);border-radius:8px;padding:1rem;font-size:13px;color:rgba(255,255,255,0.65);line-height:1.65;}
+.cost-tbl{width:100%;border-collapse:collapse;margin-top:1.5rem;font-size:13px;}
+.cost-tbl th{font-family:var(--M);font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--m2);padding:0.5rem 0.75rem;text-align:left;border-bottom:2px solid var(--br);}
+.cost-tbl td{padding:0.65rem 0.75rem;border-bottom:1px solid var(--br);color:var(--t);}
+.pos{color:var(--g);font-weight:500;}.neg{color:var(--r);}
+
+/* ── LANGUAGES ── */
+.lang{padding:8rem 5rem;background:var(--bg2);border-top:1px solid var(--br);text-align:center;}
+.lg2{display:grid;grid-template-columns:repeat(4,1fr);gap:1.25rem;margin-top:3rem;max-width:900px;margin-left:auto;margin-right:auto;}
+.lc{background:var(--w);border:2px solid var(--br);border-radius:12px;padding:2rem 1rem;text-align:center;transition:all 0.25s;cursor:none;}
+.lc:hover,.lc.on{border-color:var(--g);background:var(--gb);box-shadow:0 4px 16px rgba(22,163,74,0.1);}
+.lcf{font-size:30px;margin-bottom:0.75rem;}
+.lcn{font-family:var(--D);font-size:22px;letter-spacing:0.03em;margin-bottom:0.5rem;color:var(--t);}
+.lcs{font-family:var(--M);font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--m2);}
+.ldemo{margin-top:3rem;padding:3rem;background:var(--gd);border-radius:16px;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;max-width:900px;margin-left:auto;margin-right:auto;}
+.lq{font-size:clamp(18px,3.5vw,36px);font-weight:300;color:rgba(255,255,255,0.7);line-height:1.6;transition:all 0.4s;text-align:center;}
+.lt{font-family:var(--M);font-size:12px;color:rgba(255,255,255,0.35);margin-top:1rem;letter-spacing:0.08em;}
+
+/* ── VISION SECTION ── */
+.vision{padding:8rem 5rem;background:var(--w);border-top:1px solid var(--br);}
+.vision-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:4rem;}
+.vc{background:var(--bg);border:1px solid var(--br);border-radius:12px;padding:2rem;opacity:0;transform:translateY(20px);transition:all 0.5s;}
+.vc.vis{opacity:1;transform:translateY(0);}
+.vc-phase{font-family:var(--M);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--g);margin-bottom:0.75rem;}
+.vc-t{font-family:var(--D);font-size:24px;letter-spacing:0.03em;margin-bottom:1rem;color:var(--t);}
+.vc-list{list-style:none;display:flex;flex-direction:column;gap:6px;}
+.vc-list li{font-size:13px;color:var(--m);line-height:1.6;display:flex;gap:8px;}
+.vc-list li::before{content:'→';color:var(--g);flex-shrink:0;font-weight:500;}
+
+/* ── YOLO SECTION ── */
+.yolo{padding:8rem 5rem;background:var(--bg2);border-top:1px solid var(--br);}
+.yg{display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center;margin-top:4rem;}
+.ydemo{background:var(--gd);border-radius:16px;padding:1.5rem;}
+.yscreen{position:relative;aspect-ratio:4/3;background:#030805;border-radius:10px;overflow:hidden;}
+.yscreen::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(172deg,rgba(8,25,10,0.9) 0px,rgba(8,25,10,0.9) 4px,rgba(5,15,6,0.95) 4px,rgba(5,15,6,0.95) 11px);z-index:1;}
+.ybox{position:absolute;border:2px solid;z-index:3;}
+.ylbl{position:absolute;font-family:var(--M);font-size:9px;letter-spacing:0.06em;padding:2px 6px;z-index:4;animation:blink2 2.5s ease-in-out infinite;border-radius:2px;}
+.yg2{color:#4ade80;border-color:#4ade80;background:rgba(74,222,128,0.15);}
+.yr2{color:#f87171;border-color:#f87171;background:rgba(248,113,113,0.15);}
+.ya2{color:#fbbf24;border-color:#fbbf24;background:rgba(251,191,36,0.15);}
+.yfs{display:flex;flex-direction:column;gap:1rem;}
+.yf{background:var(--w);border:1px solid var(--br);border-left:4px solid var(--g);padding:1.25rem;border-radius:0 8px 8px 0;opacity:0;transform:translateX(20px);transition:all 0.5s;}
+.yf.vis{opacity:1;transform:translateX(0);}
+.yft{font-family:var(--M);font-size:11px;letter-spacing:0.08em;color:var(--g);margin-bottom:6px;text-transform:uppercase;}
+.yfd{font-size:13px;color:var(--m);line-height:1.6;font-weight:300;}
+
+/* ── SDG ── */
+.sdg{padding:8rem 5rem;background:var(--w);border-top:1px solid var(--br);}
+.sdgg{display:grid;grid-template-columns:repeat(6,1fr);gap:1.25rem;margin-top:4rem;}
+.sdc{background:var(--bg);border:1px solid var(--br);border-radius:12px;padding:1.75rem 1rem;text-align:center;transition:all 0.25s;}
+.sdc:hover{transform:translateY(-4px);box-shadow:0 6px 20px rgba(0,0,0,0.07);}
+.sdn{font-family:var(--D);font-size:44px;line-height:1;margin-bottom:0.5rem;}
+.sdl{font-family:var(--M);font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--m);line-height:1.4;}
+.stats-r{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;margin-top:1.25rem;}
+.src{background:var(--gd);border-radius:12px;padding:2.5rem;text-align:center;}
+.srn{font-family:var(--D);font-size:56px;line-height:1;color:#4ade80;}
+.srl{font-family:var(--M);font-size:10px;color:rgba(255,255,255,0.4);letter-spacing:0.1em;text-transform:uppercase;margin-top:6px;line-height:1.5;}
+
+/* ── CTA ── */
+.cta{padding:10rem 5rem;text-align:center;background:var(--gd);overflow:hidden;position:relative;}
+.cta::before{content:'';position:absolute;width:900px;height:900px;background:radial-gradient(circle,rgba(74,222,128,0.07) 0%,transparent 65%);top:50%;left:50%;transform:translate(-50%,-50%);}
+.ct{font-family:var(--D);font-size:clamp(60px,11vw,135px);line-height:0.87;letter-spacing:-0.02em;margin-bottom:2rem;color:white;position:relative;z-index:1;}
+.cs{font-size:16px;color:rgba(255,255,255,0.55);font-weight:300;max-width:500px;margin:0 auto 3rem;line-height:1.75;position:relative;z-index:1;}
+
+footer{padding:3rem 5rem;border-top:1px solid var(--br);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;background:var(--w);}
+.fl{font-family:var(--D);font-size:26px;color:var(--g);letter-spacing:0.05em;}
+.fls{display:flex;gap:2rem;}
+.fls a{font-family:var(--M);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--m);text-decoration:none;transition:color 0.2s;}
+.fls a:hover{color:var(--g);}
+.fc2{font-family:var(--M);font-size:11px;color:var(--m2);}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(28px);}to{opacity:1;transform:translateY(0);}}
+@keyframes scan{0%{top:-2px;}100%{top:102%;}}
+@keyframes mq{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(22,163,74,0.5);}50%{box-shadow:0 0 0 7px rgba(22,163,74,0);}}
+@keyframes blink{0%,100%{opacity:0.2;}50%{opacity:0.9;}}
+@keyframes blink2{0%,100%{opacity:0.55;}50%{opacity:1;}}
+@keyframes ripple{0%{transform:scale(1);opacity:0.5;}100%{transform:scale(3);opacity:0;}}
+
+@media(max-width:1024px){
+  nav{padding:1rem 2rem;}.nv{display:none;}
+  .hero,.global,.platform,.features,.how,.calc,.lang,.vision,.yolo,.sdg,.cta{padding:5rem 2rem;}
+  .global-layout,.calc-wrap,.yg{grid-template-columns:1fr;}
+  .pa,.fg,.vision-grid{grid-template-columns:1fr 1fr;}
+  .steps{grid-template-columns:1fr 1fr;}
+  .sdgg{grid-template-columns:repeat(3,1fr);}
+  .stats-r,.lg2{grid-template-columns:1fr 1fr;}
+  footer{padding:2rem;flex-direction:column;align-items:flex-start;}
+}
+@media(max-width:600px){
+  .pa,.fg,.vision-grid,.lg2,.steps,.sdgg,.stats-r{grid-template-columns:1fr;}
+}
+
+/* APP LAUNCHER MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(5,46,22,0.75);backdrop-filter:blur(8px);z-index:1000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.3s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:white;border-radius:20px;padding:2.5rem;width:90%;max-width:480px;transform:translateY(20px);transition:transform 0.3s;box-shadow:0 24px 64px rgba(0,0,0,0.15);}
+.modal-overlay.open .modal{transform:translateY(0);}
+.modal-logo{font-family:var(--D);font-size:36px;color:var(--g);margin-bottom:0.5rem;}
+.modal-tag{font-family:var(--M);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--m2);margin-bottom:2rem;}
+.modal-options{display:flex;flex-direction:column;gap:10px;margin-bottom:1.5rem;}
+.modal-btn{display:flex;align-items:center;gap:1rem;padding:1rem 1.25rem;border:1.5px solid var(--br);border-radius:12px;background:var(--bg);cursor:pointer;transition:all 0.2s;text-decoration:none;}
+.modal-btn:hover{border-color:var(--g);background:var(--gb);transform:translateX(4px);}
+.modal-btn-ico{font-size:24px;width:40px;text-align:center;flex-shrink:0;}
+.modal-btn-t{font-size:14px;font-weight:500;color:var(--t);}
+.modal-btn-s{font-family:var(--M);font-size:11px;color:var(--m2);margin-top:2px;}
+.modal-close{width:100%;padding:10px;background:transparent;border:1px solid var(--br);border-radius:8px;font-family:var(--M);font-size:12px;color:var(--m2);cursor:pointer;transition:all 0.2s;}
+.modal-close:hover{border-color:var(--g);color:var(--g);}
+</style>
+</head>
+<body>
+
+
+<!-- APP LAUNCHER MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-logo">ZaminAI</div>
+    <div class="modal-tag">🌱 Smart Farming Intelligence · Worldwide</div>
+    <div class="modal-options">
+      <a href="https://zaminai.streamlit.app" target="_blank" class="modal-btn" onclick="closeModalDirect()">
+        <div class="modal-btn-ico">🛰️</div>
+        <div><div class="modal-btn-t">Open ZaminAI App</div><div class="modal-btn-s">Full platform · satellite data · AI assistant · free</div></div>
+      </a>
+      <a href="https://zaminai.streamlit.app" target="_blank" class="modal-btn" onclick="closeModalDirect()">
+        <div class="modal-btn-ico">📱</div>
+        <div><div class="modal-btn-t">Open on mobile</div><div class="modal-btn-s">Works on any smartphone · GPS · voice · Dari · Pashto</div></div>
+      </a>
+      <a href="mailto:m.alamzoi123@gmail.com" class="modal-btn">
+        <div class="modal-btn-ico">✉️</div>
+        <div><div class="modal-btn-t">Contact us</div><div class="modal-btn-s">Partnership · research · NGO collaboration</div></div>
+      </a>
+    </div>
+    <button class="modal-close" onclick="closeModalBtn()">← Back to ZaminAI</button>
+  </div>
+</div>
+
+<div id="cur"></div>
+<div id="ring"></div>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="logo"><span class="logo-dot"></span>ZaminAI</a>
+  <div class="nv">
+    <a href="#global">Global</a>
+    <a href="#features">Features</a>
+    <a href="#calculator">Calculator</a>
+    <a href="#languages">Languages</a>
+    <a href="#impact">Impact</a>
+    <div class="lang-sw">
+      <span class="lsw on">EN</span>
+      <a href="zaminai_fa.html" class="lsw">دری</a>
+      <a href="zaminai_ps.html" class="lsw">پښتو</a>
+    </div>
+  </div>
+  <a href="#" class="nc" onclick="openModal(event)">Open App →</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hgrid"></div>
+  <div class="scan"><div class="sl"></div><div class="sl"></div><div class="sl"></div></div>
+  <div class="dpts">
+    <div class="dp" style="top:30%;left:58%;animation-delay:0s"></div>
+    <div class="dp" style="top:46%;left:70%;animation-delay:1s"></div>
+    <div class="dp" style="top:62%;left:76%;animation-delay:2s"></div>
+    <div class="dp" style="top:36%;left:84%;animation-delay:0.5s"></div>
+    <div class="dp" style="top:54%;left:62%;animation-delay:1.5s"></div>
+    <div class="dp" style="top:24%;left:73%;animation-delay:2.5s"></div>
+    <div class="dp" style="top:70%;left:55%;animation-delay:3s"></div>
+  </div>
+  <div class="hc">
+    <div class="htag"><span class="pd"></span>LIVE · REAL SATELLITE DATA · WORLDWIDE</div>
+    <h1 class="htitle">
+      <span class="t1">ZAMIN</span>
+      <span class="t2">AI</span>
+      <span class="t3">Smart Farming Intelligence · For Every Farmer on Earth</span>
+    </h1>
+    <p class="hdesc">Real satellite data for every field on earth. AI recommendations in any language. Built for 500 million smallholder farmers who make decisions without any digital support.</p>
+    <div class="hbtns">
+      <a href="#" class="bp" onclick="openModal(event)">Open ZaminAI — Free →</a>
+      <a href="#calculator" class="bg2">Calculate farm profit</a>
+    </div>
+    <div class="hstats">
+      <div><div class="sv" id="c1">0</div><div class="sl2">Satellites</div></div>
+      <div><div class="sv" id="c2">0</div><div class="sl2">Countries · live</div></div>
+      <div><div class="sv" id="c3">0</div><div class="sl2">Years of data</div></div>
+      <div><div class="sv" id="c4">0</div><div class="sl2">Languages live</div></div>
+      <div><div class="sv" id="c5">0</div><div class="sl2">Coming soon</div></div>
+      <div><div class="sv" id="c6">0</div><div class="sl2">Data sources</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- MARQUEE -->
+<div class="mq">
+  <div class="mq-t">
+    <div class="mq-i"><span class="mq-d"></span>Sentinel-2 · 10m</div>
+    <div class="mq-i"><span class="mq-d"></span>NDVI · MNDWI</div>
+    <div class="mq-i"><span class="mq-d"></span>CHIRPS Rainfall</div>
+    <div class="mq-i"><span class="mq-d"></span>MODIS Snow</div>
+    <div class="mq-i"><span class="mq-d"></span>ERA5 Temperature</div>
+    <div class="mq-i"><span class="mq-d"></span>SoilGrids ISRIC</div>
+    <div class="mq-i"><span class="mq-d"></span>YOLO Plant Vision</div>
+    <div class="mq-i"><span class="mq-d"></span>Yield Prediction</div>
+    <div class="mq-i"><span class="mq-d"></span>Cost Calculator</div>
+    <div class="mq-i"><span class="mq-d"></span>دری · Dari</div>
+    <div class="mq-i"><span class="mq-d"></span>پښتو · Pashto</div>
+    <div class="mq-i"><span class="mq-d"></span>فارسی · coming</div>
+    <div class="mq-i"><span class="mq-d"></span>اردو · coming</div>
+    <div class="mq-i"><span class="mq-d"></span>Amharic · coming</div>
+    <div class="mq-i"><span class="mq-d"></span>Google Earth Engine</div>
+    <div class="mq-i"><span class="mq-d"></span>Carbon Credits</div>
+    <div class="mq-i"><span class="mq-d"></span>SMS Alerts</div>
+    <div class="mq-i"><span class="mq-d"></span>Offline Mode</div>
+    <div class="mq-i"><span class="mq-d"></span>Sentinel-2 · 10m</div>
+    <div class="mq-i"><span class="mq-d"></span>NDVI · MNDWI</div>
+    <div class="mq-i"><span class="mq-d"></span>CHIRPS Rainfall</div>
+    <div class="mq-i"><span class="mq-d"></span>MODIS Snow</div>
+    <div class="mq-i"><span class="mq-d"></span>ERA5 Temperature</div>
+    <div class="mq-i"><span class="mq-d"></span>SoilGrids ISRIC</div>
+  </div>
+</div>
+
+<!-- GLOBAL SECTION -->
+<section class="global" id="global">
+  <div class="global-layout">
+    <div class="world-vis">
+      <div class="eye">Live now · Expanding globally</div>
+      <h2 class="sh" style="font-size:clamp(36px,4vw,56px)">One platform.<br>Every country.</h2>
+      <p style="font-size:14px;color:var(--m);font-weight:300;margin-top:1rem;line-height:1.7">Same satellite data. Same AI. Different language, different crop, different country. ZaminAI works anywhere on earth — because Sentinel-2 covers the whole planet.</p>
+      <div style="margin-top:2rem" class="region-list">
+        <div class="region"><div class="region-flag">🇦🇫</div><div class="region-info"><div class="region-name">Afghanistan</div><div class="region-detail">Wheat · Flax · Saffron · Dari · Pashto</div></div><span class="region-status st-live">● Live</span></div>
+        <div class="region"><div class="region-flag">🇮🇷</div><div class="region-info"><div class="region-name">Iran</div><div class="region-detail">Wheat · Saffron · Pistachios · Farsi</div></div><span class="region-status st-dev">◐ In development</span></div>
+        <div class="region"><div class="region-flag">🇵🇰</div><div class="region-info"><div class="region-name">Pakistan</div><div class="region-detail">Wheat · Rice · Cotton · Urdu · Pashto</div></div><span class="region-status st-plan">○ Planned</span></div>
+        <div class="region"><div class="region-flag">🇹🇯</div><div class="region-info"><div class="region-name">Tajikistan</div><div class="region-detail">Cotton · Wheat · Dari speakers</div></div><span class="region-status st-plan">○ Planned</span></div>
+        <div class="region"><div class="region-flag">🇪🇹</div><div class="region-info"><div class="region-name">Ethiopia</div><div class="region-detail">Coffee · Teff · Maize · Amharic</div></div><span class="region-status st-plan">○ Planned</span></div>
+        <div class="region"><div class="region-flag">🇳🇬</div><div class="region-info"><div class="region-name">Nigeria</div><div class="region-detail">Cassava · Maize · Sorghum · Hausa</div></div><span class="region-status st-plan">○ Planned</span></div>
+        <div class="region"><div class="region-flag">🌍</div><div class="region-info"><div class="region-name">+ Many more</div><div class="region-detail">Any country with smallholder farmers</div></div><span class="region-status st-plan">○ Open</span></div>
+      </div>
+    </div>
+    <div class="global-text">
+      <div class="eye">The global opportunity</div>
+      <h2 class="sh">500 million farmers.<br>Zero digital support.</h2>
+      <p class="ss">Today, 500 million smallholder farmers make planting, irrigation, and harvest decisions with no satellite data, no AI, no digital tools. They rely on tradition and guesswork — even as climate change makes those decisions harder every year.</p>
+      <p class="ss" style="margin-top:1rem">ZaminAI gives any farmer — anywhere on earth — the same quality of agricultural intelligence that large commercial farms pay thousands for. Free. In their language. On their phone.</p>
+      <div class="global-stats">
+        <div class="gs"><div class="gs-v">500M</div><div class="gs-l">Smallholder farmers worldwide</div></div>
+        <div class="gs"><div class="gs-v">2B</div><div class="gs-l">People dependent on smallholder agriculture</div></div>
+        <div class="gs"><div class="gs-v">5%</div><div class="gs-l">Have access to any digital agricultural service</div></div>
+        <div class="gs"><div class="gs-v">€0</div><div class="gs-l">Cost for farmers — free forever</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PLATFORM ARCHITECTURE -->
+<section class="platform" id="platform">
+  <div class="eye">Platform architecture</div>
+  <h2 class="sh">Three layers. One platform.</h2>
+  <p class="ss" style="max-width:600px">Satellite data + farmer database + AI — connected into one global agricultural intelligence system.</p>
+  <div class="pa">
+    <div class="pac">
+      <div class="pat">🛰️ Satellite Layer</div>
+      <div class="pai"><div class="pad" style="background:#16a34a"></div><div><div class="pan">Sentinel-2 NDVI · MNDWI</div><div class="padt">Vegetation · water · 10m · 5-day · global</div></div></div>
+      <div class="pai"><div class="pad" style="background:#0284c7"></div><div><div class="pan">CHIRPS Rainfall</div><div class="padt">Daily precipitation · 5km · 1981–now</div></div></div>
+      <div class="pai"><div class="pad" style="background:#7c3aed"></div><div><div class="pan">MODIS Snow + ET</div><div class="padt">Snowmelt · evapotranspiration · 500m</div></div></div>
+      <div class="pai"><div class="pad" style="background:#d97706"></div><div><div class="pan">ERA5 Temperature</div><div class="padt">Heat stress · 11km · daily · global</div></div></div>
+      <div class="pai"><div class="pad" style="background:#dc2626"></div><div><div class="pan">Hansen Forest Watch</div><div class="padt">Deforestation · 30m · annual</div></div></div>
+      <div class="pai"><div class="pad" style="background:#16a34a"></div><div><div class="pan">SoilGrids REST API</div><div class="padt">Soil pH · carbon · clay · 250m</div></div></div>
+      <div class="pai"><div class="pad" style="background:#0284c7"></div><div><div class="pan">OpenWeatherMap</div><div class="padt">7-day forecast · global · coming soon</div></div></div>
+    </div>
+    <div class="pac">
+      <div class="pat">👤 Farmer Database</div>
+      <div class="pai"><div class="pad" style="background:#16a34a"></div><div><div class="pan">Farmer profiles</div><div class="padt">Name · country · land size · crops grown</div></div></div>
+      <div class="pai"><div class="pad" style="background:#22c55e"></div><div><div class="pan">Field GPS polygons</div><div class="padt">Exact boundaries · area · coordinates</div></div></div>
+      <div class="pai"><div class="pad" style="background:#0284c7"></div><div><div class="pan">Conversation history</div><div class="padt">All AI chats → structured JSON data</div></div></div>
+      <div class="pai"><div class="pad" style="background:#d97706"></div><div><div class="pan">Photo analyses</div><div class="padt">Disease · pest · soil photos + YOLO diagnosis</div></div></div>
+      <div class="pai"><div class="pad" style="background:#dc2626"></div><div><div class="pan">Yield + cost records</div><div class="padt">Planted · harvested · sold · profit</div></div></div>
+      <div class="pai"><div class="pad" style="background:#7c3aed"></div><div><div class="pan">Feedback data</div><div class="padt">Did recommendation work · yield change · rating</div></div></div>
+      <div class="pai"><div class="pad" style="background:#16a34a"></div><div><div class="pan">Storage: Sheets + Firebase</div><div class="padt">Permanent · real-time · offline sync</div></div></div>
+    </div>
+    <div class="pac">
+      <div class="pat">🤖 AI + Vision Layer</div>
+      <div class="pai"><div class="pad" style="background:#16a34a"></div><div><div class="pan">Claude AI (Anthropic)</div><div class="padt">Answers in any language · voice · text</div></div></div>
+      <div class="pai"><div class="pad" style="background:#22c55e"></div><div><div class="pan">YOLO v8 Vision</div><div class="padt">Disease · pest · crop detection in photos</div></div></div>
+      <div class="pai"><div class="pad" style="background:#0284c7"></div><div><div class="pan">Yield prediction model</div><div class="padt">NDVI + weather + soil → yield estimate</div></div></div>
+      <div class="pai"><div class="pad" style="background:#d97706"></div><div><div class="pan">Cost + income calculator</div><div class="padt">All inputs → net profit before planting</div></div></div>
+      <div class="pai"><div class="pad" style="background:#dc2626"></div><div><div class="pan">Alert system</div><div class="padt">NDVI drop · drought · pest outbreak</div></div></div>
+      <div class="pai"><div class="pad" style="background:#7c3aed"></div><div><div class="pan">SMS alerts (Twilio)</div><div class="padt">Works without internet · coming soon</div></div></div>
+      <div class="pai"><div class="pad" style="background:#16a34a"></div><div><div class="pan">Carbon credit tracker</div><div class="padt">Verify crop switches via satellite · coming</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="eye">What ZaminAI does</div>
+  <h2 class="sh">Everything a farmer needs</h2>
+  <div class="fg">
+    <div class="fc"><span class="fi">🛰️</span><div class="fn">01 · Satellite</div><div class="ft">Field Analysis</div><p class="fd">Draw your field on GPS map. Real NDVI, water, rainfall for your exact coordinates — updated every 5 days. Works in any country.</p><span class="ftag live">● Live</span></div>
+    <div class="fc"><span class="fi">📊</span><div class="fn">02 · Economics</div><div class="ft">Yield + Profit</div><p class="fd">AI predicts yield from NDVI and water. Calculates seeds, fertilizer, irrigation, machinery — and net profit before you plant.</p><span class="ftag live">● Live</span></div>
+    <div class="fc"><span class="fi">🤖</span><div class="fn">03 · AI</div><div class="ft">Any Language</div><p class="fd">Ask in Dari, Pashto, Farsi, Amharic, Urdu — any language. Voice in, voice out. Real satellite data powers every answer.</p><span class="ftag live">● Live</span></div>
+    <div class="fc"><span class="fi">📸</span><div class="fn">04 · Vision</div><div class="ft">YOLO Diagnosis</div><p class="fd">Upload plant photo. YOLO detects disease, pests, water stress with bounding boxes and 90%+ accuracy. Works offline.</p><span class="ftag soon">◐ Coming</span></div>
+    <div class="fc"><span class="fi">💧</span><div class="fn">05 · Water</div><div class="ft">Irrigation Guide</div><p class="fd">All 5 systems — drip, furrow, flood, sprinkler, karez. Satellite-based recommendation for your exact water availability.</p><span class="ftag live">● Live</span></div>
+    <div class="fc"><span class="fi">🌱</span><div class="fn">06 · Knowledge</div><div class="ft">Seeds + Market</div><p class="fd">Best seed varieties for your soil and water. Current market prices. Where to sell. Government and NGO support programs.</p><span class="ftag live">● Live</span></div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how" id="how">
+  <div class="eye">How it works</div>
+  <h2 class="sh">Four steps. Real results.</h2>
+  <div class="steps">
+    <div class="step"><div class="step-ico">📍</div><div class="step-n">01</div><div class="step-t">Open on phone</div><p class="step-d">GPS locates your position anywhere on earth. Satellite map loads your exact location.</p></div>
+    <div class="step"><div class="step-ico">✏️</div><div class="step-n">02</div><div class="step-t">Draw your field</div><p class="step-d">Tap the corners of your field. System calculates exact area in hectares, jereb, or acres.</p></div>
+    <div class="step"><div class="step-ico">🛰️</div><div class="step-n">03</div><div class="step-t">Satellite analyses</div><p class="step-d">Google Earth Engine pulls real Sentinel-2 data for your exact field polygon. Updated every 5 days.</p></div>
+    <div class="step"><div class="step-ico">🎤</div><div class="step-n">04</div><div class="step-t">Ask anything</div><p class="step-d">Speak in your language. AI reads your real data and answers with specific recommendations — aloud.</p></div>
+  </div>
+</section>
+
+<!-- CALCULATOR -->
+<section class="calc" id="calculator">
+  <div class="eye">Farm Intelligence Calculator</div>
+  <h2 class="sh">Know your numbers<br>before you plant</h2>
+  <p class="ss" style="max-width:620px">Enter your farm details. ZaminAI calculates expected yield based on satellite NDVI data, all input costs, and net profit — so you can decide what to grow before spending a single coin.</p>
+  <div class="calc-wrap">
+    <div class="calc-form">
+      <div class="ci"><label>Crop</label>
+        <select id="crop" onchange="calc()">
+          <option value="wheat">Wheat / گندم</option>
+          <option value="flax">Flax / کتان</option>
+          <option value="saffron">Saffron / زعفران</option>
+          <option value="chickpeas">Chickpeas / نخود</option>
+          <option value="vegetables">Vegetables / سبزیجات</option>
+          <option value="cotton">Cotton / پنبه</option>
+          <option value="almonds">Almonds / بادام</option>
+          <option value="maize">Maize / ذرت</option>
+          <option value="rice">Rice / برنج</option>
+        </select>
+      </div>
+      <div class="ci"><label>Land size (jereb)</label>
+        <input type="range" id="land" min="1" max="30" step="1" value="5" oninput="upd()">
+        <div class="rv"><span id="lv">5</span> jereb &nbsp;<span style="font-size:16px;color:var(--m2)" id="lh">(1.0 ha)</span></div>
+      </div>
+      <div class="ci"><label>Water availability</label>
+        <select id="water" onchange="calc()">
+          <option value="good">Good — river or canal nearby</option>
+          <option value="moderate" selected>Moderate — seasonal water</option>
+          <option value="low">Low — drought conditions</option>
+        </select>
+      </div>
+      <div class="ci"><label>Irrigation system</label>
+        <select id="irr" onchange="calc()">
+          <option value="drip">Drip irrigation — 85-95% efficient</option>
+          <option value="furrow" selected>Furrow irrigation — 50-60%</option>
+          <option value="flood">Flood / traditional — 30-40%</option>
+          <option value="sprinkler">Sprinkler — 70-80%</option>
+        </select>
+      </div>
+      <div class="ci"><label>Fertilizer</label>
+        <select id="fert" onchange="calc()">
+          <option value="full">Full package — Urea + DAP + Potassium</option>
+          <option value="basic" selected>Basic — Urea + DAP</option>
+          <option value="organic">Organic — Compost only</option>
+          <option value="none">None</option>
+        </select>
+      </div>
+      <div class="ci"><label>Machinery</label>
+        <select id="mach" onchange="calc()">
+          <option value="tractor">Tractor (rent) — all operations</option>
+          <option value="partial" selected>Tractor — plowing only</option>
+          <option value="manual">Manual — hand tools only</option>
+        </select>
+      </div>
+      <button class="cbtn" onclick="calc()">🛰️ Calculate with satellite data</button>
+    </div>
+    <div>
+      <div class="results">
+        <div class="res-head">Satellite-based calculation results</div>
+        <div class="res-grid">
+          <div class="ri"><div class="rv2" id="r1">—</div><div class="rl">Expected yield kg</div></div>
+          <div class="ri"><div class="rv2" id="r2">—</div><div class="rl">Gross income AFN</div></div>
+          <div class="ri"><div class="rv2" id="r3">—</div><div class="rl">Total input costs AFN</div></div>
+          <div class="ri"><div class="rv2" id="r4">—</div><div class="rl">Net profit AFN</div></div>
+        </div>
+        <div class="rec-box" id="rec">Select your crop and land size to calculate.</div>
+      </div>
+      <div style="margin-top:1.25rem">
+        <div style="font-family:var(--M);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--m);margin-bottom:0.75rem">Full cost breakdown</div>
+        <table class="cost-tbl">
+          <thead><tr><th>Item</th><th>Per jereb</th><th>Your total</th></tr></thead>
+          <tbody id="ctbl"><tr><td colspan="3" style="color:var(--m2);font-style:italic;padding:0.75rem">Calculate first to see breakdown</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LANGUAGES -->
+<section class="lang" id="languages">
+  <div class="eye">Languages</div>
+  <h2 class="sh">Speaks your language</h2>
+  <p class="ss" style="max-width:560px;margin:0 auto;text-align:center">Live now in 3 languages. Expanding as we grow to new countries — every new country gets its own language support.</p>
+  <div class="lg2">
+    <div class="lc on" onclick="setL('en',this)">
+      <div class="lcf">🇬🇧</div><div class="lcn">English</div>
+      <div class="lcs">Voice · Text</div>
+      <div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:6px;font-weight:500">● Live</div>
+    </div>
+    <div class="lc" onclick="setL('fa',this)">
+      <div class="lcf">🇦🇫</div><div class="lcn">دری · Dari</div>
+      <div class="lcs">Voice · Text</div>
+      <div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:6px;font-weight:500">● Live</div>
+    </div>
+    <div class="lc" onclick="setL('ps',this)">
+      <div class="lcf">🇦🇫</div><div class="lcn">پښتو · Pashto</div>
+      <div class="lcs">Voice · Text</div>
+      <div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:6px;font-weight:500">● Live</div>
+    </div>
+    <div class="lc" onclick="setL('cs',this)" style="opacity:0.65">
+      <div class="lcf">🌍</div><div class="lcn">+12 more</div>
+      <div class="lcs">Farsi · Urdu · Amharic</div>
+      <div style="font-family:var(--M);font-size:10px;color:var(--a);margin-top:6px">◐ Coming soon</div>
+    </div>
+  </div>
+  <div class="ldemo">
+    <div class="lq" id="lq">Does my field have enough water this season?</div>
+    <div class="lt" id="lt">English · Type or speak your question</div>
+  </div>
+</section>
+
+<!-- GLOBAL VISION -->
+<section class="vision">
+  <div class="eye">Expansion roadmap</div>
+  <h2 class="sh">Three phases.<br>One mission.</h2>
+  <div class="vision-grid">
+    <div class="vc">
+      <div class="vc-phase">Phase 1 · Now live</div>
+      <div class="vc-t">Afghanistan</div>
+      <ul class="vc-list">
+        <li>34 provinces covered by satellite</li>
+        <li>Real Sentinel-2 data 2019–2024</li>
+        <li>Dari and Pashto voice assistant</li>
+        <li>GPS field drawing and analysis</li>
+        <li>Irrigation, machinery, seed guides</li>
+        <li>Farmer profile and data collection</li>
+      </ul>
+    </div>
+    <div class="vc">
+      <div class="vc-phase" style="color:var(--a)">Phase 2 · In development</div>
+      <div class="vc-t">Central Asia + MENA</div>
+      <ul class="vc-list">
+        <li>Iran — Farsi language · saffron crops</li>
+        <li>Pakistan — Urdu + Pashto · wheat + rice</li>
+        <li>Tajikistan — Dari speakers · cotton</li>
+        <li>Uzbekistan — water crisis · cotton belt</li>
+        <li>Yemen — conflict + drought conditions</li>
+        <li>Each country gets local crop database</li>
+      </ul>
+    </div>
+    <div class="vc">
+      <div class="vc-phase" style="color:var(--b)">Phase 3 · Planned</div>
+      <div class="vc-t">Africa + South Asia</div>
+      <ul class="vc-list">
+        <li>Ethiopia — coffee + teff + Amharic</li>
+        <li>Nigeria — cassava + maize + Hausa</li>
+        <li>Bangladesh — rice + flood risk</li>
+        <li>Mali + Niger — Sahel drought zone</li>
+        <li>India — smallholder rice + wheat belt</li>
+        <li>Any country with a local partner</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- YOLO VISION -->
+<section class="yolo">
+  <div class="eye">Computer Vision</div>
+  <h2 class="sh">YOLO sees what<br>the eye misses</h2>
+  <div class="yg">
+    <div class="ydemo">
+      <div class="yscreen">
+        <div style="position:absolute;inset:0;background:repeating-linear-gradient(172deg,rgba(8,25,10,0.9) 0px,rgba(8,25,10,0.9) 4px,rgba(5,15,6,0.95) 4px,rgba(5,15,6,0.95) 11px);z-index:1;"></div>
+        <div class="ybox yg2" style="top:18%;left:12%;width:26%;height:28%;"></div>
+        <div class="ylbl yg2" style="top:16%;left:12%;">Healthy · 94%</div>
+        <div class="ybox yr2" style="top:33%;left:53%;width:22%;height:26%;"></div>
+        <div class="ylbl yr2" style="top:31%;left:53%;">Wheat rust · 89%</div>
+        <div class="ybox ya2" style="top:58%;left:28%;width:24%;height:22%;"></div>
+        <div class="ylbl ya2" style="top:56%;left:28%;">Water stress · 76%</div>
+        <div style="position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(74,222,128,0.8),transparent);animation:scan 3s linear infinite;z-index:5;"></div>
+        <div style="position:absolute;top:8px;left:8px;width:14px;height:14px;border-top:2px solid #4ade80;border-left:2px solid #4ade80;z-index:5;"></div>
+        <div style="position:absolute;top:8px;right:8px;width:14px;height:14px;border-top:2px solid #4ade80;border-right:2px solid #4ade80;z-index:5;"></div>
+        <div style="position:absolute;bottom:8px;left:8px;width:14px;height:14px;border-bottom:2px solid #4ade80;border-left:2px solid #4ade80;z-index:5;"></div>
+        <div style="position:absolute;bottom:8px;right:8px;width:14px;height:14px;border-bottom:2px solid #4ade80;border-right:2px solid #4ade80;z-index:5;"></div>
+        <div style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);font-family:var(--M);font-size:9px;color:#4ade80;letter-spacing:0.1em;z-index:5;white-space:nowrap;">ZAMINAI · YOLO VISION · LIVE</div>
+      </div>
+      <div style="display:flex;gap:1.5rem;margin-top:1rem;flex-wrap:wrap;">
+        <div style="font-family:var(--M);font-size:11px;color:rgba(255,255,255,0.5)">📸 Upload photo → instant detection</div>
+        <div style="font-family:var(--M);font-size:11px;color:#4ade80">● 94ms inference</div>
+      </div>
+    </div>
+    <div class="yfs">
+      <div class="yf vis"><div class="yft">Disease detection</div><div class="yfd">YOLO identifies wheat rust, leaf blight, powdery mildew and 50+ crop diseases from a phone photo — with confidence score and treatment in the farmer's language.</div></div>
+      <div class="yf vis" style="border-left-color:var(--b);transition-delay:0.1s"><div class="yft" style="color:var(--b)">Pest identification</div><div class="yfd">Aphids, locusts, stem borers — detected and counted per photo. AI recommends pesticide type, dose, and timing for your exact field size.</div></div>
+      <div class="yf vis" style="border-left-color:var(--a);transition-delay:0.2s"><div class="yft" style="color:var(--a)">Yield estimation</div><div class="yfd">Photo of crop head → AI estimates maturity stage and optimal harvest window — cross-checked with satellite NDVI data for maximum accuracy.</div></div>
+      <div class="yf vis" style="border-left-color:var(--p);transition-delay:0.3s"><div class="yft" style="color:var(--p)">Soil health analysis</div><div class="yfd">Photo of soil → identifies soil type, moisture, compaction issues. Combined with SoilGrids API data for a complete soil profile in seconds.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- SDG IMPACT -->
+<section class="sdg" id="impact">
+  <div class="eye">Global impact</div>
+  <h2 class="sh">6 SDGs. 1 platform.</h2>
+  <div class="sdgg">
+    <div class="sdc"><div class="sdn" style="color:#e5243b">1</div><div class="sdl">No Poverty</div></div>
+    <div class="sdc"><div class="sdn" style="color:#dda63a">2</div><div class="sdl">Zero Hunger</div></div>
+    <div class="sdc"><div class="sdn" style="color:#26bde2">6</div><div class="sdl">Clean Water</div></div>
+    <div class="sdc"><div class="sdn" style="color:#3f7e44">13</div><div class="sdl">Climate Action</div></div>
+    <div class="sdc"><div class="sdn" style="color:#56c02b">15</div><div class="sdl">Life on Land</div></div>
+    <div class="sdc"><div class="sdn" style="color:#19486a">17</div><div class="sdl">Partnerships</div></div>
+  </div>
+  <div class="stats-r">
+    <div class="src"><div class="srn">53%</div><div class="srl">Cropland collapse in Kunduz 2019→2022 · confirmed by satellite</div></div>
+    <div class="src"><div class="srn" style="color:#f87171">76%</div><div class="srl">Water surface decline in 2022 drought · r=0.97 water–cropland</div></div>
+    <div class="src"><div class="srn" style="color:#fbbf24">500M</div><div class="srl">Smallholder farmers worldwide making decisions without any data</div></div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+  <h2 class="ct">FARM<br>SMARTER<br>TODAY</h2>
+  <p class="cs">Open ZaminAI. Draw your field anywhere on earth. Get real satellite data and AI recommendations in your language — free, forever.</p>
+  <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;position:relative;z-index:1">
+    <a href="#" onclick="openModal(event)" style="font-family:var(--M);font-size:14px;padding:17px 46px;background:#4ade80;color:#052e16;text-decoration:none;border-radius:4px;font-weight:500;letter-spacing:0.06em;transition:all 0.2s;cursor:none;">Open ZaminAI — Free →</a>
+    <a href="https://afghanistan-development-initiative.github.io" style="font-family:var(--M);font-size:14px;padding:17px 32px;background:transparent;color:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.18);text-decoration:none;border-radius:4px;transition:all 0.2s;" target="_blank">ADI Platform</a>
+  </div>
+  <div style="margin-top:3rem;font-family:var(--M);font-size:11px;color:rgba(255,255,255,0.25);letter-spacing:0.1em;position:relative;z-index:1">AFGHANISTAN DEVELOPMENT INITIATIVE · ZAMINAI.ORG · 2025</div>
+</section>
+
+<footer>
+  <div class="fl">ZaminAI · زمین</div>
+  <div class="fls">
+    <a href="https://afghanistan-development-initiative.github.io" target="_blank">ADI Platform</a>
+    <a href="https://zaminai.streamlit.app" target="_blank">Launch App</a>
+    <a href="mailto:m.alamzoi123@gmail.com">Contact</a>
+  </div>
+  <div class="fc2">© 2025 · Maiwand Jan Alamzoi · Afghanistan Development Initiative · zaminai.org</div>
+</footer>
+
+<script>
+// Cursor
+const cur=document.getElementById("cur"),ring=document.getElementById("ring");
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener("mousemove",e=>{mx=e.clientX;my=e.clientY;cur.style.left=mx-5+"px";cur.style.top=my-5+"px";});
+(function ar(){rx+=(mx-rx)*0.1;ry+=(my-ry)*0.1;ring.style.left=rx-18+"px";ring.style.top=ry-18+"px";requestAnimationFrame(ar);})();
+document.querySelectorAll("a,button,select,input,[onclick]").forEach(el=>{
+  el.addEventListener("mouseenter",()=>{cur.style.transform="scale(2)";ring.style.width="52px";ring.style.height="52px";});
+  el.addEventListener("mouseleave",()=>{cur.style.transform="scale(1)";ring.style.width="36px";ring.style.height="36px";});
+});
+
+// Counters
+function cnt(id,t,d=0){setTimeout(()=>{const el=document.getElementById(id);if(!el)return;let v=0,s=t/80;const tm=setInterval(()=>{v+=s;if(v>=t){v=t;clearInterval(tm);}el.textContent=Math.floor(v);},20);},d);}
+const ob=new IntersectionObserver(e=>{if(e[0].isIntersecting){cnt("c1",2,0);cnt("c2",1,150);cnt("c3",6,300);cnt("c4",3,450);cnt("c5",12,600);cnt("c6",10,750);ob.disconnect();}},{threshold:0.4});
+const hs=document.querySelector(".hstats");if(hs)ob.observe(hs);
+
+// Scroll animations
+const so=new IntersectionObserver(es=>{es.forEach((e,i)=>{if(e.isIntersecting)setTimeout(()=>e.target.classList.add("vis"),i*80);});},{threshold:0.1});
+[...document.querySelectorAll(".fc,.step,.yf,.vc")].forEach(c=>so.observe(c));
+
+// Language demo
+const ld={
+  en:{q:"Does my field have enough water this season?",t:"English · Type or speak your question",dir:"ltr"},
+  fa:{q:"آیا زمین من آب کافی برای این فصل دارد؟",t:"دری · Dari · پرسش خود را بنویسید یا بگویید",dir:"rtl"},
+  ps:{q:"ایا زما ځمکه پدې فصل کې کافي اوبه لري؟",t:"پښتو · Pashto · خپله پوښتنه ولیکئ یا ووایئ",dir:"rtl"},
+  cs:{q:"Coming soon — Farsi · Urdu · Amharic · Hausa · Bengali · Swahili · and more",t:"12 languages planned as ZaminAI expands worldwide",dir:"ltr"}
+};
+function setL(l,el){
+  document.querySelectorAll(".lc").forEach(p=>p.classList.remove("on"));
+  el.classList.add("on");
+  const q=document.getElementById("lq"),t=document.getElementById("lt");
+  q.style.opacity="0";q.style.transform="translateY(8px)";
+  setTimeout(()=>{q.textContent=ld[l].q;t.textContent=ld[l].t;q.style.direction=ld[l].dir;q.style.transition="all 0.35s";q.style.opacity="1";q.style.transform="translateY(0)";},200);
+}
+
+// Calculator
+const CROPS={
+  wheat:    {yb:300, price:14,  seed:400,  wm:450},
+  flax:     {yb:120, price:28,  seed:600,  wm:350},
+  saffron:  {yb:0.8, price:3000,seed:8000, wm:300},
+  chickpeas:{yb:150, price:22,  seed:350,  wm:300},
+  vegetables:{yb:1200,price:10, seed:800,  wm:500},
+  cotton:   {yb:200, price:20,  seed:500,  wm:700},
+  almonds:  {yb:180, price:120, seed:5000, wm:400},
+  maize:    {yb:500, price:12,  seed:450,  wm:550},
+  rice:     {yb:400, price:18,  seed:550,  wm:1200}
+};
+
+function fmt(n){
+  if(typeof n!=="number"||isNaN(n))return"—";
+  if(Math.abs(n)>=1000000)return(Math.round(n/100000)/10)+"M";
+  if(Math.abs(n)>=1000)return(Math.round(n/100)/10)+"K";
+  return Math.round(n).toString();
+}
+
+function upd(){
+  const v=parseInt(document.getElementById("land").value);
+  document.getElementById("lv").textContent=v;
+  document.getElementById("lh").textContent="("+Math.round(v*0.2*10)/10+" ha)";
+  calc();
+}
+
+function calc(){
+  const c=CROPS[document.getElementById("crop").value];
+  const land=parseInt(document.getElementById("land").value);
+  const w=document.getElementById("water").value;
+  const irr=document.getElementById("irr").value;
+  const fert=document.getElementById("fert").value;
+  const mach=document.getElementById("mach").value;
+
+  const wm=w==="good"?1.0:w==="moderate"?0.75:0.45;
+  const im=irr==="drip"?1.15:irr==="furrow"?1.0:irr==="flood"?0.85:1.08;
+  const fm=fert==="full"?1.2:fert==="basic"?1.0:fert==="organic"?0.9:0.7;
+
+  const yld=Math.round(c.yb*wm*im*fm*land);
+  const inc=Math.round(yld*c.price);
+
+  const sc=c.seed;
+  const fc={full:2800,basic:1800,organic:600,none:0}[fert];
+  const ic={drip:800,furrow:400,flood:200,sprinkler:600}[irr];
+  const mc={tractor:1200,partial:600,manual:300}[mach];
+  const lc=600, oc=300;
+  const tcp=sc+fc+ic+mc+lc+oc;
+  const tc=Math.round(tcp*land);
+  const np=inc-tc;
+
+  document.getElementById("r1").textContent=fmt(yld)+" kg";
+  document.getElementById("r2").textContent=fmt(inc)+" AFN";
+  document.getElementById("r3").textContent=fmt(tc)+" AFN";
+  document.getElementById("r4").textContent=(np>=0?"+":"")+fmt(np)+" AFN";
+  document.getElementById("r4").style.color=np>=0?"#4ade80":"#f87171";
+
+  const rows=[
+    ["Seeds / تخم",sc,sc*land,"neg"],
+    ["Fertilizer / کود",fc,fc*land,"neg"],
+    ["Irrigation / آبیاری",ic,ic*land,"neg"],
+    ["Machinery / ماشین",mc,mc*land,"neg"],
+    ["Labour / کارگر",lc,lc*land,"neg"],
+    ["Other / سایر",oc,oc*land,"neg"],
+    ["<strong>Total costs</strong>",tcp,tc,"neg"],
+    ["<strong>Gross income</strong>","—",inc,"pos"],
+    ["<strong>Net profit</strong>","—",np,np>=0?"pos":"neg"]
+  ];
+  document.getElementById("ctbl").innerHTML=rows.map(r=>`
+    <tr>
+      <td>${r[0]}</td>
+      <td>${typeof r[1]==="number"?fmt(r[1])+" AFN":r[1]}</td>
+      <td class="${r[3]}">${r[3]==="pos"?"+":""}${fmt(r[2])} AFN</td>
+    </tr>
+  `).join("");
+
+  const cv=document.getElementById("crop").value;
+  let rec="";
+  if(w==="low"&&(cv==="rice"||cv==="cotton")){
+    rec="⚠️ "+c.yb+" warning: this crop needs "+c.wm+"mm water but your field shows drought stress. Switch to flax (350mm) or saffron (300mm) for better profit with 50% less water.";
+  }else if(irr==="flood"&&w!=="good"){
+    rec="💡 Switch to drip irrigation — saves 40-60% water and increases yield by 15%. With your current water level this could add "+fmt(Math.round(yld*0.15*c.price))+" AFN profit.";
+  }else if(np>0){
+    rec="✅ Good profitability. Satellite data shows "+Math.round(wm*100)+"% water availability for your region. Consider drip irrigation to protect this profit during dry years.";
+  }else{
+    rec="⚠️ Costs exceed income with this crop. Consider switching to "+(w==="low"?"saffron — 50x more value per ha than wheat":"vegetables — 3x more value per ha") +" on this land.";
+  }
+  document.getElementById("rec").textContent=rec;
+}
+
+upd();
+
+function openModal(e){if(e)e.preventDefault();document.getElementById('modalOverlay').classList.add('open');}
+function closeModalBtn(){document.getElementById('modalOverlay').classList.remove('open');}
+function closeModal(e){if(e.target===document.getElementById('modalOverlay'))document.getElementById('modalOverlay').classList.remove('open');}
+function closeModalDirect(){setTimeout(()=>document.getElementById('modalOverlay').classList.remove('open'),300);}
+
+</script>
+</body>
+</html>
