@@ -14,6 +14,20 @@ import anthropic
 # DATABASES
 # ═══════════════════════════════════════════════════════════════════════
 
+MARKET_DATABASE = {
+    "Kunduz":   {"main_market":"Kunduz City Central Market","buyers":["Local traders","WFP procurement"],"export_crops":["Flax","Dried fruits","Saffron"],"cold_storage":"Kunduz Cooperative Storage","avg_prices":{"Wheat":"12-15 AFN/kg","Flax":"25-30 AFN/kg","Vegetables":"8-15 AFN/kg"}},
+    "Balkh":    {"main_market":"Mazar-i-Sharif Market","buyers":["Local traders","Export to Central Asia"],"export_crops":["Cotton","Dried fruits","Wheat"],"cold_storage":"Balkh Cold Storage","avg_prices":{"Wheat":"11-14 AFN/kg","Cotton":"18-22 AFN/kg"}},
+    "Herat":    {"main_market":"Herat Central Market","buyers":["Iran export agents","Local traders"],"export_crops":["Saffron","Dried fruits","Pistachios"],"cold_storage":"Herat Agricultural Hub","avg_prices":{"Saffron":"2000-4000 AFN/gram","Wheat":"12-16 AFN/kg"}},
+    "Nangarhar":{"main_market":"Jalalabad Market","buyers":["Pakistan export agents","Local traders"],"export_crops":["Citrus","Vegetables","Sugar cane"],"cold_storage":"Nangarhar Farmers Association","avg_prices":{"Vegetables":"6-12 AFN/kg"}},
+    "Helmand":  {"main_market":"Lashkargah Market","buyers":["Local traders","WFP"],"export_crops":["Wheat","Cotton"],"cold_storage":"Helmand Agricultural Center","avg_prices":{"Wheat":"11-14 AFN/kg"}},
+    "Kabul":    {"main_market":"Kabul Central Market","buyers":["Local traders","NGO procurement"],"export_crops":["Dried fruits","Vegetables"],"cold_storage":"Kabul Cold Storage","avg_prices":{"Wheat":"13-16 AFN/kg","Vegetables":"10-20 AFN/kg"}},
+    "Kandahar": {"main_market":"Kandahar City Market","buyers":["Pakistan export agents","Local traders"],"export_crops":["Pomegranates","Grapes","Dried fruits"],"cold_storage":"Kandahar Fruit Processing Center","avg_prices":{"Pomegranates":"30-50 AFN/kg"}},
+    "Takhar":   {"main_market":"Taloqan Market","buyers":["Local traders"],"export_crops":["Wheat","Vegetables"],"cold_storage":"Contact provincial agriculture","avg_prices":{"Wheat":"11-15 AFN/kg"}},
+    "Baghlan":  {"main_market":"Pul-e-Khumri Market","buyers":["Local traders"],"export_crops":["Sugar beet","Wheat"],"cold_storage":"Contact provincial agriculture","avg_prices":{"Wheat":"11-15 AFN/kg"}},
+    "Badakhshan":{"main_market":"Faizabad Market","buyers":["Local traders"],"export_crops":["Dried fruits","Lapis lazuli"],"cold_storage":"Contact provincial agriculture","avg_prices":{"Wheat":"12-16 AFN/kg"}},
+    "Other":    {"main_market":"Provincial central market","buyers":["Local traders"],"export_crops":["Wheat","Vegetables"],"cold_storage":"Contact provincial agriculture department","avg_prices":{"Wheat":"11-15 AFN/kg","Vegetables":"8-15 AFN/kg"}},
+}
+
 SEED_DATABASE = {
     "Wheat": {
         "varieties": ["Mazar-99", "Herat-99", "Roshan"],
