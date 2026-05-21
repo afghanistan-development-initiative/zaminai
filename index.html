@@ -1762,25 +1762,30 @@ function calc(){
 
 upd();
 
+// Init app immediately on page load - don't wait for button click
+document.addEventListener('DOMContentLoaded', function(){
+  const appStyle = document.getElementById('zaminai-app-styles');
+  if(appStyle) appStyle.disabled = false;
+  setTimeout(()=>{
+    try{
+      initZaminAIApp();
+      window._zaminaiInitialized = true;
+      console.log('✓ ZaminAI initialized on load');
+    } catch(err){
+      console.error('ZaminAI init error:', err.message);
+    }
+  }, 300);
+});
+
 function openModal(e){
   if(e) e.preventDefault();
   const overlay = document.getElementById('appOverlay');
   overlay.classList.add('open');
   document.body.style.overflow='hidden';
-
-  if(!window._zaminaiInitialized){
-    window._zaminaiInitialized = true;
-    const appStyle = document.getElementById('zaminai-app-styles');
-    if(appStyle) appStyle.disabled = false;
-    setTimeout(()=>{
-      try{ initZaminAIApp(); }
-      catch(err){ console.error('ZaminAI init error:', err.message, err.stack); }
-    }, 150);
-  } else {
-    setTimeout(()=>{
-      if(window._zaminaiMap) window._zaminaiMap.invalidateSize(true);
-    }, 200);
-  }
+  // Resize map after overlay opens
+  setTimeout(()=>{
+    if(window._zaminaiMap) window._zaminaiMap.invalidateSize(true);
+  }, 250);
 }
 function closeAppOverlay(){
   document.getElementById('appOverlay').classList.remove('open');
@@ -1795,9 +1800,19 @@ function closeAppOverlay(){
 // window.X gets overwritten with the real functions.
 function _callApp(fn, args){
   if(window[fn]) return window[fn].apply(null, args);
-  // App not ready yet - open it first then call
-  openModal(null);
-  setTimeout(()=>{ if(window[fn]) window[fn].apply(null, args); }, 500);
+  // App not ready - wait for init then call
+  let tries = 0;
+  const wait = setInterval(()=>{
+    tries++;
+    if(window[fn]){
+      clearInterval(wait);
+      window[fn].apply(null, args);
+    } else if(tries > 20){
+      clearInterval(wait);
+      // Open overlay and try again
+      openModal(null);
+    }
+  }, 100);
 }
 function setLang(l,el)    { _callApp('setLang',[l,el]); }
 function clearAll()        { _callApp('clearAll',[]); }
