@@ -3,3 +3,4 @@ flask-cors==4.0.1
 gunicorn==22.0.0
 requests==2.31.0
 earthengine-api==0.1.413
+numpy==1.26.4
