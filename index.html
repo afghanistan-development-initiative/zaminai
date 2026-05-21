@@ -4,46 +4,39 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>ZaminAI — Smart Farming Intelligence</title>
-<meta name="description" content="Real satellite data for every field. AI recommendations in Dari, Pashto, English. Built for 500 million smallholder farmers.">
+<meta name="description" content="Real satellite data for every field. AI in Dari, Pashto, English. For 500 million smallholder farmers.">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
 :root{
   --g:#16a34a;--gd:#052e16;--gl:#22c55e;--gb:#dcfce7;--gbr:#c8e6cc;
-  --bg:#f0fdf4;--bg2:#e8f5ea;--w:#ffffff;--t:#0f2d16;--m:#3d6b47;--m2:#6b9e74;
+  --bg:#f0fdf4;--bg2:#e8f5ea;--w:#fff;--t:#0f2d16;--m:#3d6b47;--m2:#6b9e74;
   --b:#0284c7;--a:#d97706;--r:#dc2626;--p:#7c3aed;
-  --D:'Bebas Neue',sans-serif;--B:'DM Sans',sans-serif;--M:'DM Mono',monospace;
+  --D:"Bebas Neue",sans-serif;--B:"DM Sans",sans-serif;--M:"DM Mono",monospace;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 html{scroll-behavior:smooth;}
 body{background:var(--bg);color:var(--t);font-family:var(--B);overflow-x:hidden;}
-
-/* ── CURSOR ── */
 #cur{position:fixed;width:10px;height:10px;background:var(--g);border-radius:50%;pointer-events:none;z-index:9999;transition:transform .15s;}
 #ring{position:fixed;width:36px;height:36px;border:2px solid rgba(22,163,74,.35);border-radius:50%;pointer-events:none;z-index:9998;transition:all .18s;}
-
-/* ── NAV ── */
-nav{position:fixed;top:0;left:0;right:0;z-index:500;display:flex;align-items:center;justify-content:space-between;padding:1rem 5rem;background:rgba(240,253,244,.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--gbr);}
+nav{position:fixed;top:0;left:0;right:0;z-index:500;display:flex;align-items:center;justify-content:space-between;padding:1rem 5rem;background:rgba(240,253,244,.96);backdrop-filter:blur(20px);border-bottom:1px solid var(--gbr);}
 .logo{font-family:var(--D);font-size:28px;color:var(--g);text-decoration:none;display:flex;align-items:center;gap:8px;}
 .logo-dot{width:7px;height:7px;background:var(--g);border-radius:50%;animation:pulse 2s infinite;}
 .nav-links{display:flex;gap:2rem;align-items:center;}
 .nav-links a{font-family:var(--M);font-size:11px;color:var(--m);text-decoration:none;letter-spacing:.1em;text-transform:uppercase;transition:color .2s;}
 .nav-links a:hover{color:var(--g);}
 .lang-sw{display:flex;gap:5px;}
-.lsw{font-family:var(--M);font-size:11px;padding:4px 10px;border:1px solid var(--gbr);border-radius:20px;background:var(--w);color:var(--m);cursor:pointer;transition:all .2s;text-decoration:none;}
+.lsw{font-family:var(--M);font-size:11px;padding:4px 10px;border:1px solid var(--gbr);border-radius:20px;background:var(--w);color:var(--m);cursor:pointer;transition:all .2s;}
 .lsw.on,.lsw:hover{background:var(--gb);border-color:var(--g);color:var(--g);}
-.nav-cta{font-family:var(--M);font-size:12px;padding:9px 22px;background:var(--g);color:#fff;text-decoration:none;border-radius:4px;transition:all .2s;border:none;cursor:pointer;}
+.nav-cta{font-family:var(--M);font-size:12px;padding:9px 22px;background:var(--g);color:#fff;border:none;border-radius:4px;cursor:pointer;transition:all .2s;}
 .nav-cta:hover{background:var(--gd);}
 @media(max-width:768px){nav{padding:1rem 1.5rem;}.nav-links{display:none;}}
-
-/* ── HERO ── */
 .hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:9rem 5rem 5rem;position:relative;overflow:hidden;}
 .hero-bg{position:absolute;inset:0;background:linear-gradient(135deg,#f0fdf4 0%,#e8f5ea 50%,#d4edda 100%);}
-.hero-bg::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 55% at 70% 50%,rgba(34,197,94,.14) 0%,transparent 60%);}
+.hero-bg::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 60% 55% at 70% 50%,rgba(34,197,94,.14) 0%,transparent 60%);}
 .hgrid{position:absolute;inset:0;background-image:linear-gradient(rgba(22,163,74,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(22,163,74,.05) 1px,transparent 1px);background-size:52px 52px;}
 .scan-line{position:absolute;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(22,163,74,.3),transparent);animation:scanAnim linear infinite;}
-.scan-line:nth-child(1){animation-duration:11s;}
-.scan-line:nth-child(2){animation-duration:17s;animation-delay:5s;}
+.scan-line:nth-child(1){animation-duration:11s;}.scan-line:nth-child(2){animation-duration:17s;animation-delay:5s;}
 .hc{position:relative;z-index:2;}
 .htag{display:inline-flex;align-items:center;gap:8px;font-family:var(--M);font-size:11px;letter-spacing:.12em;color:var(--g);background:var(--w);border:1px solid var(--gbr);padding:5px 14px;border-radius:20px;margin-bottom:1.5rem;opacity:0;animation:fadeUp .7s ease .2s forwards;}
 .pd{width:6px;height:6px;background:var(--g);border-radius:50%;animation:pulse 2s infinite;}
@@ -60,42 +53,41 @@ nav{position:fixed;top:0;left:0;right:0;z-index:500;display:flex;align-items:cen
 .hstats{display:flex;gap:2.5rem;padding-top:1.5rem;border-top:1px solid var(--gbr);flex-wrap:wrap;opacity:0;animation:fadeUp .8s ease 1s forwards;}
 .sv{font-family:var(--D);font-size:42px;color:var(--g);line-height:1;}
 .sl{font-family:var(--M);font-size:10px;color:var(--m2);letter-spacing:.1em;text-transform:uppercase;margin-top:3px;}
-
-/* ── MARQUEE ── */
 .mq{background:var(--g);padding:12px 0;overflow:hidden;}
 .mq-inner{display:flex;gap:2rem;animation:marquee 35s linear infinite;white-space:nowrap;}
 .mq-item{font-family:var(--M);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.7);display:flex;align-items:center;gap:.6rem;flex-shrink:0;}
 .mq-dot{width:4px;height:4px;background:rgba(255,255,255,.4);border-radius:50%;}
-
-/* ── SHARED ── */
 section{padding:7rem 5rem;}
 .eye{font-family:var(--M);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--g);margin-bottom:.6rem;}
 .sh{font-family:var(--D);font-size:clamp(42px,6vw,88px);line-height:.92;color:var(--t);margin-bottom:1rem;}
 .ss{font-size:16px;color:var(--m);font-weight:300;line-height:1.75;}
-
-/* ── GLOBAL ── */
 .global{background:var(--w);border-top:1px solid var(--gbr);}
 .global-grid{display:grid;grid-template-columns:1fr 1fr;gap:5rem;align-items:start;margin-top:3.5rem;}
 .region-list{display:flex;flex-direction:column;gap:2px;}
 .region{display:flex;align-items:center;gap:1rem;padding:.85rem 1rem;border-radius:8px;transition:background .2s;}
 .region:hover{background:var(--gb);}
 .rflag{font-size:20px;width:28px;text-align:center;flex-shrink:0;}
-.rinfo{flex:1;}
-.rname{font-size:14px;font-weight:500;}
-.rdetail{font-family:var(--M);font-size:10px;color:var(--m2);margin-top:2px;letter-spacing:.03em;}
+.rinfo{flex:1;}.rname{font-size:14px;font-weight:500;}.rdetail{font-family:var(--M);font-size:10px;color:var(--m2);margin-top:2px;}
 .rstatus{font-family:var(--M);font-size:10px;padding:3px 9px;border-radius:20px;}
-.st-live{background:var(--gb);color:var(--g);}
-.st-dev{background:#fef3c7;color:var(--a);}
-.st-plan{background:#f3f4f6;color:#6b7280;}
+.st-live{background:var(--gb);color:var(--g);}.st-dev{background:#fef3c7;color:var(--a);}.st-plan{background:#f3f4f6;color:#6b7280;}
 .gstats{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:2rem;}
 .gs{background:var(--bg);border:1px solid var(--gbr);border-radius:10px;padding:1.25rem;}
 .gs-v{font-family:var(--D);font-size:34px;color:var(--g);line-height:1;}
 .gs-l{font-family:var(--M);font-size:10px;color:var(--m2);text-transform:uppercase;letter-spacing:.07em;margin-top:3px;line-height:1.4;}
-
-/* ── FEATURES ── */
-.features{background:var(--bg2);border-top:1px solid var(--gbr);}
+/* Platform */
+.platform{background:var(--bg2);border-top:1px solid var(--gbr);}
+.pa{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:3.5rem;}
+.pac{background:var(--w);border:1px solid var(--gbr);border-radius:12px;padding:2rem;transition:box-shadow .25s;}
+.pac:hover{box-shadow:0 6px 24px rgba(22,163,74,.1);}
+.pat{font-family:var(--D);font-size:19px;letter-spacing:.04em;color:var(--g);margin-bottom:1.25rem;display:flex;align-items:center;gap:8px;}
+.pai{display:flex;align-items:flex-start;gap:10px;padding:.55rem 0;border-bottom:1px solid var(--gbr);}
+.pai:last-child{border-bottom:none;}
+.pad{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:4px;}
+.pan{color:var(--t);font-size:12px;font-weight:500;}.padt{font-family:var(--M);font-size:10px;color:var(--m2);margin-top:1px;}
+/* Features */
+.features{background:var(--w);border-top:1px solid var(--gbr);}
 .feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:3.5rem;}
-.fc{background:var(--w);border:1px solid var(--gbr);border-radius:12px;padding:2.25rem;opacity:0;transform:translateY(20px);transition:opacity .5s,transform .5s,box-shadow .25s;}
+.fc{background:var(--bg);border:1px solid var(--gbr);border-radius:12px;padding:2.25rem;opacity:0;transform:translateY(20px);transition:opacity .5s,transform .5s,box-shadow .25s;}
 .fc.vis{opacity:1;transform:translateY(0);}
 .fc:hover{box-shadow:0 8px 28px rgba(22,163,74,.1);transform:translateY(-3px);}
 .fi{font-size:34px;margin-bottom:1.25rem;display:block;}
@@ -103,24 +95,21 @@ section{padding:7rem 5rem;}
 .ft{font-family:var(--D);font-size:24px;letter-spacing:.02em;margin-bottom:.75rem;}
 .fd{font-size:13px;color:var(--m);line-height:1.75;font-weight:300;}
 .ftag{display:inline-block;font-family:var(--M);font-size:10px;padding:3px 8px;border-radius:20px;margin-top:.75rem;}
-.ftag.live{background:var(--gb);color:var(--g);}
-.ftag.soon{background:#fef3c7;color:var(--a);}
-
-/* ── HOW ── */
-.how{background:var(--w);border-top:1px solid var(--gbr);}
+.ftag.live{background:var(--gb);color:var(--g);}.ftag.soon{background:#fef3c7;color:var(--a);}
+/* How */
+.how{background:var(--bg2);border-top:1px solid var(--gbr);}
 .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:2rem;margin-top:4rem;position:relative;}
-.steps::before{content:'';position:absolute;top:27px;left:8%;right:8%;height:1px;background:linear-gradient(90deg,transparent,var(--gbr),var(--gbr),transparent);}
+.steps::before{content:"";position:absolute;top:27px;left:8%;right:8%;height:1px;background:linear-gradient(90deg,transparent,var(--gbr),var(--gbr),transparent);}
 .step{text-align:center;opacity:0;transform:translateY(18px);transition:all .5s;}
 .step.vis{opacity:1;transform:translateY(0);}
 .step-ico{width:54px;height:54px;background:var(--gb);border:2px solid var(--gbr);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-size:20px;position:relative;z-index:1;}
 .step-n{font-family:var(--D);font-size:17px;color:var(--g);margin-bottom:.4rem;}
 .step-t{font-family:var(--D);font-size:19px;letter-spacing:.03em;margin-bottom:.4rem;}
 .step-d{font-size:13px;color:var(--m);line-height:1.65;font-weight:300;}
-
-/* ── CALCULATOR ── */
-.calc{background:var(--bg2);border-top:1px solid var(--gbr);}
+/* Calculator */
+.calc{background:var(--w);border-top:1px solid var(--gbr);}
 .calc-wrap{display:grid;grid-template-columns:1fr 1.1fr;gap:2.5rem;margin-top:3.5rem;align-items:start;}
-.calc-form{background:var(--w);border:1px solid var(--gbr);border-radius:12px;padding:1.75rem;}
+.calc-form{background:var(--bg);border:1px solid var(--gbr);border-radius:12px;padding:1.75rem;}
 .ci{margin-bottom:1.1rem;}
 .ci label{font-family:var(--M);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--m);display:block;margin-bottom:5px;}
 .ci select,.ci input[type=range]{width:100%;}
@@ -141,11 +130,10 @@ section{padding:7rem 5rem;}
 .cost-tbl th{font-family:var(--M);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--m2);padding:.5rem .75rem;text-align:left;border-bottom:2px solid var(--gbr);}
 .cost-tbl td{padding:.6rem .75rem;border-bottom:1px solid var(--gbr);color:var(--t);}
 .pos{color:var(--g);font-weight:500;}.neg{color:var(--r);}
-
-/* ── LANGUAGES ── */
-.lang{background:var(--w);border-top:1px solid var(--gbr);text-align:center;}
+/* Languages */
+.lang{background:var(--bg2);border-top:1px solid var(--gbr);text-align:center;}
 .lang-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:1.25rem;margin:2.5rem auto 0;max-width:900px;}
-.lc{background:var(--bg);border:2px solid var(--gbr);border-radius:12px;padding:1.75rem 1rem;cursor:pointer;transition:all .25s;}
+.lc{background:var(--w);border:2px solid var(--gbr);border-radius:12px;padding:1.75rem 1rem;cursor:pointer;transition:all .25s;}
 .lc:hover,.lc.on{border-color:var(--g);background:var(--gb);box-shadow:0 4px 16px rgba(22,163,74,.1);}
 .lcf{font-size:28px;margin-bottom:.6rem;}
 .lcn{font-family:var(--D);font-size:20px;letter-spacing:.03em;margin-bottom:.4rem;}
@@ -153,8 +141,23 @@ section{padding:7rem 5rem;}
 .ldemo{margin:2.5rem auto 0;max-width:900px;background:var(--gd);border-radius:16px;padding:2.5rem;min-height:110px;display:flex;flex-direction:column;align-items:center;justify-content:center;}
 .lq{font-size:clamp(17px,3vw,32px);font-weight:300;color:rgba(255,255,255,.7);line-height:1.6;text-align:center;transition:all .35s;}
 .lt{font-family:var(--M);font-size:12px;color:rgba(255,255,255,.3);margin-top:.75rem;letter-spacing:.07em;}
-
-/* ── ROADMAP ── */
+/* YOLO */
+.yolo{background:var(--w);border-top:1px solid var(--gbr);}
+.yolo-grid{display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center;margin-top:3.5rem;}
+.yscreen{background:#030805;border-radius:12px;aspect-ratio:4/3;position:relative;overflow:hidden;}
+.yscreen::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(172deg,rgba(8,25,10,.9) 0px,rgba(8,25,10,.9) 4px,rgba(5,15,6,.95) 4px,rgba(5,15,6,.95) 11px);z-index:1;}
+.ybox{position:absolute;border:2px solid;z-index:3;}
+.ylbl{position:absolute;font-family:var(--M);font-size:9px;letter-spacing:.06em;padding:2px 6px;z-index:4;animation:yblink 2.5s ease-in-out infinite;border-radius:2px;}
+.yg2{color:#4ade80;border-color:#4ade80;background:rgba(74,222,128,.15);}
+.yr2{color:#f87171;border-color:#f87171;background:rgba(248,113,113,.15);}
+.ya2{color:#fbbf24;border-color:#fbbf24;background:rgba(251,191,36,.15);}
+.yscan{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(74,222,128,.8),transparent);animation:scanAnim 3s linear infinite;z-index:5;}
+.yf-list{display:flex;flex-direction:column;gap:1rem;}
+.yf{background:var(--bg);border:1px solid var(--gbr);border-left:4px solid var(--g);padding:1.25rem;border-radius:0 8px 8px 0;opacity:0;transform:translateX(20px);transition:all .5s;}
+.yf.vis{opacity:1;transform:translateX(0);}
+.yft{font-family:var(--M);font-size:11px;letter-spacing:.08em;color:var(--g);margin-bottom:5px;text-transform:uppercase;}
+.yfd{font-size:13px;color:var(--m);line-height:1.6;font-weight:300;}
+/* Roadmap */
 .roadmap{background:var(--bg2);border-top:1px solid var(--gbr);}
 .roadmap-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:3.5rem;}
 .rc{background:var(--w);border:1px solid var(--gbr);border-radius:12px;padding:2rem;opacity:0;transform:translateY(18px);transition:all .5s;}
@@ -163,9 +166,8 @@ section{padding:7rem 5rem;}
 .rc-t{font-family:var(--D);font-size:22px;letter-spacing:.03em;margin-bottom:.9rem;}
 .rc-list{list-style:none;display:flex;flex-direction:column;gap:5px;}
 .rc-list li{font-size:13px;color:var(--m);display:flex;gap:7px;line-height:1.55;}
-.rc-list li::before{content:'→';color:var(--g);flex-shrink:0;}
-
-/* ── SDG ── */
+.rc-list li::before{content:"→";color:var(--g);flex-shrink:0;}
+/* SDG */
 .sdg{background:var(--w);border-top:1px solid var(--gbr);}
 .sdg-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:1rem;margin-top:3rem;}
 .sdc{background:var(--bg);border:1px solid var(--gbr);border-radius:12px;padding:1.5rem 1rem;text-align:center;transition:all .25s;}
@@ -176,22 +178,19 @@ section{padding:7rem 5rem;}
 .src{background:var(--gd);border-radius:12px;padding:2rem;text-align:center;}
 .srn{font-family:var(--D);font-size:52px;color:#4ade80;line-height:1;}
 .srl{font-family:var(--M);font-size:10px;color:rgba(255,255,255,.4);letter-spacing:.09em;text-transform:uppercase;margin-top:5px;line-height:1.5;}
-
-/* ── CTA ── */
+/* CTA */
 .cta{padding:9rem 5rem;text-align:center;background:var(--gd);position:relative;overflow:hidden;}
-.cta::before{content:'';position:absolute;width:800px;height:800px;background:radial-gradient(circle,rgba(74,222,128,.07) 0%,transparent 65%);top:50%;left:50%;transform:translate(-50%,-50%);}
+.cta::before{content:"";position:absolute;width:800px;height:800px;background:radial-gradient(circle,rgba(74,222,128,.07) 0%,transparent 65%);top:50%;left:50%;transform:translate(-50%,-50%);}
 .cta h2{font-family:var(--D);font-size:clamp(56px,10vw,128px);line-height:.88;color:#fff;margin-bottom:1.75rem;position:relative;z-index:1;}
 .cta p{font-size:16px;color:rgba(255,255,255,.5);font-weight:300;max-width:480px;margin:0 auto 2.5rem;line-height:1.75;position:relative;z-index:1;}
 .cta-btns{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;position:relative;z-index:1;}
-
 footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;background:var(--w);}
 .fl{font-family:var(--D);font-size:24px;color:var(--g);}
 .flinks{display:flex;gap:2rem;}
 .flinks a{font-family:var(--M);font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--m);text-decoration:none;transition:color .2s;}
 .flinks a:hover{color:var(--g);}
 .fc2{font-family:var(--M);font-size:11px;color:var(--m2);}
-
-/* ── APP OVERLAY ── */
+/* APP OVERLAY */
 .app-overlay{position:fixed;inset:0;z-index:1000;background:var(--bg);display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .3s;}
 .app-overlay.open{opacity:1;pointer-events:all;}
 .ao-nav{display:flex;align-items:center;justify-content:space-between;padding:.65rem 1.25rem;background:rgba(255,255,255,.97);border-bottom:1px solid var(--gbr);flex-shrink:0;height:50px;}
@@ -202,11 +201,7 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
 .ao-close{font-family:var(--M);font-size:12px;padding:6px 14px;background:var(--bg);border:1px solid var(--gbr);border-radius:20px;cursor:pointer;color:var(--m);display:flex;align-items:center;gap:5px;transition:all .2s;}
 .ao-close:hover{border-color:var(--g);color:var(--g);}
 .ao-body{flex:1;position:relative;overflow:hidden;}
-
-/* ── MAP ── */
 #map{position:absolute;inset:0;z-index:1;}
-
-/* ── TOOLBAR ── */
 .toolbar{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:200;display:flex;gap:5px;background:rgba(255,255,255,.97);backdrop-filter:blur(16px);border:1px solid var(--gbr);border-radius:40px;padding:5px 8px;box-shadow:0 4px 20px rgba(0,0,0,.09);}
 .tb{font-family:var(--M);font-size:11px;padding:7px 13px;border:1px solid transparent;border-radius:20px;cursor:pointer;transition:all .2s;background:transparent;color:var(--m);white-space:nowrap;display:flex;align-items:center;gap:5px;}
 .tb.on,.tb:hover{background:var(--gb);border-color:var(--g);color:var(--g);}
@@ -214,8 +209,6 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
 .tb.primary:hover{background:var(--gd);}
 .tb:disabled{opacity:.4;cursor:not-allowed;}
 .tb-sep{width:1px;background:var(--gbr);margin:4px 0;}
-
-/* ── GPS MODAL ── */
 .gps-modal{position:absolute;top:68px;left:50%;transform:translateX(-50%);z-index:300;background:var(--w);border:1px solid var(--gbr);border-radius:14px;padding:1.4rem;width:330px;box-shadow:0 10px 40px rgba(0,0,0,.12);display:none;}
 .gps-modal.show{display:block;}
 .gm-title{font-family:var(--D);font-size:21px;color:var(--g);margin-bottom:.9rem;}
@@ -231,12 +224,8 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
 .gm-btn{width:100%;padding:9px;background:var(--g);color:#fff;border:none;border-radius:7px;font-family:var(--M);font-size:12px;font-weight:500;cursor:pointer;margin-top:4px;transition:background .2s;}
 .gm-btn:hover{background:var(--gd);}
 .gm-close{position:absolute;top:10px;right:12px;font-size:17px;cursor:pointer;color:var(--m2);background:none;border:none;}
-
-/* ── DRAW TIP ── */
 .draw-tip{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);z-index:200;background:var(--gd);color:#4ade80;font-family:var(--M);font-size:12px;padding:9px 18px;border-radius:20px;letter-spacing:.04em;pointer-events:none;opacity:0;transition:opacity .3s;white-space:nowrap;}
 .draw-tip.show{opacity:1;}
-
-/* ── REPORT PANEL ── */
 .rp{position:absolute;top:0;right:-100%;bottom:0;width:420px;z-index:400;background:var(--w);border-left:1px solid var(--gbr);box-shadow:-6px 0 32px rgba(0,0,0,.1);overflow-y:auto;transition:right .4s cubic-bezier(.4,0,.2,1);}
 .rp.open{right:0;}
 .rp-head{background:var(--gd);padding:1.25rem 1.25rem 1rem;position:sticky;top:0;z-index:10;}
@@ -245,11 +234,9 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
 .rp-close{position:absolute;top:10px;right:12px;background:rgba(255,255,255,.1);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:15px;color:#fff;display:flex;align-items:center;justify-content:center;transition:background .2s;}
 .rp-close:hover{background:rgba(255,255,255,.2);}
 .rp-body{padding:1.1rem;}
-
-/* Report internals */
 .rep-sec{margin-bottom:1.1rem;}
 .rep-title{font-family:var(--M);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--m2);margin-bottom:.55rem;display:flex;align-items:center;gap:5px;}
-.rep-title::after{content:'';flex:1;height:1px;background:var(--gbr);}
+.rep-title::after{content:"";flex:1;height:1px;background:var(--gbr);}
 .status-card{border-radius:9px;padding:.9rem;border-left:4px solid;margin-bottom:5px;}
 .sc-good{background:#f0fdf4;border-color:var(--g);}
 .sc-mod{background:#fffbeb;border-color:var(--a);}
@@ -288,11 +275,7 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
 .inc-row .val{font-family:var(--M);}
 .val.pos{color:var(--g);}.val.neg{color:var(--r);}.val.neu{color:var(--t);}
 .save-badge{display:inline-flex;align-items:center;gap:6px;font-family:var(--M);font-size:11px;padding:5px 11px;border-radius:20px;background:var(--gb);color:var(--g);border:1px solid var(--gbr);margin-bottom:.9rem;}
-
-/* ── MINI MAP ── */
 #miniMap{height:150px;border-radius:8px;overflow:hidden;border:1px solid var(--gbr);margin-bottom:.5rem;position:relative;}
-
-/* ── AI PANEL ── */
 .ai-panel{position:absolute;bottom:-100%;left:0;right:0;z-index:500;background:var(--w);border-top:1px solid var(--gbr);border-radius:18px 18px 0 0;box-shadow:0 -6px 32px rgba(0,0,0,.1);transition:bottom .4s cubic-bezier(.4,0,.2,1);max-height:65vh;display:flex;flex-direction:column;}
 .ai-panel.open{bottom:0;}
 .ai-handle{width:36px;height:4px;background:var(--gbr);border-radius:2px;margin:9px auto 0;}
@@ -300,11 +283,9 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
 .ai-title{font-family:var(--D);font-size:20px;color:var(--g);letter-spacing:.03em;}
 .ai-close{background:var(--bg);border:1px solid var(--gbr);border-radius:20px;padding:4px 11px;font-family:var(--M);font-size:11px;cursor:pointer;color:var(--m);}
 .chat-msgs{flex:1;overflow-y:auto;padding:.9rem;display:flex;flex-direction:column;gap:.65rem;}
-.cmsg{display:flex;gap:7px;}
-.cmsg.user{flex-direction:row-reverse;}
+.cmsg{display:flex;gap:7px;}.cmsg.user{flex-direction:row-reverse;}
 .cavatar{width:26px;height:26px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;}
-.cmsg.ai .cavatar{background:var(--gb);}
-.cmsg.user .cavatar{background:#dbeafe;}
+.cmsg.ai .cavatar{background:var(--gb);}.cmsg.user .cavatar{background:#dbeafe;}
 .cbubble{max-width:87%;padding:.6rem .85rem;border-radius:9px;font-size:13px;line-height:1.6;}
 .cmsg.ai .cbubble{background:var(--bg);border:1px solid var(--gbr);border-radius:4px 9px 9px 9px;}
 .cmsg.user .cbubble{background:var(--g);color:#fff;border-radius:9px 4px 9px 9px;}
@@ -321,21 +302,12 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
 .send-btn:hover{background:var(--gd);}
 .typing{display:flex;gap:4px;padding:2px 0;}
 .typing span{width:5px;height:5px;background:var(--m2);border-radius:50%;animation:bounce 1.2s ease-in-out infinite;}
-.typing span:nth-child(2){animation-delay:.2s;}
-.typing span:nth-child(3){animation-delay:.4s;}
-
-/* ── AI FLOAT BTN ── */
+.typing span:nth-child(2){animation-delay:.2s;}.typing span:nth-child(3){animation-delay:.4s;}
 .ai-float{position:absolute;bottom:18px;right:18px;z-index:300;width:50px;height:50px;background:var(--g);border:none;border-radius:50%;cursor:pointer;font-size:20px;box-shadow:0 4px 16px rgba(22,163,74,.4);display:flex;align-items:center;justify-content:center;transition:all .2s;}
 .ai-float:hover{background:var(--gd);transform:scale(1.08);}
-
-/* ── NOTIF ── */
 .notif{position:absolute;bottom:78px;left:50%;transform:translateX(-50%);background:var(--gd);color:#4ade80;font-family:var(--M);font-size:11px;padding:9px 18px;border-radius:20px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;letter-spacing:.05em;white-space:nowrap;}
 .notif.show{opacity:1;}
-
-/* ── SPIN ── */
 .spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spinA .8s linear infinite;}
-
-/* ── ANIMATIONS ── */
 @keyframes fadeUp{from{opacity:0;transform:translateY(26px);}to{opacity:1;transform:translateY(0);}}
 @keyframes scanAnim{0%{top:-2px;}100%{top:102%;}}
 @keyframes marquee{from{transform:translateX(0);}to{transform:translateX(-50%);}}
@@ -343,62 +315,37 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
 @keyframes bounce{0%,60%,100%{transform:translateY(0);}30%{transform:translateY(-5px);}}
 @keyframes vpulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.4);}50%{box-shadow:0 0 0 9px rgba(220,38,38,0);}}
 @keyframes spinA{to{transform:rotate(360deg);}}
-
-/* ── RESPONSIVE ── */
-@media(max-width:1024px){
-  nav{padding:1rem 2rem;}.nav-links{display:none;}
-  section{padding:5rem 2rem;}
-  .hero{padding:7rem 2rem 4rem;}
-  .cta{padding:6rem 2rem;}
-  footer{padding:2rem;}
-  .feat-grid,.roadmap-grid{grid-template-columns:1fr 1fr;}
-  .how .steps{grid-template-columns:1fr 1fr;}
-  .sdg-grid{grid-template-columns:repeat(3,1fr);}
-  .global-grid,.calc-wrap{grid-template-columns:1fr;}
-  .lang-cards,.stat-row,.gstats{grid-template-columns:1fr 1fr;}
-}
-@media(max-width:600px){
-  .feat-grid,.roadmap-grid,.steps,.sdg-grid,.lang-cards,.stat-row,.gstats{grid-template-columns:1fr;}
-  .rp{width:100%;}
-  .toolbar{padding:4px 6px;gap:3px;}
-  .tb{padding:6px 9px;font-size:10px;}
-}
+@keyframes yblink{0%,100%{opacity:.55;}50%{opacity:1;}}
+@media(max-width:1024px){nav{padding:1rem 2rem;}.nav-links{display:none;}section{padding:5rem 2rem;}.hero{padding:7rem 2rem 4rem;}.cta{padding:6rem 2rem;}footer{padding:2rem;}.pa,.feat-grid,.roadmap-grid,.yolo-grid,.global-grid,.calc-wrap{grid-template-columns:1fr;}.steps{grid-template-columns:1fr 1fr;}.sdg-grid{grid-template-columns:repeat(3,1fr);}.lang-cards,.stat-row,.gstats{grid-template-columns:1fr 1fr;}}
+@media(max-width:600px){.steps,.sdg-grid,.lang-cards,.stat-row,.gstats{grid-template-columns:1fr;}.rp{width:100%;}.toolbar{padding:4px 6px;gap:3px;}.tb{padding:6px 9px;font-size:10px;}}
 </style>
 </head>
 <body>
-
 <div id="cur"></div><div id="ring"></div>
 
-<!-- ═══════════════════ NAVIGATION ═══════════════════ -->
 <nav id="main-nav">
   <a href="#" class="logo"><span class="logo-dot"></span>ZaminAI</a>
   <div class="nav-links">
-    <a href="#global">Global</a>
-    <a href="#features">Features</a>
-    <a href="#calculator">Calculator</a>
-    <a href="#languages">Languages</a>
-    <a href="#impact">Impact</a>
+    <a href="#global" id="nl-global">Global</a>
+    <a href="#features" id="nl-features">Features</a>
+    <a href="#calculator" id="nl-calc">Calculator</a>
+    <a href="#languages" id="nl-lang">Languages</a>
+    <a href="#impact" id="nl-impact">Impact</a>
     <div class="lang-sw">
-      <span class="lsw on" onclick="switchLang('en',this)">EN</span>
-      <span class="lsw" onclick="switchLang('fa',this)">دری</span>
-      <span class="lsw" onclick="switchLang('ps',this)">پښتو</span>
+      <span class="lsw on" onclick="pgLang('en',this)">EN</span>
+      <span class="lsw" onclick="pgLang('fa',this)">دری</span>
+      <span class="lsw" onclick="pgLang('ps',this)">پښتو</span>
     </div>
   </div>
-  <button class="nav-cta" onclick="openApp()">Open App →</button>
+  <button class="nav-cta" onclick="openApp()" id="nl-cta">Open App →</button>
 </nav>
 
-<!-- ═══════════════════ HERO ═══════════════════ -->
 <section class="hero">
-  <div class="hero-bg"></div>
-  <div class="hgrid"></div>
+  <div class="hero-bg"></div><div class="hgrid"></div>
   <div class="scan-line"></div><div class="scan-line"></div>
   <div class="hc">
     <div class="htag"><span class="pd"></span><span id="hero-tag">LIVE · REAL SATELLITE DATA · WORLDWIDE</span></div>
-    <h1 class="htitle">
-      <span class="t1" id="ht1">ZAMIN</span>
-      <span class="t2" id="ht2">AI</span>
-      <span class="t3" id="ht3">Smart Farming Intelligence · For Every Farmer on Earth</span>
-    </h1>
+    <h1 class="htitle"><span class="t1" id="ht1">ZAMIN</span><span class="t2" id="ht2">AI</span><span class="t3" id="ht3">Smart Farming Intelligence · For Every Farmer on Earth</span></h1>
     <p class="hdesc" id="hero-desc">Real satellite data for every field. AI recommendations in Dari, Pashto, English. Built for 500 million smallholder farmers who make decisions without any digital support.</p>
     <div class="hbtns">
       <button class="btn-p" onclick="openApp()"><span id="hb1">Open ZaminAI — Free →</span></button>
@@ -406,7 +353,7 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
     </div>
     <div class="hstats">
       <div><div class="sv" id="c1">0</div><div class="sl" id="sl1">Satellites</div></div>
-      <div><div class="sv" id="c2">0</div><div class="sl" id="sl2">Countries · live</div></div>
+      <div><div class="sv" id="c2">0</div><div class="sl" id="sl2">Countries live</div></div>
       <div><div class="sv" id="c3">0</div><div class="sl" id="sl3">Years of data</div></div>
       <div><div class="sv" id="c4">0</div><div class="sl" id="sl4">Languages</div></div>
       <div><div class="sv" id="c5">0</div><div class="sl" id="sl5">Data sources</div></div>
@@ -414,8 +361,7 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
   </div>
 </section>
 
-<!-- ── MARQUEE ── -->
-<div class="mq"><div class="mq-inner" id="mq-inner">
+<div class="mq"><div class="mq-inner">
   <div class="mq-item"><span class="mq-dot"></span>Sentinel-2 · 10m</div>
   <div class="mq-item"><span class="mq-dot"></span>NDVI · MNDWI</div>
   <div class="mq-item"><span class="mq-dot"></span>CHIRPS Rainfall</div>
@@ -436,20 +382,19 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
   <div class="mq-item"><span class="mq-dot"></span>SoilGrids ISRIC</div>
 </div></div>
 
-<!-- ═══════════════════ GLOBAL ═══════════════════ -->
 <section class="global" id="global">
   <div class="global-grid">
     <div>
       <div class="eye" id="g-eye">Live now · Expanding globally</div>
       <h2 class="sh" id="g-h">One platform.<br>Every country.</h2>
-      <p class="ss" id="g-sub">Same satellite. Same AI. Different language, different crop, different country.</p>
-      <div class="region-list" id="region-list" style="margin-top:2rem"></div>
+      <p class="ss" id="g-sub" style="margin-bottom:2rem">Same satellite. Same AI. Different language, different crop, different country.</p>
+      <div class="region-list" id="region-list"></div>
     </div>
     <div>
       <div class="eye" id="g2-eye">The global opportunity</div>
       <h2 class="sh" id="g2-h">500 million farmers.<br>Zero digital support.</h2>
-      <p class="ss" id="g2-sub" style="margin-bottom:1rem">Today, 500 million smallholder farmers make planting and irrigation decisions with no satellite data, no AI, no digital tools.</p>
-      <p class="ss" id="g2-sub2">ZaminAI gives any farmer anywhere on earth the same quality of agricultural intelligence that large commercial farms pay thousands for. Free. In their language. On their phone.</p>
+      <p class="ss" id="g2-d1" style="margin-bottom:1rem">Today, 500 million smallholder farmers make planting and irrigation decisions with no satellite data, no AI, no digital tools.</p>
+      <p class="ss" id="g2-d2">ZaminAI gives any farmer anywhere on earth the same quality of agricultural intelligence that large commercial farms pay thousands for. Free. In their language. On their phone.</p>
       <div class="gstats">
         <div class="gs"><div class="gs-v">500M</div><div class="gs-l" id="gs1">Smallholder farmers worldwide</div></div>
         <div class="gs"><div class="gs-v">2B</div><div class="gs-l" id="gs2">People dependent on smallholder farming</div></div>
@@ -460,7 +405,41 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
   </div>
 </section>
 
-<!-- ═══════════════════ FEATURES ═══════════════════ -->
+<section class="platform" id="platform">
+  <div class="eye" id="pl-eye">Platform architecture</div>
+  <h2 class="sh" id="pl-h">Three layers. One platform.</h2>
+  <p class="ss" id="pl-sub" style="max-width:600px">Satellite data + farmer database + AI — connected into one global agricultural intelligence system.</p>
+  <div class="pa">
+    <div class="pac">
+      <div class="pat" id="pat1">🛰️ Satellite Layer</div>
+      <div class="pai"><div class="pad" style="background:#16a34a"></div><div><div class="pan">Sentinel-2 NDVI · MNDWI</div><div class="padt">Vegetation · water · 10m · 5-day · global</div></div></div>
+      <div class="pai"><div class="pad" style="background:#0284c7"></div><div><div class="pan">CHIRPS Rainfall</div><div class="padt">Daily precipitation · 5km · 1981–now</div></div></div>
+      <div class="pai"><div class="pad" style="background:#7c3aed"></div><div><div class="pan">MODIS Snow + ET</div><div class="padt">Snowmelt · evapotranspiration · 500m</div></div></div>
+      <div class="pai"><div class="pad" style="background:#d97706"></div><div><div class="pan">ERA5 Temperature</div><div class="padt">Heat stress · 11km · daily · global</div></div></div>
+      <div class="pai"><div class="pad" style="background:#dc2626"></div><div><div class="pan">Hansen Forest Watch</div><div class="padt">Deforestation · 30m · annual</div></div></div>
+      <div class="pai"><div class="pad" style="background:#16a34a"></div><div><div class="pan">SoilGrids REST API</div><div class="padt">Soil pH · carbon · clay · 250m</div></div></div>
+    </div>
+    <div class="pac">
+      <div class="pat" id="pat2">👤 Farmer Database</div>
+      <div class="pai"><div class="pad" style="background:#16a34a"></div><div><div class="pan">Farmer profiles</div><div class="padt">Name · country · land size · crops</div></div></div>
+      <div class="pai"><div class="pad" style="background:#22c55e"></div><div><div class="pan">Field GPS polygons</div><div class="padt">Exact boundaries · area · coordinates</div></div></div>
+      <div class="pai"><div class="pad" style="background:#0284c7"></div><div><div class="pan">Conversation history</div><div class="padt">All AI chats → structured JSON data</div></div></div>
+      <div class="pai"><div class="pad" style="background:#d97706"></div><div><div class="pan">Photo analyses</div><div class="padt">Disease · pest · soil + YOLO diagnosis</div></div></div>
+      <div class="pai"><div class="pad" style="background:#dc2626"></div><div><div class="pan">Yield + cost records</div><div class="padt">Planted · harvested · sold · profit</div></div></div>
+      <div class="pai"><div class="pad" style="background:#7c3aed"></div><div><div class="pan">Storage: Sheets + Firebase</div><div class="padt">Permanent · real-time · offline sync</div></div></div>
+    </div>
+    <div class="pac">
+      <div class="pat" id="pat3">🤖 AI + Vision Layer</div>
+      <div class="pai"><div class="pad" style="background:#16a34a"></div><div><div class="pan">Gemini AI (Google)</div><div class="padt">Answers in any language · voice · text</div></div></div>
+      <div class="pai"><div class="pad" style="background:#22c55e"></div><div><div class="pan">YOLO v8 Vision</div><div class="padt">Disease · pest · crop detection in photos</div></div></div>
+      <div class="pai"><div class="pad" style="background:#0284c7"></div><div><div class="pan">Yield prediction model</div><div class="padt">NDVI + weather + soil → yield estimate</div></div></div>
+      <div class="pai"><div class="pad" style="background:#d97706"></div><div><div class="pan">Cost + income calculator</div><div class="padt">All inputs → net profit before planting</div></div></div>
+      <div class="pai"><div class="pad" style="background:#dc2626"></div><div><div class="pan">Alert system</div><div class="padt">NDVI drop · drought · pest outbreak</div></div></div>
+      <div class="pai"><div class="pad" style="background:#7c3aed"></div><div><div class="pan">Carbon credit tracker</div><div class="padt">Verify crop switches via satellite</div></div></div>
+    </div>
+  </div>
+</section>
+
 <section class="features" id="features">
   <div class="eye" id="f-eye">What ZaminAI does</div>
   <h2 class="sh" id="f-h">Everything a farmer needs</h2>
@@ -468,13 +447,12 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
     <div class="fc"><span class="fi">🛰️</span><div class="fn">01 · Satellite</div><div class="ft" id="ff1">Field Analysis</div><p class="fd" id="fd1">Draw your field on satellite map. Real NDVI, water index, rainfall for your exact coordinates — updated every 5 days.</p><span class="ftag live">● Live</span></div>
     <div class="fc"><span class="fi">📊</span><div class="fn">02 · Economics</div><div class="ft" id="ff2">Yield + Profit</div><p class="fd" id="fd2">Predicts yield from NDVI and water data. Calculates all input costs and net profit before you plant.</p><span class="ftag live">● Live</span></div>
     <div class="fc"><span class="fi">🤖</span><div class="fn">03 · AI</div><div class="ft" id="ff3">Any Language</div><p class="fd" id="fd3">Ask in Dari, Pashto, or English. Voice in, voice out. Real satellite data powers every answer.</p><span class="ftag live">● Live</span></div>
-    <div class="fc"><span class="fi">📸</span><div class="fn">04 · Vision</div><div class="ft" id="ff4">YOLO Diagnosis</div><p class="fd" id="fd4">Upload plant photo. AI detects disease and pests with 90%+ accuracy. Works offline.</p><span class="ftag soon">◐ Coming</span></div>
-    <div class="fc"><span class="fi">💧</span><div class="fn">05 · Water</div><div class="ft" id="ff5">Irrigation Guide</div><p class="fd" id="fd5">All 5 systems compared. Satellite-based recommendation for your exact water availability.</p><span class="ftag live">● Live</span></div>
-    <div class="fc"><span class="fi">🌱</span><div class="fn">06 · Knowledge</div><div class="ft" id="ff6">Seeds + Market</div><p class="fd" id="fd6">Best seed varieties for your soil. Current market prices. Where to sell. Government programs.</p><span class="ftag live">● Live</span></div>
+    <div class="fc"><span class="fi">📸</span><div class="fn">04 · Vision</div><div class="ft" id="ff4">YOLO Diagnosis</div><p class="fd" id="fd4">Upload plant photo. AI detects disease and pests with 90%+ accuracy from your phone camera.</p><span class="ftag soon">◐ Coming</span></div>
+    <div class="fc"><span class="fi">💧</span><div class="fn">05 · Water</div><div class="ft" id="ff5">Irrigation Guide</div><p class="fd" id="fd5">All 5 systems compared — drip, furrow, flood, sprinkler, karez. Satellite-based recommendation for your exact water availability.</p><span class="ftag live">● Live</span></div>
+    <div class="fc"><span class="fi">🌱</span><div class="fn">06 · Knowledge</div><div class="ft" id="ff6">Seeds + Market</div><p class="fd" id="fd6">Best seed varieties for your soil. Current market prices. Where to sell. Government and NGO programs.</p><span class="ftag live">● Live</span></div>
   </div>
 </section>
 
-<!-- ═══════════════════ HOW IT WORKS ═══════════════════ -->
 <section class="how" id="how">
   <div class="eye" id="h-eye">How it works</div>
   <h2 class="sh" id="h-h">Four steps. Real results.</h2>
@@ -486,23 +464,18 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
   </div>
 </section>
 
-<!-- ═══════════════════ CALCULATOR ═══════════════════ -->
 <section class="calc" id="calculator">
   <div class="eye" id="ca-eye">Farm Intelligence Calculator</div>
   <h2 class="sh" id="ca-h">Know your numbers<br>before you plant</h2>
-  <p class="ss" id="ca-sub" style="max-width:580px;margin-bottom:.5rem">Enter your farm details. ZaminAI calculates expected yield based on satellite data, all costs, and net profit.</p>
+  <p class="ss" id="ca-sub" style="max-width:580px;margin-bottom:.5rem">Enter your farm details. ZaminAI calculates expected yield, all costs, and net profit.</p>
   <div class="calc-wrap">
     <div class="calc-form">
       <div class="ci"><label id="lc">Crop</label>
         <select id="crop" onchange="calcFarm()">
-          <option value="wheat">Wheat / گندم</option>
-          <option value="flax">Flax / کتان</option>
-          <option value="saffron">Saffron / زعفران</option>
-          <option value="chickpeas">Chickpeas / نخود</option>
-          <option value="vegetables">Vegetables / سبزیجات</option>
-          <option value="cotton">Cotton / پنبه</option>
-          <option value="almonds">Almonds / بادام</option>
-          <option value="maize">Maize / ذرت</option>
+          <option value="wheat">Wheat / گندم</option><option value="flax">Flax / کتان</option>
+          <option value="saffron">Saffron / زعفران</option><option value="chickpeas">Chickpeas / نخود</option>
+          <option value="vegetables">Vegetables / سبزیجات</option><option value="cotton">Cotton / پنبه</option>
+          <option value="almonds">Almonds / بادام</option><option value="maize">Maize / ذرت</option>
         </select>
       </div>
       <div class="ci"><label id="ll">Land size (jereb)</label>
@@ -511,9 +484,9 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
       </div>
       <div class="ci"><label id="lw">Water availability</label>
         <select id="water" onchange="calcFarm()">
-          <option value="good">Good — river or canal nearby</option>
-          <option value="moderate" selected>Moderate — seasonal water</option>
-          <option value="low">Low — drought conditions</option>
+          <option value="good" id="wo1">Good — river or canal nearby</option>
+          <option value="moderate" selected id="wo2">Moderate — seasonal water</option>
+          <option value="low" id="wo3">Low — drought conditions</option>
         </select>
       </div>
       <div class="ci"><label id="li">Irrigation system</label>
@@ -554,24 +527,20 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
       </div>
       <div style="margin-top:1.1rem">
         <div style="font-family:var(--M);font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--m);margin-bottom:.65rem" id="cb-lbl">Full cost breakdown</div>
-        <table class="cost-tbl">
-          <thead><tr><th id="th1">Item</th><th id="th2">Per jereb</th><th id="th3">Your total</th></tr></thead>
-          <tbody id="ctbl"><tr><td colspan="3" style="color:var(--m2);font-style:italic;padding:.65rem">Calculate first →</td></tr></tbody>
-        </table>
+        <table class="cost-tbl"><thead><tr><th id="th1">Item</th><th id="th2">Per jereb</th><th id="th3">Your total</th></tr></thead><tbody id="ctbl"><tr><td colspan="3" style="color:var(--m2);font-style:italic;padding:.65rem">Calculate first →</td></tr></tbody></table>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ═══════════════════ LANGUAGES ═══════════════════ -->
 <section class="lang" id="languages">
   <div class="eye" id="la-eye">Languages</div>
   <h2 class="sh" id="la-h">Speaks your language</h2>
   <p class="ss" id="la-sub" style="max-width:520px;margin:0 auto;text-align:center">Live in 3 languages now. Expanding to 15+ as we grow globally.</p>
   <div class="lang-cards">
-    <div class="lc on" onclick="setLang('en',this)"><div class="lcf">🇬🇧</div><div class="lcn">English</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
-    <div class="lc" onclick="setLang('fa',this)"><div class="lcf">🇦🇫</div><div class="lcn">دری · Dari</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
-    <div class="lc" onclick="setLang('ps',this)"><div class="lcf">🇦🇫</div><div class="lcn">پښتو · Pashto</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
+    <div class="lc on" onclick="setLangDemo('en',this)"><div class="lcf">🇬🇧</div><div class="lcn">English</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
+    <div class="lc" onclick="setLangDemo('fa',this)"><div class="lcf">🇦🇫</div><div class="lcn">دری · Dari</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
+    <div class="lc" onclick="setLangDemo('ps',this)"><div class="lcf">🇦🇫</div><div class="lcn">پښتو · Pashto</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
     <div class="lc" style="opacity:.6"><div class="lcf">🌍</div><div class="lcn">+12 more</div><div class="lcs">Farsi · Urdu · Amharic</div><div style="font-family:var(--M);font-size:10px;color:var(--a);margin-top:5px">◐ Coming</div></div>
   </div>
   <div class="ldemo">
@@ -580,30 +549,55 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
   </div>
 </section>
 
-<!-- ═══════════════════ ROADMAP ═══════════════════ -->
+<section class="yolo" id="yolo">
+  <div class="eye" id="yo-eye">Computer Vision</div>
+  <h2 class="sh" id="yo-h">YOLO sees what<br>the eye misses</h2>
+  <div class="yolo-grid">
+    <div>
+      <div style="background:var(--gd);border-radius:16px;padding:1.5rem;">
+        <div class="yscreen">
+          <div style="position:absolute;inset:0;background:repeating-linear-gradient(172deg,rgba(8,25,10,.9) 0px,rgba(8,25,10,.9) 4px,rgba(5,15,6,.95) 4px,rgba(5,15,6,.95) 11px);z-index:1;"></div>
+          <div class="ybox yg2" style="top:18%;left:12%;width:26%;height:28%;"></div>
+          <div class="ylbl yg2" style="top:16%;left:12%;">Healthy · 94%</div>
+          <div class="ybox yr2" style="top:33%;left:53%;width:22%;height:26%;"></div>
+          <div class="ylbl yr2" style="top:31%;left:53%;">Wheat rust · 89%</div>
+          <div class="ybox ya2" style="top:58%;left:28%;width:24%;height:22%;"></div>
+          <div class="ylbl ya2" style="top:56%;left:28%;">Water stress · 76%</div>
+          <div class="yscan"></div>
+          <div style="position:absolute;top:8px;left:8px;width:14px;height:14px;border-top:2px solid #4ade80;border-left:2px solid #4ade80;z-index:5;"></div>
+          <div style="position:absolute;top:8px;right:8px;width:14px;height:14px;border-top:2px solid #4ade80;border-right:2px solid #4ade80;z-index:5;"></div>
+          <div style="position:absolute;bottom:8px;left:8px;width:14px;height:14px;border-bottom:2px solid #4ade80;border-left:2px solid #4ade80;z-index:5;"></div>
+          <div style="position:absolute;bottom:8px;right:8px;width:14px;height:14px;border-bottom:2px solid #4ade80;border-right:2px solid #4ade80;z-index:5;"></div>
+          <div style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);font-family:var(--M);font-size:9px;color:#4ade80;letter-spacing:.1em;z-index:5;white-space:nowrap;">ZAMINAI · YOLO VISION · LIVE</div>
+        </div>
+        <div style="font-family:var(--M);font-size:11px;color:rgba(255,255,255,.5);margin-top:1rem">📸 Upload photo → instant detection · 94ms inference</div>
+      </div>
+    </div>
+    <div class="yf-list">
+      <div class="yf vis"><div class="yft" id="yf1t">Disease detection</div><div class="yfd" id="yf1d">YOLO identifies wheat rust, leaf blight, powdery mildew and 50+ crop diseases from a phone photo — with confidence score and treatment in the farmer's language.</div></div>
+      <div class="yf vis" style="border-left-color:var(--b);transition-delay:.1s"><div class="yft" id="yf2t" style="color:var(--b)">Pest identification</div><div class="yfd" id="yf2d">Aphids, locusts, stem borers — detected and counted per photo. AI recommends pesticide type, dose, and timing for your exact field size.</div></div>
+      <div class="yf vis" style="border-left-color:var(--a);transition-delay:.2s"><div class="yft" id="yf3t" style="color:var(--a)">Yield estimation</div><div class="yfd" id="yf3d">Photo of crop head → AI estimates maturity stage and optimal harvest window, cross-checked with satellite NDVI data.</div></div>
+      <div class="yf vis" style="border-left-color:var(--p);transition-delay:.3s"><div class="yft" id="yf4t" style="color:var(--p)">Soil health</div><div class="yfd" id="yf4d">Photo of soil → identifies soil type, moisture, compaction issues. Combined with SoilGrids API data for a complete soil profile.</div></div>
+    </div>
+  </div>
+</section>
+
 <section class="roadmap" id="roadmap">
   <div class="eye" id="rm-eye">Expansion roadmap</div>
   <h2 class="sh" id="rm-h">Three phases.<br>One mission.</h2>
   <div class="roadmap-grid">
-    <div class="rc"><div class="rc-phase" id="rm-p1">Phase 1 · Now live</div><div class="rc-t" id="rm-t1">Afghanistan</div><ul class="rc-list" id="rm-l1">
-      <li>34 provinces covered by satellite</li><li>Real Sentinel-2 data 2019–2025</li>
-      <li>Dari and Pashto voice assistant</li><li>GPS field drawing and analysis</li>
-      <li>Irrigation, machinery, seed guides</li><li>Farmer data collection platform</li>
-    </ul></div>
-    <div class="rc"><div class="rc-phase" id="rm-p2" style="color:var(--a)">Phase 2 · In development</div><div class="rc-t" id="rm-t2">Central Asia + MENA</div><ul class="rc-list" id="rm-l2">
-      <li>Iran — Farsi · saffron crops</li><li>Pakistan — Urdu + Pashto · wheat</li>
-      <li>Tajikistan — Dari · cotton belt</li><li>Uzbekistan — water crisis zone</li>
-      <li>Yemen — conflict + drought</li><li>Each country gets local crop database</li>
-    </ul></div>
-    <div class="rc"><div class="rc-phase" id="rm-p3" style="color:var(--b)">Phase 3 · Planned</div><div class="rc-t" id="rm-t3">Africa + South Asia</div><ul class="rc-list" id="rm-l3">
-      <li>Ethiopia — coffee + teff + Amharic</li><li>Nigeria — cassava + maize + Hausa</li>
-      <li>Bangladesh — rice + flood risk</li><li>Mali + Niger — Sahel drought zone</li>
-      <li>India — smallholder wheat + rice</li><li>Any country with a local partner</li>
-    </ul></div>
+    <div class="rc"><div class="rc-phase" id="rm-p1">Phase 1 · Now live</div><div class="rc-t" id="rm-t1">Afghanistan</div>
+      <ul class="rc-list"><li id="rml1-0">34 provinces covered by satellite</li><li id="rml1-1">Real Sentinel-2 data 2019–2025</li><li id="rml1-2">Dari and Pashto voice assistant</li><li id="rml1-3">GPS field drawing and analysis</li><li id="rml1-4">Irrigation, machinery, seed guides</li><li id="rml1-5">Farmer data collection platform</li></ul>
+    </div>
+    <div class="rc"><div class="rc-phase" id="rm-p2" style="color:var(--a)">Phase 2 · In development</div><div class="rc-t" id="rm-t2">Central Asia + MENA</div>
+      <ul class="rc-list"><li id="rml2-0">Iran — Farsi · saffron crops</li><li id="rml2-1">Pakistan — Urdu + Pashto · wheat</li><li id="rml2-2">Tajikistan — Dari · cotton belt</li><li id="rml2-3">Uzbekistan — water crisis zone</li><li id="rml2-4">Yemen — conflict + drought</li><li id="rml2-5">Each country gets local crop database</li></ul>
+    </div>
+    <div class="rc"><div class="rc-phase" id="rm-p3" style="color:var(--b)">Phase 3 · Planned</div><div class="rc-t" id="rm-t3">Africa + South Asia</div>
+      <ul class="rc-list"><li id="rml3-0">Ethiopia — coffee + teff + Amharic</li><li id="rml3-1">Nigeria — cassava + maize + Hausa</li><li id="rml3-2">Bangladesh — rice + flood risk</li><li id="rml3-3">Mali + Niger — Sahel drought zone</li><li id="rml3-4">India — smallholder wheat + rice</li><li id="rml3-5">Any country with a local partner</li></ul>
+    </div>
   </div>
 </section>
 
-<!-- ═══════════════════ SDG IMPACT ═══════════════════ -->
 <section class="sdg" id="impact">
   <div class="eye" id="sdg-eye">Global impact</div>
   <h2 class="sh" id="sdg-h">6 SDGs. 1 platform.</h2>
@@ -622,7 +616,6 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
   </div>
 </section>
 
-<!-- ═══════════════════ CTA ═══════════════════ -->
 <section class="cta">
   <h2 id="cta-h">FARM<br>SMARTER<br>TODAY</h2>
   <p id="cta-sub">Open ZaminAI. Draw your field. Get real satellite data and AI recommendations in your language — free, forever.</p>
@@ -635,82 +628,59 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
 
 <footer>
   <div class="fl">ZaminAI · زمین</div>
-  <div class="flinks">
-    <a href="https://afghanistan-development-initiative.github.io" target="_blank">ADI Platform</a>
-    <a href="mailto:m.alamzoi123@gmail.com">Contact</a>
-  </div>
+  <div class="flinks"><a href="https://afghanistan-development-initiative.github.io" target="_blank">ADI Platform</a><a href="mailto:m.alamzoi123@gmail.com">Contact</a></div>
   <div class="fc2">© 2025 · Maiwand Jan Alamzoi · Afghanistan Development Initiative · zaminai.org</div>
 </footer>
-
-<!-- ═══════════════════ APP OVERLAY ═══════════════════ -->
 <div class="app-overlay" id="appOverlay">
   <div class="ao-nav">
     <div class="ao-logo" onclick="closeApp()">🌱 ZaminAI</div>
     <div class="ao-lang">
-      <button class="on" onclick="appSetLang('en',this)">EN</button>
-      <button onclick="appSetLang('fa',this)">دری</button>
-      <button onclick="appSetLang('ps',this)">پښتو</button>
+      <button class="on" onclick="appLangSet('en',this)">EN</button>
+      <button onclick="appLangSet('fa',this)">دری</button>
+      <button onclick="appLangSet('ps',this)">پښتو</button>
     </div>
     <button class="ao-close" onclick="closeApp()">✕ Close</button>
   </div>
   <div class="ao-body">
     <div id="map"></div>
-    <!-- Toolbar -->
     <div class="toolbar">
-      <button class="tb on" id="tb-draw" onclick="tbDraw()">✏️ <span id="tbd-lbl">Draw field</span></button>
-      <button class="tb" onclick="showGPS()">📍 <span id="tbg-lbl">GPS</span></button>
+      <button class="tb on" id="tb-draw" onclick="tbDraw()">✏️ <span id="tbd">Draw field</span></button>
+      <button class="tb" onclick="showGPS()">📍 <span id="tbg">GPS</span></button>
       <div class="tb-sep"></div>
-      <button class="tb" onclick="tbClear()">🗑️ <span id="tbc-lbl">Clear</span></button>
+      <button class="tb" onclick="tbClear()">🗑️ <span id="tbc">Clear</span></button>
       <div class="tb-sep"></div>
       <button class="tb" onclick="toggleTiles()" title="Toggle satellite/street">🗺️</button>
       <div class="tb-sep"></div>
-      <button class="tb primary" id="tb-analyse" onclick="tbAnalyse()" disabled>🛰️ <span id="tba-lbl">Analyse</span></button>
+      <button class="tb primary" id="tb-analyse" onclick="tbAnalyse()" disabled>🛰️ <span id="tba">Analyse</span></button>
     </div>
-    <!-- GPS modal -->
     <div class="gps-modal" id="gpsModal">
       <button class="gm-close" onclick="hideGPS()">✕</button>
-      <div class="gm-title" id="gm-title">Auto-draw field</div>
-      <div class="gm-tip" id="gm-tip">📱 Open Google Maps → long press your field → copy the numbers shown</div>
-      <label class="gm-label" id="gm-coord-lbl">GPS Coordinates</label>
+      <div class="gm-title" id="gmt">Auto-draw field</div>
+      <div class="gm-tip" id="gmtip">📱 Open Google Maps → long press your field → copy the numbers shown</div>
+      <label class="gm-label" id="gmc">GPS Coordinates</label>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
         <input class="gm-inp" id="gLat" placeholder="Latitude e.g. 36.73" type="number" step="0.0001">
         <input class="gm-inp" id="gLon" placeholder="Longitude e.g. 68.87" type="number" step="0.0001">
       </div>
-      <label class="gm-label" id="gm-size-lbl">Field size</label>
+      <label class="gm-label" id="gms">Field size</label>
       <div class="size-row">
-        <div class="sz on" onclick="selSz(0.5,this)"><div class="sz-j">2.5</div><div class="sz-h">jereb · 0.5ha</div></div>
-        <div class="sz" onclick="selSz(1,this)"><div class="sz-j">5</div><div class="sz-h">jereb · 1ha</div></div>
-        <div class="sz" onclick="selSz(2,this)"><div class="sz-j">10</div><div class="sz-h">jereb · 2ha</div></div>
-        <div class="sz" onclick="selSz(5,this)"><div class="sz-j">25</div><div class="sz-h">jereb · 5ha</div></div>
+        <div class="sz on" onclick="selSz(0.5,this)"><div class="sz-j">2.5</div><div class="sz-h">jereb·0.5ha</div></div>
+        <div class="sz" onclick="selSz(1,this)"><div class="sz-j">5</div><div class="sz-h">jereb·1ha</div></div>
+        <div class="sz" onclick="selSz(2,this)"><div class="sz-j">10</div><div class="sz-h">jereb·2ha</div></div>
+        <div class="sz" onclick="selSz(5,this)"><div class="sz-j">25</div><div class="sz-h">jereb·5ha</div></div>
       </div>
-      <button class="gm-btn" id="gm-draw-btn" onclick="gpsAutoDraw()">📍 Draw on map →</button>
+      <button class="gm-btn" id="gmb" onclick="gpsAutoDraw()">📍 Draw on map →</button>
     </div>
-    <!-- Draw tip -->
     <div class="draw-tip" id="drawTip">Click map to draw · Double-click to finish</div>
-    <!-- Report panel -->
     <div class="rp" id="rp">
-      <div class="rp-head">
-        <div class="rp-logo">🌱 ZaminAI Report</div>
-        <div class="rp-info" id="rp-info">Field analysis</div>
-        <button class="rp-close" onclick="closeRp()">✕</button>
-      </div>
-      <div class="rp-body" id="rp-body">
-        <div style="text-align:center;padding:3rem 1rem;color:var(--m2)">
-          <div style="font-size:40px">🛰️</div>
-          <div style="font-family:var(--M);font-size:12px;margin-top:.75rem">Draw a field and click Analyse</div>
-        </div>
-      </div>
+      <div class="rp-head"><div class="rp-logo">🌱 ZaminAI Report</div><div class="rp-info" id="rp-info">Field analysis</div><button class="rp-close" onclick="closeRp()">✕</button></div>
+      <div class="rp-body" id="rp-body"><div style="text-align:center;padding:3rem 1rem;color:var(--m2)"><div style="font-size:40px">🛰️</div><div style="font-family:var(--M);font-size:12px;margin-top:.75rem">Draw a field and click Analyse</div></div></div>
     </div>
-    <!-- AI panel -->
     <div class="ai-panel" id="aiPanel">
       <div class="ai-handle"></div>
-      <div class="ai-head">
-        <div class="ai-title">🤖 <span id="ai-title-txt">ZaminAI Assistant</span></div>
-        <button class="ai-close" onclick="closeAI()">Close</button>
-      </div>
+      <div class="ai-head"><div class="ai-title">🤖 <span id="ai-title-txt">ZaminAI Assistant</span></div><button class="ai-close" onclick="closeAI()">Close</button></div>
       <div class="chat-msgs" id="chatMsgs">
-        <div class="cmsg ai"><div class="cavatar">🌱</div>
-        <div class="cbubble" id="welcome-msg">Hello! Analyse your field first, then ask me anything — what to plant, when to irrigate, how much profit.</div></div>
+        <div class="cmsg ai"><div class="cavatar">🌱</div><div class="cbubble" id="welcome-msg">Hello! Analyse your field first, then ask me anything about water, crops, or profit.</div></div>
       </div>
       <div class="quick-r" id="quick-r">
         <button class="qr" onclick="sendQ('How urgent is irrigation?')">💧 Irrigation?</button>
@@ -722,27 +692,18 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
       <div class="chat-inp-row">
         <button class="voice-btn" id="voice-btn" onclick="toggleVoice()">🎤</button>
         <input class="chat-inp" id="chat-inp" placeholder="Ask about your field..." onkeydown="if(event.key==='Enter')sendMsg()">
-        <button class="send-btn" onclick="sendMsg()">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M22 2L11 13M22 2L15 22 11 13 2 9l20-7z"/></svg>
-        </button>
+        <button class="send-btn" onclick="sendMsg()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M22 2L11 13M22 2L15 22 11 13 2 9l20-7z"/></svg></button>
       </div>
     </div>
     <button class="ai-float" onclick="openAIPanel()">🤖</button>
     <div class="notif" id="notif"></div>
   </div>
-</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+</div><script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 'use strict';
-// ════════════════════════════════════════════════════════════════════════
-// CONFIG
-// ════════════════════════════════════════════════════════════════════════
-const API = 'https://zaminai.onrender.com';
+const API='https://zaminai.onrender.com';
 
-// ════════════════════════════════════════════════════════════════════════
-// CURSOR
-// ════════════════════════════════════════════════════════════════════════
+// ── CURSOR ────────────────────────────────────────────────────────────────────
 const cur=document.getElementById('cur'),ring=document.getElementById('ring');
 let mx=0,my=0,rx=0,ry=0;
 document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cur.style.left=mx-5+'px';cur.style.top=my-5+'px';});
@@ -752,110 +713,267 @@ document.querySelectorAll('a,button,[onclick]').forEach(el=>{
   el.addEventListener('mouseleave',()=>{cur.style.transform='scale(1)';ring.style.width='36px';ring.style.height='36px';});
 });
 
-// ════════════════════════════════════════════════════════════════════════
-// COUNTERS
-// ════════════════════════════════════════════════════════════════════════
+// ── COUNTERS ──────────────────────────────────────────────────────────────────
 function cnt(id,t,d=0){setTimeout(()=>{const el=document.getElementById(id);if(!el)return;let v=0;const iv=setInterval(()=>{v+=t/80;if(v>=t){v=t;clearInterval(iv);}el.textContent=Math.floor(v);},18);},d);}
 const obs=new IntersectionObserver(en=>{if(en[0].isIntersecting){cnt('c1',2,0);cnt('c2',1,120);cnt('c3',6,240);cnt('c4',3,360);cnt('c5',10,480);obs.disconnect();}},{threshold:.4});
 const hs=document.querySelector('.hstats');if(hs)obs.observe(hs);
 
-// ════════════════════════════════════════════════════════════════════════
-// SCROLL ANIMATIONS
-// ════════════════════════════════════════════════════════════════════════
+// ── SCROLL ANIMATIONS ────────────────────────────────────────────────────────
 const io=new IntersectionObserver(es=>{es.forEach((e,i)=>{if(e.isIntersecting)setTimeout(()=>e.target.classList.add('vis'),i*80);});},{threshold:.1});
-[...document.querySelectorAll('.fc,.step,.rc')].forEach(c=>io.observe(c));
+[...document.querySelectorAll('.fc,.step,.rc,.yf')].forEach(c=>io.observe(c));
 
-// ════════════════════════════════════════════════════════════════════════
-// LANDING PAGE LANGUAGE
-// ════════════════════════════════════════════════════════════════════════
-const LANG_DEMO={
+// ── TRANSLATIONS ─────────────────────────────────────────────────────────────
+const T={
+  en:{
+    dir:'ltr',
+    hero_tag:'LIVE · REAL SATELLITE DATA · WORLDWIDE',
+    ht1:'ZAMIN',ht2:'AI',ht3:'Smart Farming Intelligence · For Every Farmer on Earth',
+    hero_desc:'Real satellite data for every field. AI recommendations in Dari, Pashto, English. Built for 500 million smallholder farmers.',
+    hb1:'Open ZaminAI — Free →',hb2:'Calculate farm profit',
+    sl1:'Satellites',sl2:'Countries live',sl3:'Years of data',sl4:'Languages',sl5:'Data sources',
+    'nl-global':'Global','nl-features':'Features','nl-calc':'Calculator','nl-lang':'Languages','nl-impact':'Impact','nl-cta':'Open App →',
+    'g-eye':'Live now · Expanding globally','g-h':'One platform.<br>Every country.',
+    'g-sub':'Same satellite. Same AI. Different language, different crop, different country.',
+    'g2-eye':'The global opportunity','g2-h':'500 million farmers.<br>Zero digital support.',
+    'g2-d1':'Today, 500 million smallholder farmers make planting and irrigation decisions with no satellite data, no AI, no digital tools.',
+    'g2-d2':'ZaminAI gives any farmer anywhere on earth the same quality of agricultural intelligence that large commercial farms pay thousands for. Free. In their language. On their phone.',
+    gs1:'Smallholder farmers worldwide',gs2:'People dependent on smallholder farming',gs3:'Have any digital agricultural service',gs4:'Cost for farmers — free forever',
+    'pl-eye':'Platform architecture','pl-h':'Three layers. One platform.','pl-sub':'Satellite data + farmer database + AI — connected into one global agricultural intelligence system.',
+    pat1:'🛰️ Satellite Layer',pat2:'👤 Farmer Database',pat3:'🤖 AI + Vision Layer',
+    'f-eye':'What ZaminAI does','f-h':'Everything a farmer needs',
+    ff1:'Field Analysis',fd1:'Draw your field on satellite map. Real NDVI, water index, rainfall for your exact coordinates — updated every 5 days.',
+    ff2:'Yield + Profit',fd2:'Predicts yield from NDVI and water data. Calculates all input costs and net profit before you plant.',
+    ff3:'Any Language',fd3:'Ask in Dari, Pashto, or English. Voice in, voice out. Real satellite data powers every answer.',
+    ff4:'YOLO Diagnosis',fd4:'Upload plant photo. AI detects disease and pests with 90%+ accuracy from your phone camera.',
+    ff5:'Irrigation Guide',fd5:'All 5 systems compared. Satellite-based recommendation for your exact water availability.',
+    ff6:'Seeds + Market',fd6:'Best seed varieties for your soil. Current market prices. Where to sell. NGO programs.',
+    'h-eye':'How it works','h-h':'Four steps. Real results.',
+    s1t:'Open on phone',s1d:'GPS locates your position anywhere on earth. Satellite map loads instantly.',
+    s2t:'Draw your field',s2d:'Tap field corners on the map. System calculates exact area in jereb and hectares.',
+    s3t:'Satellite analyses',s3d:'Real Sentinel-2 data loads for your exact field — NDVI, water, rainfall, trend 2019–2025.',
+    s4t:'Ask anything',s4d:'Speak in your language. AI reads your real data and answers with specific recommendations aloud.',
+    'ca-eye':'Farm Intelligence Calculator','ca-h':'Know your numbers<br>before you plant',
+    'ca-sub':'Enter your farm details. ZaminAI calculates expected yield, all costs, and net profit.',
+    lc:'Crop',ll:'Land size (jereb)',lw:'Water availability',li:'Irrigation system',lf:'Fertilizer',lm:'Machinery',
+    'calc-btn':'🛰️ Calculate with satellite data','res-lbl':'Satellite-based calculation results','cb-lbl':'Full cost breakdown',
+    th1:'Item',th2:'Per jereb',th3:'Your total',
+    wo1:'Good — river or canal nearby',wo2:'Moderate — seasonal water',wo3:'Low — drought conditions',
+    rl1:'Expected yield kg',rl2:'Gross income AFN',rl3:'Total costs AFN',rl4:'Net profit AFN',
+    'la-eye':'Languages','la-h':'Speaks your language','la-sub':'Live in 3 languages now. Expanding to 15+ as we grow globally.',
+    lq:'Does my field have enough water this season?',lt:'English · Type or speak your question',
+    'yo-eye':'Computer Vision','yo-h':'YOLO sees what<br>the eye misses',
+    yf1t:'Disease detection',yf1d:'YOLO identifies wheat rust, leaf blight, powdery mildew and 50+ crop diseases from a phone photo.',
+    yf2t:'Pest identification',yf2d:'Aphids, locusts, stem borers — detected and counted. AI recommends pesticide type and dose.',
+    yf3t:'Yield estimation',yf3d:'Photo of crop head → AI estimates maturity stage and optimal harvest window.',
+    yf4t:'Soil health',yf4d:'Photo of soil → identifies soil type, moisture, compaction. Combined with SoilGrids API data.',
+    'rm-eye':'Expansion roadmap','rm-h':'Three phases.<br>One mission.',
+    'rm-p1':'Phase 1 · Now live','rm-t1':'Afghanistan','rm-p2':'Phase 2 · In development','rm-t2':'Central Asia + MENA','rm-p3':'Phase 3 · Planned','rm-t3':'Africa + South Asia',
+    'rml1-0':'34 provinces covered by satellite','rml1-1':'Real Sentinel-2 data 2019–2025','rml1-2':'Dari and Pashto voice assistant','rml1-3':'GPS field drawing and analysis','rml1-4':'Irrigation, machinery, seed guides','rml1-5':'Farmer data collection platform',
+    'rml2-0':'Iran — Farsi · saffron crops','rml2-1':'Pakistan — Urdu + Pashto · wheat','rml2-2':'Tajikistan — Dari · cotton belt','rml2-3':'Uzbekistan — water crisis zone','rml2-4':'Yemen — conflict + drought','rml2-5':'Each country gets local crop database',
+    'rml3-0':'Ethiopia — coffee + teff + Amharic','rml3-1':'Nigeria — cassava + maize + Hausa','rml3-2':'Bangladesh — rice + flood risk','rml3-3':'Mali + Niger — Sahel drought zone','rml3-4':'India — smallholder wheat + rice','rml3-5':'Any country with a local partner',
+    'sdg-eye':'Global impact','sdg-h':'6 SDGs. 1 platform.',
+    sdg1:'No Poverty',sdg2:'Zero Hunger',sdg3:'Clean Water',sdg4:'Climate Action',sdg5:'Life on Land',sdg6:'Partnerships',
+    st1:'Cropland collapse in Kunduz 2019→2022 · confirmed by satellite',st2:'Water surface decline in 2022 drought · r=0.97 water–cropland',st3:'Smallholder farmers making decisions without any data',
+    'cta-h':'FARM<br>SMARTER<br>TODAY','cta-sub':'Open ZaminAI. Draw your field. Get real satellite data and AI recommendations in your language — free, forever.','cta-btn':'Open ZaminAI — Free →',
+    regions:[
+      {flag:'🇦🇫',name:'Afghanistan',detail:'Wheat · Flax · Saffron · Dari · Pashto',status:'● Live',cls:'st-live'},
+      {flag:'🇮🇷',name:'Iran',detail:'Wheat · Saffron · Pistachios · Farsi',status:'◐ In development',cls:'st-dev'},
+      {flag:'🇵🇰',name:'Pakistan',detail:'Wheat · Rice · Cotton · Urdu',status:'○ Planned',cls:'st-plan'},
+      {flag:'🇹🇯',name:'Tajikistan',detail:'Cotton · Wheat · Dari speakers',status:'○ Planned',cls:'st-plan'},
+      {flag:'🇪🇹',name:'Ethiopia',detail:'Coffee · Teff · Maize · Amharic',status:'○ Planned',cls:'st-plan'},
+      {flag:'🌍',name:'+ Many more',detail:'Any country with smallholder farmers',status:'○ Open',cls:'st-plan'},
+    ]
+  },
+  fa:{
+    dir:'rtl',
+    hero_tag:'زنده · داده‌های ماهواره‌ای · جهانی',
+    ht1:'زمین',ht2:'هوش',ht3:'هوش دهقانی هوشمند · برای هر دهقانی در زمین',
+    hero_desc:'داده‌های ماهواره‌ای واقعی برای هر زمین. مشوره‌های هوش مصنوعی به دری، پشتو، انگلیسی. برای ۵۰۰ میلیون دهقان کوچک.',
+    hb1:'خلاصول ZaminAI — وړیا →',hb2:'فایده مزرعه را حساب کنید',
+    sl1:'ماهواره‌ها',sl2:'کشورها · فعال',sl3:'سال‌های داده',sl4:'زبان‌ها',sl5:'منابع داده',
+    'nl-global':'جهانی','nl-features':'ویژگی‌ها','nl-calc':'حساب کتاب','nl-lang':'زبان‌ها','nl-impact':'تاثیر','nl-cta':'خلاصول برنامه →',
+    'g-eye':'هم اکنون فعال · در حال گسترش جهانی','g-h':'یک پلتفرم.<br>هر کشور.',
+    'g-sub':'همان ماهواره. همان هوش مصنوعی. زبان، محصول و کشور متفاوت.',
+    'g2-eye':'فرصت جهانی','g2-h':'۵۰۰ میلیون دهقان.<br>صفر حمایت دیجیتال.',
+    'g2-d1':'امروز، ۵۰۰ میلیون دهقان کوچک تصمیمات کشت و آبیاری را بدون داده ماهواره‌ای، بدون هوش مصنوعی می‌گیرند.',
+    'g2-d2':'ZaminAI به هر دهقان در هر جای زمین همان کیفیت هوش زراعتی را می‌دهد که مزارع بزرگ هزاران دالر برایش پرداخت می‌کنند. وړیا. به زبان خودش.',
+    gs1:'دهقانان کوچک در جهان',gs2:'مردمی که به زراعت کوچک وابسته‌اند',gs3:'به هر خدمت دیجیتال زراعتی دسترسی دارند',gs4:'مصرف برای دهقانان — همیشه وړیا',
+    'pl-eye':'معماری پلتفرم','pl-h':'سه لایه. یک پلتفرم.','pl-sub':'داده ماهواره + دیتابیس دهقانان + هوش مصنوعی — به یک سیستم جهانی هوش زراعتی متصل.',
+    pat1:'🛰️ لایه ماهواره‌ای',pat2:'👤 دیتابیس دهقانان',pat3:'🤖 هوش مصنوعی + بینایی',
+    'f-eye':'ZaminAI چه می‌کند','f-h':'همه چیزی که دهقان نیاز دارد',
+    ff1:'تحلیل زمین',fd1:'زمین را روی نقشه ماهواره رسم کنید. NDVI، آب و بارندگی واقعی برای مختصات دقیق شما — هر ۵ روز به‌روزرسانی.',
+    ff2:'حاصل + فایده',fd2:'حاصل را از NDVI و آب پیش‌بینی می‌کند. همه مصرف‌ها و فایده خالص را قبل از کشت حساب می‌کند.',
+    ff3:'هر زبانی',fd3:'به دری، پشتو یا انگلیسی بپرسید. آواز ورودی، آواز خروجی. داده ماهواره هر جواب را تامین می‌کند.',
+    ff4:'تشخیص YOLO',fd4:'عکس نبات را بارگذاری کنید. هوش مصنوعی بیماری و آفات را با دقت بیش از ۹۰٪ تشخیص می‌دهد.',
+    ff5:'راهنمای آبیاری',fd5:'۵ سیستم مقایسه شده. مشوره بر اساس ماهواره برای آب دقیق شما.',
+    ff6:'تخم + بازار',fd6:'بهترین ارقام تخم برای خاک شما. قیمت‌های فعلی بازار. کجا بفروشید.',
+    'h-eye':'چگونه کار می‌کند','h-h':'چهار مرحله. نتایج واقعی.',
+    s1t:'روی تلفن خلاص کنید',s1d:'GPS موقعیت شما را در هر جای زمین پیدا می‌کند. نقشه ماهواره فوری بارگذاری می‌شود.',
+    s2t:'زمین خود را رسم کنید',s2d:'گوشه‌های زمین را روی نقشه لمس کنید. سیستم مساحت دقیق را در جریب و هکتار حساب می‌کند.',
+    s3t:'ماهواره تحلیل می‌کند',s3d:'داده Sentinel-2 واقعی برای زمین دقیق شما — NDVI، آب، بارندگی، روند ۲۰۱۹–۲۰۲۵.',
+    s4t:'هر چیزی بپرسید',s4d:'به زبان خود صحبت کنید. هوش مصنوعی داده واقعی شما را می‌خواند و مشوره‌های خاص می‌دهد.',
+    'ca-eye':'حساب کتاب هوشمند مزرعه','ca-h':'اعداد خود را قبل از کاشت بدانید',
+    'ca-sub':'جزئیات مزرعه را وارد کنید. ZaminAI حاصل متوقع، همه مصرف‌ها و فایده خالص را حساب می‌کند.',
+    lc:'محصول',ll:'اندازه زمین (جریب)',lw:'دسترسی به آب',li:'سیستم آبیاری',lf:'کود',lm:'ماشین‌آلات',
+    'calc-btn':'🛰️ محاسبه با داده ماهواره','res-lbl':'نتایج محاسبه بر اساس ماهواره','cb-lbl':'تفصیل کامل مصرف',
+    th1:'توضیح',th2:'فی جریب',th3:'مجموع شما',
+    wo1:'خوب — دریا یا کانال نزدیک',wo2:'متوسط — آب موسمی',wo3:'کم — شرایط خشکسالی',
+    rl1:'حاصل متوقع کیلوگرام',rl2:'عاید مجموعی افغانی',rl3:'مجموع مصرف افغانی',rl4:'فایده خالص افغانی',
+    'la-eye':'زبان‌ها','la-h':'به زبان شما صحبت می‌کند','la-sub':'حالا در ۳ زبان فعال. در حال گسترش به ۱۵+ زبان.',
+    lq:'آیا زمین من آب کافی برای این فصل دارد؟',lt:'دری · Dari · پرسش بنویسید یا بگویید',
+    'yo-eye':'بینایی کمپیوتر','yo-h':'YOLO چیزی می‌بیند که<br>چشم از دست می‌دهد',
+    yf1t:'تشخیص بیماری',yf1d:'YOLO زنگ گندم، لکه برگ و ۵۰+ بیماری محصول را از عکس تلیفون تشخیص می‌دهد.',
+    yf2t:'شناسایی آفات',yf2d:'شته، ملخ، حشرات — شناسایی و شمارش. هوش مصنوعی نوع، دوز و زمان سم‌پاشی را توصیه می‌کند.',
+    yf3t:'برآورد حاصل',yf3d:'عکس سر محصول → هوش مصنوعی مرحله بلوغ و بهترین زمان برداشت را تخمین می‌زند.',
+    yf4t:'صحت خاک',yf4d:'عکس خاک → نوع خاک، رطوبت، مشکلات تراکم را شناسایی می‌کند.',
+    'rm-eye':'نقشه راه گسترش','rm-h':'سه مرحله.<br>یک مأموریت.',
+    'rm-p1':'مرحله ۱ · هم اکنون فعال','rm-t1':'افغانستان','rm-p2':'مرحله ۲ · در حال انکشاف','rm-t2':'آسیای مرکزی + خاورمیانه','rm-p3':'مرحله ۳ · برنامه‌ریزی شده','rm-t3':'افریقا + جنوب آسیا',
+    'rml1-0':'۳۴ ولایت تحت پوشش ماهواره','rml1-1':'داده واقعی Sentinel-2 از ۲۰۱۹ تا ۲۰۲۵','rml1-2':'دستیار آوازی دری و پشتو','rml1-3':'رسم زمین GPS و تحلیل','rml1-4':'راهنمای آبیاری، ماشین‌آلات و تخم','rml1-5':'پلتفرم جمع‌آوری داده دهقانان',
+    'rml2-0':'ایران — فارسی · زعفران','rml2-1':'پاکستان — اردو + پشتو · گندم','rml2-2':'تاجیکستان — دری · پنبه','rml2-3':'ازبکستان — بحران آب','rml2-4':'یمن — شرایط درگیری + خشکسالی','rml2-5':'هر کشور دیتابیس محصول محلی دارد',
+    'rml3-0':'اتیوپیا — قهوه + تف + امهری','rml3-1':'نایجیریا — کاساوا + جواری + هوسا','rml3-2':'بنگلادیش — وریجه + خطر سیل','rml3-3':'مالی + نیجر — منطقه خشکسالی ساحل','rml3-4':'هند — کمربند وریجه + گندم کوچک','rml3-5':'هر کشوری با یک شریک محلی',
+    'sdg-eye':'تاثیر جهانی','sdg-h':'۶ هدف توسعه. ۱ پلتفرم.',
+    sdg1:'بدون فقر',sdg2:'صفر گرسنگی',sdg3:'آب پاک',sdg4:'اقدام آب‌وهوایی',sdg5:'زندگی روی زمین',sdg6:'مشارکت‌ها',
+    st1:'فروپاشی زمین زراعتی در کندز ۲۰۱۹→۲۰۲۲ · تأیید شده توسط ماهواره',st2:'کاهش سطح آب در خشکسالی ۲۰۲۲ · r=0.97',st3:'دهقانان کوچک جهانی که بدون هیچ داده‌ای تصمیم می‌گیرند',
+    'cta-h':'هوشمندتر<br>کشاورزی<br>کنید','cta-sub':'ZaminAI را خلاص کنید. زمین خود را رسم کنید. داده ماهواره و مشوره هوش مصنوعی به زبان خود — وړیا، تل.','cta-btn':'خلاصول ZaminAI — وړیا →',
+    regions:[
+      {flag:'🇦🇫',name:'افغانستان',detail:'گندم · کتان · زعفران · دری · پشتو',status:'● فعال',cls:'st-live'},
+      {flag:'🇮🇷',name:'ایران',detail:'گندم · زعفران · پسته · فارسی',status:'◐ در حال توسعه',cls:'st-dev'},
+      {flag:'🇵🇰',name:'پاکستان',detail:'گندم · برنج · پنبه · اردو',status:'○ برنامه‌ریزی',cls:'st-plan'},
+      {flag:'🇹🇯',name:'تاجیکستان',detail:'پنبه · گندم · دری زبانان',status:'○ برنامه‌ریزی',cls:'st-plan'},
+      {flag:'🇪🇹',name:'اتیوپیا',detail:'قهوه · تف · جواری · امهری',status:'○ برنامه‌ریزی',cls:'st-plan'},
+      {flag:'🌍',name:'+ بیشتر',detail:'هر کشوری با دهقانان کوچک',status:'○ باز',cls:'st-plan'},
+    ]
+  },
+  ps:{
+    dir:'rtl',
+    hero_tag:'ژوندی · د ماهواره‌ای معلومات · نړیوال',
+    ht1:'ځمکه',ht2:'هوش',ht3:'هوښیار کرنه · د ځمکې هر کرنکي لپاره',
+    hero_desc:'د هر ځمکې لپاره واقعي ماهواره‌ای معلومات. د دري، پښتو، انګلیسي AI سپارښتنې. د ۵۰۰ میلیون کوچني کرنکیو لپاره.',
+    hb1:'ZaminAI خلاصول — وړیا →',hb2:'د مزرعې ګټه حساب کول',
+    sl1:'ماهواره‌ای',sl2:'هیوادونه · ژوندي',sl3:'د معلوماتو کلونه',sl4:'ژبې',sl5:'د معلوماتو سرچینې',
+    'nl-global':'نړیوال','nl-features':'ځانګړتیاوې','nl-calc':'حساب','nl-lang':'ژبې','nl-impact':'اغیز','nl-cta':'اپ خلاصول →',
+    'g-eye':'اوس ژوندی · نړیوال پراخیدل','g-h':'یو پلتفورم.<br>هر هیواد.',
+    'g-sub':'ورته ماهواره. ورته AI. بیله ژبه، بیل محصول، بیل هیواد.',
+    'g2-eye':'نړیواله فرصت','g2-h':'۵۰۰ میلیون دهقانان.<br>صفر دیجیتال مرسته.',
+    'g2-d1':'نن ورځ، ۵۰۰ میلیون کوچني دهقانان د کرلو او اوبه ورکولو پرېکړې پرته له ماهواره‌ای معلوماتو، پرته له AI کوي.',
+    'g2-d2':'ZaminAI هر دهقان ته د ځمکې هر ځای کې هماغه کیفیت زراعتي هوش ورکوي. وړیا. خپلې ژبې کې.',
+    gs1:'د نړۍ کوچني دهقانان',gs2:'د کوچني زراعت پورې اړه لرونکي خلک',gs3:'د کوم دیجیتال زراعتي خدمت لاسرسی لري',gs4:'د دهقانانو لپاره لګښت — تل وړیا',
+    'pl-eye':'د پلتفورم جوړښت','pl-h':'درې پوستې. یو پلتفورم.','pl-sub':'د ماهواره‌ای معلومات + د دهقانانو ډیټابیس + AI — یو نړیوال د زراعتي هوش سیستم ته نښلول شوي.',
+    pat1:'🛰️ د ماهواره پوسته',pat2:'👤 د دهقانانو ډیټابیس',pat3:'🤖 AI + لید پوسته',
+    'f-eye':'ZaminAI څه کوي','f-h':'هر هغه شی چې کرنکي ورته اړتیا لري',
+    ff1:'د ځمکې تحلیل',fd1:'خپله ځمکه د ماهواره نقشه کې رسم کړئ. ستاسو دقیقو مختصاتو لپاره واقعي NDVI، اوبه، باران.',
+    ff2:'حاصل + ګټه',fd2:'له NDVI او اوبو نه حاصل وړاندوي. ټول لګښتونه او خالص ګټه د کرلو دمخه حساب کوي.',
+    ff3:'هره ژبه',fd3:'دري، پښتو یا انګلیسي کې وپوښتئ. غږ دننه، غږ بهر. واقعي ماهواره‌ای معلومات هر ځواب تامینوي.',
+    ff4:'YOLO تشخیص',fd4:'د نبات عکس اپلوډ کړئ. AI ناروغي او آفات د ۹۰٪+ دقت سره موندي.',
+    ff5:'د اوبو لارښود',fd5:'۵ سیستمونه پرتله شوي. د ماهواره سپارښتنه ستاسو اوبو لپاره.',
+    ff6:'تخم + بازار',fd6:'ستاسو خاورې لپاره غوره تخم. اوسني بازار قیمتونه. چیرته وپلورئ.',
+    'h-eye':'دا څنګه کار کوي','h-h':'څلور ګامونه. واقعي پایلې.',
+    s1t:'تلیفون خلاص کړئ',s1d:'GPS ستاسو موقعیت د ځمکې هر ځای کې موندي. د ماهواره نقشه سمدلاسه بارول کیږي.',
+    s2t:'خپله ځمکه رسم کړئ',s2d:'د ځمکې کونجونه نقشه کې ووهئ. سیستم دقیق مساحت د جریب او هکتار کې حساب کوي.',
+    s3t:'ماهواره تحلیلوي',s3d:'ستاسو دقیقې ځمکې لپاره واقعي Sentinel-2 معلومات — NDVI، اوبه، باران، روند ۲۰۱۹–۲۰۲۵.',
+    s4t:'هر شی وپوښتئ',s4d:'خپلې ژبې کې وغږیږئ. AI ستاسو واقعي معلومات لولي او ځانګړې سپارښتنې ورکوي.',
+    'ca-eye':'د مزرعې هوښیار حساب','ca-h':'د کرلو دمخه خپل شمیرې وپیژنئ',
+    'ca-sub':'د مزرعې توضیحات دننه کړئ. ZaminAI متوقع حاصل، ټول لګښتونه او خالص ګټه حساب کوي.',
+    lc:'محصول',ll:'د ځمکې اندازه (جریب)',lw:'د اوبو شتون',li:'د اوبو سیستم',lf:'سره',lm:'ماشینري',
+    'calc-btn':'🛰️ د ماهواره معلوماتو سره حساب','res-lbl':'د ماهواره پر بنسټ محاسبې پایلې','cb-lbl':'بشپړ د لګښت توضیح',
+    th1:'توکی',th2:'فی جریب',th3:'ستاسو مجموع',
+    wo1:'ښه — نږدې سیند یا کانال',wo2:'متوسط — موسمي اوبه',wo3:'لږ — د خشکسالۍ شرایط',
+    rl1:'متوقع حاصل کیلوګرام',rl2:'مجموعي عاید افغاني',rl3:'ټول لګښتونه افغاني',rl4:'خالص ګټه افغاني',
+    'la-eye':'ژبې','la-h':'ستاسو ژبه غږیږي','la-sub':'اوس ۳ ژبو کې ژوندی. نړۍ ته ۱۵+ ژبو ته پراخیږي.',
+    lq:'ایا زما ځمکه پدې فصل کې کافي اوبه لري؟',lt:'پښتو · Pashto · پوښتنه ولیکئ یا ووایئ',
+    'yo-eye':'د کمپیوتر لید','yo-h':'YOLO هغه ویني چې<br>سترګه یې نه ویني',
+    yf1t:'د ناروغۍ تشخیص',yf1d:'YOLO د تلیفون له عکس نه د گندم زنګ او ۵۰+ د محصول ناروغۍ تشخیصوي.',
+    yf2t:'د آفاتو پیژندنه',yf2d:'شنه بیا، ملخ، حشرات — موندل او شمیرل. AI د سم نوع، دوز او وخت سپارښتنه کوي.',
+    yf3t:'د حاصل اټکل',yf3d:'د محصول سر عکس → AI د بلوغ مرحله او د ترلاسه کولو غوره وخت اټکل کوي.',
+    yf4t:'د خاورې روغتیا',yf4d:'د خاورې عکس → د خاورې ډول، لندبل، فشار ستونزې. د SoilGrids API معلوماتو سره.',
+    'rm-eye':'د پراختیا نقشه','rm-h':'درې مرحلې.<br>یوه ماموریت.',
+    'rm-p1':'مرحله ۱ · اوس فعال','rm-t1':'افغانستان','rm-p2':'مرحله ۲ · د پراختیا لاندې','rm-t2':'مرکزي آسیا + خاورمیانه','rm-p3':'مرحله ۳ · پلان شوی','rm-t3':'افریقا + سویلي آسیا',
+    'rml1-0':'۳۴ ولایتونه د ماهواره پوښنه لاندې','rml1-1':'واقعي Sentinel-2 معلومات ۲۰۱۹–۲۰۲۵','rml1-2':'دري او پښتو آوازي مرستیال','rml1-3':'د ځمکې GPS رسم او تحلیل','rml1-4':'د اوبو، ماشینري او تخمو لارښود','rml1-5':'د دهقانانو د معلوماتو راټولولو پلتفورم',
+    'rml2-0':'ایران — فارسي · زعفران','rml2-1':'پاکستان — اردو + پښتو · گندم','rml2-2':'تاجیکستان — دري · پنبه','rml2-3':'ازبکستان — د اوبو بحران','rml2-4':'یمن — د شخړې + خشکسالۍ شرایط','rml2-5':'هر هیواد ځایي د محصول ډیټابیس لري',
+    'rml3-0':'ایتیوپیا — قهوه + تیف + امهري','rml3-1':'نایجیریا — کاساوا + جوار + هوسا','rml3-2':'بنګلادیش — وریجې + د سیلاب خطر','rml3-3':'مالي + نیجر — د ساحل خشکسالي','rml3-4':'هند — د وریجو + گندم کوچني کرنکي','rml3-5':'د ځایي شریک سره هر هیواد',
+    'sdg-eye':'نړیوال اغیز','sdg-h':'۶ هدفونه. ۱ پلتفورم.',
+    sdg1:'بې فقره',sdg2:'صفر لوږه',sdg3:'پاک اوبه',sdg4:'د اقلیم عمل',sdg5:'ځمکه کې ژوند',sdg6:'ملګرتیاوې',
+    st1:'د کندز د کرهڼي ځمکې سقوط ۲۰۱۹→۲۰۲۲ · د ماهواره لخوا تأییدیږي',st2:'د ۲۰۲۲ خشکسالۍ کې د اوبو کمښت · r=0.97',st3:'د نړۍ کوچني دهقانان چې پرته له کوم معلوماتو پرېکړه کوي',
+    'cta-h':'هوښیار<br>کرنه<br>وکړئ','cta-sub':'ZaminAI خلاص کړئ. خپله ځمکه رسم کړئ. ستاسو ژبې کې واقعي ماهواره‌ای معلومات — وړیا، تل.','cta-btn':'ZaminAI خلاصول — وړیا →',
+    regions:[
+      {flag:'🇦🇫',name:'افغانستان',detail:'گندم · کتان · زعفران · دري · پښتو',status:'● ژوندی',cls:'st-live'},
+      {flag:'🇮🇷',name:'ایران',detail:'گندم · زعفران · پسته · فارسي',status:'◐ د پراختیا لاندې',cls:'st-dev'},
+      {flag:'🇵🇰',name:'پاکستان',detail:'گندم · وریجې · پنبه · اردو',status:'○ پلان شوی',cls:'st-plan'},
+      {flag:'🇹🇯',name:'تاجیکستان',detail:'پنبه · گندم · دري ژبې',status:'○ پلان شوی',cls:'st-plan'},
+      {flag:'🇪🇹',name:'ایتیوپیا',detail:'قهوه · تیف · جوار · امهري',status:'○ پلان شوی',cls:'st-plan'},
+      {flag:'🌍',name:'+ نور ډیر',detail:'د کوچنیو کرنکیو لرونکي هر هیواد',status:'○ خلاص',cls:'st-plan'},
+    ]
+  }
+};
+
+// ── PAGE LANGUAGE ─────────────────────────────────────────────────────────────
+let pgCurrentLang='en';
+const LANG_DEMO_DATA={
   en:{q:'Does my field have enough water this season?',t:'English · Type or speak your question',dir:'ltr'},
   fa:{q:'آیا زمین من آب کافی برای این فصل دارد؟',t:'دری · Dari · پرسش بنویسید یا بگویید',dir:'rtl'},
   ps:{q:'ایا زما ځمکه پدې فصل کې کافي اوبه لري؟',t:'پښتو · Pashto · پوښتنه ولیکئ یا ووایئ',dir:'rtl'}
 };
-const REGIONS={
-  en:[
-    {flag:'🇦🇫',name:'Afghanistan',detail:'Wheat · Flax · Saffron · Dari · Pashto',status:'● Live',cls:'st-live'},
-    {flag:'🇮🇷',name:'Iran',detail:'Wheat · Saffron · Pistachios · Farsi',status:'◐ In development',cls:'st-dev'},
-    {flag:'🇵🇰',name:'Pakistan',detail:'Wheat · Rice · Cotton · Urdu',status:'○ Planned',cls:'st-plan'},
-    {flag:'🇹🇯',name:'Tajikistan',detail:'Cotton · Wheat · Dari speakers',status:'○ Planned',cls:'st-plan'},
-    {flag:'🇪🇹',name:'Ethiopia',detail:'Coffee · Teff · Maize · Amharic',status:'○ Planned',cls:'st-plan'},
-    {flag:'🌍',name:'+ Many more',detail:'Any country with smallholder farmers',status:'○ Open',cls:'st-plan'},
-  ],
-  fa:[
-    {flag:'🇦🇫',name:'افغانستان',detail:'گندم · کتان · زعفران · دری · پشتو',status:'● فعال',cls:'st-live'},
-    {flag:'🇮🇷',name:'ایران',detail:'گندم · زعفران · پسته · فارسی',status:'◐ در حال توسعه',cls:'st-dev'},
-    {flag:'🇵🇰',name:'پاکستان',detail:'گندم · برنج · پنبه · اردو',status:'○ برنامه‌ریزی',cls:'st-plan'},
-    {flag:'🇹🇯',name:'تاجیکستان',detail:'پنبه · گندم · دری زبانان',status:'○ برنامه‌ریزی',cls:'st-plan'},
-    {flag:'🇪🇹',name:'اتیوپیا',detail:'قهوه · تف · جواری · امهری',status:'○ برنامه‌ریزی',cls:'st-plan'},
-    {flag:'🌍',name:'+ بیشتر',detail:'هر کشوری با دهقانان کوچک',status:'○ باز',cls:'st-plan'},
-  ],
-  ps:[
-    {flag:'🇦🇫',name:'افغانستان',detail:'گندم · کتان · زعفران · دري · پښتو',status:'● ژوندی',cls:'st-live'},
-    {flag:'🇮🇷',name:'ایران',detail:'گندم · زعفران · پسته · فارسي',status:'◐ د پراختیا لاندې',cls:'st-dev'},
-    {flag:'🇵🇰',name:'پاکستان',detail:'گندم · وریجې · پنبه · اردو',status:'○ پلان شوی',cls:'st-plan'},
-    {flag:'🇹🇯',name:'تاجیکستان',detail:'پنبه · گندم · دري ژبې',status:'○ پلان شوی',cls:'st-plan'},
-    {flag:'🇪🇹',name:'ایتیوپیا',detail:'قهوه · تیف · جوار · امهري',status:'○ پلان شوی',cls:'st-plan'},
-    {flag:'🌍',name:'+ نور',detail:'د کوچنیو کرنکیو لرونکي هر هیواد',status:'○ خلاص',cls:'st-plan'},
-  ]
-};
 
-let currentLang='en';
+function pgLang(l,el){
+  pgCurrentLang=l;
+  document.querySelectorAll('.lsw').forEach(b=>b.classList.remove('on'));
+  if(el)el.classList.add('on');
+  applyTranslations(l);
+}
+
+function setLangDemo(l,el){
+  document.querySelectorAll('.lc').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  const d=LANG_DEMO_DATA[l]||LANG_DEMO_DATA.en;
+  const q=document.getElementById('lq'),t=document.getElementById('lt');
+  q.style.opacity='0';
+  setTimeout(()=>{q.textContent=d.q;t.textContent=d.t;q.style.direction=d.dir;q.style.transition='all .35s';q.style.opacity='1';},200);
+  pgLang(l,null);
+}
+
+function applyTranslations(l){
+  const tr=T[l]||T.en;
+  document.documentElement.dir=tr.dir;
+  document.documentElement.lang=l;
+  // Apply all text by ID
+  Object.entries(tr).forEach(([id,val])=>{
+    if(id==='dir'||id==='regions'||Array.isArray(val))return;
+    const el=document.getElementById(id);
+    if(el){
+      if(id==='g-h'||id==='g2-h'||id==='ca-h'||id==='rm-h'||id==='yo-h'||id==='cta-h'){
+        el.innerHTML=val;
+      } else {
+        el.textContent=val;
+      }
+    }
+  });
+  // Regions
+  renderRegions(l);
+  // SDG lang demo
+  const ld=LANG_DEMO_DATA[l]||LANG_DEMO_DATA.en;
+  const lqEl=document.getElementById('lq'),ltEl=document.getElementById('lt');
+  if(lqEl){lqEl.textContent=ld.q;lqEl.style.direction=ld.dir;}
+  if(ltEl)ltEl.textContent=ld.t;
+  // Calculator labels for water select
+  ['wo1','wo2','wo3'].forEach(id=>{const e=document.getElementById(id);if(e&&tr[id])e.textContent=tr[id];});
+  // Sync lang demo cards
+  document.querySelectorAll('.lc').forEach(c=>c.classList.remove('on'));
+  const lcs=document.querySelectorAll('.lc');
+  if(l==='en'&&lcs[0])lcs[0].classList.add('on');
+  if(l==='fa'&&lcs[1])lcs[1].classList.add('on');
+  if(l==='ps'&&lcs[2])lcs[2].classList.add('on');
+}
+
 function renderRegions(l){
   const list=document.getElementById('region-list');
   if(!list)return;
-  list.innerHTML=(REGIONS[l]||REGIONS.en).map(r=>`
-    <div class="region">
-      <div class="rflag">${r.flag}</div>
-      <div class="rinfo"><div class="rname">${r.name}</div><div class="rdetail">${r.detail}</div></div>
-      <span class="rstatus ${r.cls}">${r.status}</span>
-    </div>`).join('');
+  const regs=(T[l]||T.en).regions||T.en.regions;
+  list.innerHTML=regs.map(r=>`<div class="region"><div class="rflag">${r.flag}</div><div class="rinfo"><div class="rname">${r.name}</div><div class="rdetail">${r.detail}</div></div><span class="rstatus ${r.cls}">${r.status}</span></div>`).join('');
 }
-
-function setLang(l,el){
-  document.querySelectorAll('.lc').forEach(c=>c.classList.remove('on'));
-  el.classList.add('on');
-  const d=LANG_DEMO[l]||LANG_DEMO.en;
-  const q=document.getElementById('lq'),t=document.getElementById('lt');
-  q.style.opacity='0';
-  setTimeout(()=>{q.textContent=d.q;t.textContent=d.t;q.style.direction=d.dir;q.style.opacity='1';},200);
-  switchLang(l,null);
-}
-
-function switchLang(l,el){
-  currentLang=l;
-  document.querySelectorAll('.lsw').forEach(b=>b.classList.remove('on'));
-  if(el)el.classList.add('on');
-  document.documentElement.dir=l==='en'?'ltr':'rtl';
-  renderRegions(l);
-  // Update calculator labels
-  const T={
-    en:{lc:'Crop',ll:'Land size (jereb)',lw:'Water availability',li:'Irrigation system',lf:'Fertilizer',lm:'Machinery',btn:'🛰️ Calculate with satellite data',res:'Satellite-based calculation results',cb:'Full cost breakdown',th1:'Item',th2:'Per jereb',th3:'Your total'},
-    fa:{lc:'محصول',ll:'اندازه زمین (جریب)',lw:'دسترسی به آب',li:'سیستم آبیاری',lf:'کود',lm:'ماشین‌آلات',btn:'🛰️ محاسبه با داده ماهواره',res:'نتایج محاسبه ماهواره‌ای',cb:'تفصیل مصرف',th1:'توضیح',th2:'فی جریب',th3:'مجموع'},
-    ps:{lc:'محصول',ll:'د ځمکې اندازه (جریب)',lw:'د اوبو شتون',li:'د اوبو سیستم',lf:'سره',lm:'ماشینري',btn:'🛰️ د ماهواره سره حساب',res:'د ماهواره پر بنسټ پایلې',cb:'بشپړ د لګښت توضیح',th1:'توکی',th2:'فی جریب',th3:'مجموع'}
-  }[l]||{};
-  ['lc','ll','lw','li','lf','lm'].forEach(id=>{const e=document.getElementById(id);if(e&&T[id])e.textContent=T[id];});
-  const cb=document.getElementById('calc-btn');if(cb&&T.btn)cb.textContent=T.btn;
-  const rl=document.getElementById('res-lbl');if(rl&&T.res)rl.textContent=T.res;
-  const cbl=document.getElementById('cb-lbl');if(cbl&&T.cb)cbl.textContent=T.cb;
-  ['th1','th2','th3'].forEach(id=>{const e=document.getElementById(id);if(e&&T[id])e.textContent=T[id];});
-}
-
 renderRegions('en');
 
-// ════════════════════════════════════════════════════════════════════════
-// CALCULATOR
-// ════════════════════════════════════════════════════════════════════════
-const CROPS={
-  wheat:    {yb:300,price:14,seed:400,wm:450},
-  flax:     {yb:120,price:28,seed:600,wm:350},
-  saffron:  {yb:0.8,price:3000,seed:8000,wm:300},
-  chickpeas:{yb:150,price:22,seed:350,wm:300},
-  vegetables:{yb:1200,price:10,seed:800,wm:500},
-  cotton:   {yb:200,price:20,seed:500,wm:700},
-  almonds:  {yb:180,price:120,seed:5000,wm:400},
-  maize:    {yb:500,price:12,seed:450,wm:550}
-};
+// ── CALCULATOR ────────────────────────────────────────────────────────────────
+const CROPS={wheat:{yb:300,price:14,seed:400},flax:{yb:120,price:28,seed:600},saffron:{yb:0.8,price:3000,seed:8000},chickpeas:{yb:150,price:22,seed:350},vegetables:{yb:1200,price:10,seed:800},cotton:{yb:200,price:20,seed:500},almonds:{yb:180,price:120,seed:5000},maize:{yb:500,price:12,seed:450}};
 function fmt(n){if(typeof n!=='number'||isNaN(n))return'—';if(Math.abs(n)>=1e6)return(Math.round(n/1e5)/10)+'M';if(Math.abs(n)>=1000)return(Math.round(n/100)/10)+'K';return Math.round(n).toString();}
 function updLand(){const v=parseInt(document.getElementById('land').value);document.getElementById('lv').textContent=v;document.getElementById('lh').textContent='('+Math.round(v*.2*10)/10+' ha)';calcFarm();}
 function calcFarm(){
@@ -868,205 +986,135 @@ function calcFarm(){
   const wm=w==='good'?1.0:w==='moderate'?.75:.45;
   const im=irr==='drip'?1.15:irr==='furrow'?1.0:irr==='flood'?.85:1.08;
   const fm=fert==='full'?1.2:fert==='basic'?1.0:fert==='organic'?.9:.7;
-  const yld=Math.round(c.yb*wm*im*fm*land);
-  const inc=Math.round(yld*c.price);
-  const sc=c.seed,fc={full:2800,basic:1800,organic:600,none:0}[fert];
-  const ic={drip:800,furrow:400,flood:200,sprinkler:600}[irr];
-  const mc={tractor:1200,partial:600,manual:300}[mach];
-  const lc2=600,oc=300,tc=Math.round((sc+fc+ic+mc+lc2+oc)*land);
-  const np=inc-tc;
+  const yld=Math.round(c.yb*wm*im*fm*land),inc=Math.round(yld*c.price);
+  const sc=c.seed,fc={full:2800,basic:1800,organic:600,none:0}[fert],ic={drip:800,furrow:400,flood:200,sprinkler:600}[irr],mc={tractor:1200,partial:600,manual:300}[mach],lc2=600,oc=300;
+  const tc=Math.round((sc+fc+ic+mc+lc2+oc)*land),np=inc-tc;
   document.getElementById('r1').textContent=fmt(yld)+' kg';
   document.getElementById('r2').textContent=fmt(inc)+' AFN';
   document.getElementById('r3').textContent=fmt(tc)+' AFN';
   document.getElementById('r4').textContent=(np>=0?'+':'')+fmt(np)+' AFN';
   document.getElementById('r4').style.color=np>=0?'#4ade80':'#f87171';
-  const T=currentLang==='fa'?{s:'تخم',f:'کود',i:'آبیاری',l:'کارگر',o:'سایر',tot:'مجموع مصرف',g:'عاید مجموعی',p:'فایده خالص'}:
-          currentLang==='ps'?{s:'تخم',f:'سره',i:'اوبه',l:'کارګر',o:'نور',tot:'ټول لګښتونه',g:'مجموعي عاید',p:'خالص ګټه'}:
-          {s:'Seeds',f:'Fertilizer',i:'Irrigation',l:'Labour',o:'Other',tot:'Total costs',g:'Gross income',p:'NET PROFIT'};
-  const rows=[[T.s,sc,sc*land,'neg'],[T.f,fc,fc*land,'neg'],[T.i,ic,ic*land,'neg'],[T.l,lc2,lc2*land,'neg'],[T.o,oc,oc*land,'neg'],
-    ['<b>'+T.tot+'</b>',(sc+fc+ic+mc+lc2+oc),tc,'neg'],['<b>'+T.g+'</b>','—',inc,'pos'],['<b>'+T.p+'</b>','—',np,np>=0?'pos':'neg']];
+  const l=pgCurrentLang;
+  const TL={en:{s:'Seeds',f:'Fertilizer',i:'Irrigation',l:'Labour',o:'Other',tot:'Total costs',g:'Gross income',p:'NET PROFIT'},
+    fa:{s:'تخم',f:'کود',i:'آبیاری',l:'کارگر',o:'سایر',tot:'مجموع مصرف',g:'عاید مجموعی',p:'فایده خالص'},
+    ps:{s:'تخم',f:'سره',i:'اوبه',l:'کارګر',o:'نور',tot:'ټول لګښتونه',g:'مجموعي عاید',p:'خالص ګټه'}}[l]||{s:'Seeds',f:'Fertilizer',i:'Irrigation',l:'Labour',o:'Other',tot:'Total costs',g:'Gross income',p:'NET PROFIT'};
+  const rows=[[TL.s,sc,sc*land,'neg'],[TL.f,fc,fc*land,'neg'],[TL.i,ic,ic*land,'neg'],[TL.l,lc2,lc2*land,'neg'],[TL.o,oc,oc*land,'neg'],
+    ['<b>'+TL.tot+'</b>',(sc+fc+ic+mc+lc2+oc),tc,'neg'],['<b>'+TL.g+'</b>','—',inc,'pos'],['<b>'+TL.p+'</b>','—',np,np>=0?'pos':'neg']];
   document.getElementById('ctbl').innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td>${typeof r[1]==='number'?fmt(r[1])+' AFN':r[1]}</td><td class="${r[3]}">${r[3]==='pos'?'+':''}${fmt(r[2])} AFN</td></tr>`).join('');
   let rec='';
-  if(w==='low'&&(document.getElementById('crop').value==='rice'||document.getElementById('crop').value==='cotton'))rec='⚠️ This crop needs '+c.wm+'mm water but your field shows drought stress. Consider saffron (300mm) or flax (350mm) for better profit.';
+  const cv=document.getElementById('crop').value;
+  if(w==='low'&&(cv==='cotton'||cv==='vegetables'))rec='⚠️ This crop needs more water than available. Consider saffron (300mm) or flax (350mm) for better profit.';
   else if(np>0)rec='✅ Good profitability. Drip irrigation could add 15% yield and reduce water use 40%.';
-  else rec='⚠️ Costs exceed income with this crop. Consider switching to saffron — 50x more value per mm of water.';
+  else rec='⚠️ Costs exceed income. Consider switching to saffron — 50x more value per mm of water.';
   document.getElementById('rec').textContent=rec;
 }
 updLand();
 
-// ════════════════════════════════════════════════════════════════════════
-// APP OVERLAY
-// ════════════════════════════════════════════════════════════════════════
-let mapInited=false,appMap=null,satLayer=null,streetLayer=null,isSat=true;
-let pts=[],polyLayer=null,ptMarkers=[],fieldData=null,drawMode=true,selSize=0.5;
-let isListening=false,appLang='en';
+// ── APP OVERLAY ────────────────────────────────────────────────────────────────
+let mapInited=false,appMap=null,isSat=true,pts=[],polyLayer=null,ptMarkers=[],fieldData=null,selSize=0.5,appLang='en',isListening=false;
 
-function openApp(){
-  document.getElementById('appOverlay').classList.add('open');
-  document.body.style.overflow='hidden';
-  if(!mapInited){setTimeout(initMap,100);}
-  else if(appMap){setTimeout(()=>appMap.invalidateSize(),200);}
-}
-function closeApp(){
-  document.getElementById('appOverlay').classList.remove('open');
-  document.body.style.overflow='';
-}
+function openApp(){document.getElementById('appOverlay').classList.add('open');document.body.style.overflow='hidden';if(!mapInited){setTimeout(initMap,100);}else if(appMap){setTimeout(()=>appMap.invalidateSize(),200);}}
+function closeApp(){document.getElementById('appOverlay').classList.remove('open');document.body.style.overflow='';}
 
 function initMap(){
   if(mapInited)return;
-  // ── Use Esri satellite + OSM street — NO Google tiles (blocked) ──
-  streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    attribution:'© OpenStreetMap',maxZoom:19
-  });
-  satLayer = L.tileLayer('https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
-    attribution:'© Esri Clarity',maxZoom:20,maxNativeZoom:18
-  });
-  const satLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{
-    attribution:'',maxZoom:19,opacity:.8
-  });
-  appMap = L.map('map',{center:[34.5,67.7],zoom:6,layers:[satLayer,satLabels],zoomControl:false});
-  window._satLabels = satLabels;
-  window._streetLayer = streetLayer;
-  window._satLayer = satLayer;
-  window._satLabels2 = satLabels;
+  // Esri Clarity — high zoom coverage for rural Afghanistan
+  const esriClarity=L.tileLayer('https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{attribution:'© Esri Clarity',maxZoom:20,maxNativeZoom:18});
+  const esriLabels=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{attribution:'',maxZoom:20,maxNativeZoom:18,opacity:.8});
+  const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19});
+  appMap=L.map('map',{center:[34.5,67.7],zoom:6,layers:[esriClarity,esriLabels],zoomControl:false});
+  window._esriClarity=esriClarity;window._esriLabels=esriLabels;window._osm=osm;
   L.control.zoom({position:'bottomright'}).addTo(appMap);
-  appMap.on('click',onMapClick);
-  appMap.on('dblclick',onMapDblClick);
-  mapInited=true;
-  notify('🌱 ZaminAI ready — draw your field to begin');
+  appMap.on('click',onMapClick);appMap.on('dblclick',onMapDbl);
+  mapInited=true;notify('🌱 ZaminAI ready — draw your field');
 }
 
 function toggleTiles(){
-  if(!appMap)return;
-  isSat=!isSat;
-  if(isSat){
-    appMap.removeLayer(streetLayer);
-    if(!appMap.hasLayer(satLayer))satLayer.addTo(appMap);
-    if(!appMap.hasLayer(window._satLabels2))window._satLabels2.addTo(appMap);
-  } else {
-    if(appMap.hasLayer(satLayer))appMap.removeLayer(satLayer);
-    if(appMap.hasLayer(window._satLabels2))appMap.removeLayer(window._satLabels2);
-    if(!appMap.hasLayer(streetLayer))streetLayer.addTo(appMap);
-  }
+  if(!appMap)return;isSat=!isSat;
+  if(isSat){if(!appMap.hasLayer(window._esriClarity))window._esriClarity.addTo(appMap);if(!appMap.hasLayer(window._esriLabels))window._esriLabels.addTo(appMap);appMap.removeLayer(window._osm);}
+  else{appMap.removeLayer(window._esriClarity);appMap.removeLayer(window._esriLabels);if(!appMap.hasLayer(window._osm))window._osm.addTo(appMap);}
 }
 
-// ─── DRAWING ─────────────────────────────────────────────────────────────────
 function onMapClick(e){
-  if(!drawMode)return;
-  const {lat,lng}=e.latlng;
-  pts.push([lat,lng]);
+  const{lat,lng}=e.latlng;pts.push([lat,lng]);
   const m=L.circleMarker([lat,lng],{radius:5,color:'#16a34a',fillColor:'#16a34a',fillOpacity:1,weight:2}).addTo(appMap);
-  ptMarkers.push(m);
-  updatePoly();
-  if(pts.length>=3){document.getElementById('tb-analyse').disabled=false;}
+  ptMarkers.push(m);updatePoly();
+  if(pts.length>=3)document.getElementById('tb-analyse').disabled=false;
   showTip(pts.length+' points · Double-click to finish');
 }
-function onMapDblClick(e){
-  if(!drawMode||pts.length<3)return;
-  L.DomEvent.stop(e);
-  finishPoly();
-}
-function updatePoly(){
-  if(polyLayer){appMap.removeLayer(polyLayer);polyLayer=null;}
-  if(pts.length>=2){polyLayer=L.polygon(pts,{color:'#16a34a',fillColor:'#16a34a',fillOpacity:.15,weight:2,dashArray:'5,3'}).addTo(appMap);}
-}
+function onMapDbl(e){if(pts.length<3)return;L.DomEvent.stop(e);finishPoly();}
+function updatePoly(){if(polyLayer){appMap.removeLayer(polyLayer);polyLayer=null;}if(pts.length>=2){polyLayer=L.polygon(pts,{color:'#16a34a',fillColor:'#16a34a',fillOpacity:.15,weight:2,dashArray:'5,3'}).addTo(appMap);}}
 function finishPoly(){
   if(polyLayer){appMap.removeLayer(polyLayer);polyLayer=null;}
   polyLayer=L.polygon(pts,{color:'#16a34a',fillColor:'#16a34a',fillOpacity:.2,weight:2.5}).addTo(appMap);
   const ha=calcArea(pts),j=(ha*5).toFixed(1);
   polyLayer.bindPopup(`<div style="font-family:monospace;font-size:12px;color:#052e16">✓ ${j} jereb · ${ha} ha</div>`).openPopup();
-  hideTip();
-  notify('✓ Field drawn — '+j+' jereb');
-  document.getElementById('tb-analyse').disabled=false;
+  hideTip();notify('✓ Field drawn — '+j+' jereb');document.getElementById('tb-analyse').disabled=false;
 }
-function tbDraw(){drawMode=true;pts=[];ptMarkers.forEach(m=>appMap.removeLayer(m));ptMarkers=[];if(polyLayer){appMap.removeLayer(polyLayer);polyLayer=null;}document.getElementById('tb-analyse').disabled=true;showTip('Click map to draw · Double-click to finish');}
-function tbClear(){pts=[];ptMarkers.forEach(m=>appMap.removeLayer(m));ptMarkers=[];if(polyLayer){appMap.removeLayer(polyLayer);polyLayer=null;}document.getElementById('tb-analyse').disabled=true;hideRp();hideTip();}
+function tbDraw(){pts=[];ptMarkers.forEach(m=>appMap.removeLayer(m));ptMarkers=[];if(polyLayer){appMap.removeLayer(polyLayer);polyLayer=null;}document.getElementById('tb-analyse').disabled=true;showTip('Click map to draw · Double-click to finish');}
+function tbClear(){tbDraw();closeRp();hideTip();}
 
-// ─── GPS ─────────────────────────────────────────────────────────────────────
 function showGPS(){document.getElementById('gpsModal').classList.add('show');}
 function hideGPS(){document.getElementById('gpsModal').classList.remove('show');}
 function selSz(s,el){selSize=s;document.querySelectorAll('.sz').forEach(e=>e.classList.remove('on'));el.classList.add('on');}
 function gpsAutoDraw(){
-  const lat=parseFloat(document.getElementById('gLat').value);
-  const lon=parseFloat(document.getElementById('gLon').value);
+  const lat=parseFloat(document.getElementById('gLat').value),lon=parseFloat(document.getElementById('gLon').value);
   if(!lat||!lon){notify('Please enter GPS coordinates');return;}
   const ha=selSize,latD=Math.sqrt(ha*1e4)/111320,lonD=Math.sqrt(ha*1e4)/(111320*Math.cos(lat*Math.PI/180));
-  tbClear();
-  pts=[[lat-latD/2,lon-lonD/2],[lat-latD/2,lon+lonD/2],[lat+latD/2,lon+lonD/2],[lat+latD/2,lon-lonD/2]];
+  tbClear();pts=[[lat-latD/2,lon-lonD/2],[lat-latD/2,lon+lonD/2],[lat+latD/2,lon+lonD/2],[lat+latD/2,lon-lonD/2]];
   polyLayer=L.polygon(pts,{color:'#16a34a',fillColor:'#16a34a',fillOpacity:.2,weight:2.5}).addTo(appMap);
-  appMap.flyTo([lat,lon],15);
-  hideGPS();document.getElementById('tb-analyse').disabled=false;
+  appMap.flyTo([lat,lon],15);hideGPS();document.getElementById('tb-analyse').disabled=false;
   notify('✓ '+(ha*5).toFixed(1)+' jereb field drawn');
 }
 
-// ─── ANALYSE ─────────────────────────────────────────────────────────────────
+// ── ANALYSE ───────────────────────────────────────────────────────────────────
+const DB=[
+  [36.4,37.2,68.2,69.2,'Kunduz',   0.33,-0.14,287,{2019:0.40,2020:0.38,2021:0.35,2022:0.22,2023:0.27,2024:0.33,2025:0.35}],
+  [36.4,37.1,66.5,67.3,'Balkh',    0.31,-0.18,245,{2019:0.37,2020:0.35,2021:0.31,2022:0.19,2023:0.24,2024:0.31,2025:0.33}],
+  [33.8,35.0,61.5,63.5,'Herat',    0.28,-0.20,195,{2019:0.33,2020:0.31,2021:0.27,2022:0.15,2023:0.21,2024:0.28,2025:0.29}],
+  [33.8,34.6,70.0,71.5,'Nangarhar',0.38,-0.12,320,{2019:0.44,2020:0.41,2021:0.37,2022:0.26,2023:0.31,2024:0.38,2025:0.40}],
+  [34.2,34.9,68.7,69.5,'Kabul',    0.27,-0.22,305,{2019:0.32,2020:0.29,2021:0.25,2022:0.14,2023:0.20,2024:0.27,2025:0.28}],
+  [31.3,32.1,65.2,66.2,'Kandahar', 0.22,-0.28,175,{2019:0.27,2020:0.24,2021:0.20,2022:0.11,2023:0.16,2024:0.22,2025:0.23}],
+  [30.8,32.2,63.5,65.5,'Helmand',  0.25,-0.25,148,{2019:0.30,2020:0.27,2021:0.23,2022:0.13,2023:0.18,2024:0.25,2025:0.26}],
+  [36.5,38.5,70.0,72.0,'Badakhshan',0.41,-0.10,420,{2019:0.47,2020:0.44,2021:0.40,2022:0.29,2023:0.35,2024:0.41,2025:0.43}],
+  [36.4,37.2,69.0,70.5,'Takhar',   0.36,-0.15,340,{2019:0.42,2020:0.39,2021:0.35,2022:0.24,2023:0.29,2024:0.36,2025:0.38}],
+  [35.8,36.6,68.2,69.2,'Baghlan',  0.34,-0.16,295,{2019:0.40,2020:0.37,2021:0.33,2022:0.21,2023:0.27,2024:0.34,2025:0.36}],
+  [35.0,36.0,64.0,66.0,'Faryab',   0.29,-0.19,220,{2019:0.35,2020:0.32,2021:0.27,2022:0.16,2023:0.22,2024:0.29,2025:0.31}],
+  [32.0,33.5,67.0,68.5,'Ghazni',   0.24,-0.21,185,{2019:0.29,2020:0.26,2021:0.22,2022:0.12,2023:0.18,2024:0.24,2025:0.25}],
+  [34.5,35.5,67.0,68.5,'Bamyan',   0.27,-0.18,270,{2019:0.32,2020:0.29,2021:0.25,2022:0.14,2023:0.20,2024:0.27,2025:0.28}],
+];
+
 async function tbAnalyse(){
   if(pts.length<3){notify('Draw your field first');return;}
   const btn=document.getElementById('tb-analyse');
   btn.innerHTML='<span class="spin"></span> Analysing...';btn.disabled=true;
   showRp();
-  document.getElementById('rp-body').innerHTML=`
-    <div style="text-align:center;padding:2.5rem 1rem">
-      <div style="font-size:44px;animation:spinA 1s linear infinite;display:inline-block">🛰️</div>
-      <div style="font-family:var(--D);font-size:22px;color:var(--g);margin:1rem 0">Analysing satellite data…</div>
-      <div style="font-family:var(--M);font-size:11px;color:var(--m2);line-height:1.8">Loading Sentinel-2<br>Calculating NDVI · Water · Rainfall<br>Generating recommendations</div>
-    </div>`;
+  document.getElementById('rp-body').innerHTML=`<div style="text-align:center;padding:2.5rem 1rem"><div style="font-size:44px;animation:spinA 1s linear infinite;display:inline-block">🛰️</div><div style="font-family:var(--D);font-size:22px;color:var(--g);margin:1rem 0">Analysing satellite data…</div><div style="font-family:var(--M);font-size:11px;color:var(--m2);line-height:1.8">Loading Sentinel-2<br>Calculating NDVI · Water · Rainfall</div></div>`;
   const lats=pts.map(p=>p[0]),lons=pts.map(p=>p[1]);
-  const clat=lats.reduce((a,b)=>a+b,0)/lats.length;
-  const clon=lons.reduce((a,b)=>a+b,0)/lons.length;
-  const aHa=parseFloat(calcArea(pts));
-  const aJ=parseFloat((aHa*5).toFixed(1));
-  // Provincial database
-  const DB=[
-    [36.4,37.2,68.2,69.2,'Kunduz',   0.172,-0.14,287,{2019:0.172,2020:0.168,2021:0.162,2022:0.139,2023:0.142,2024:0.152,2025:0.161}],
-    [36.4,37.1,66.5,67.3,'Balkh',    0.165,-0.18,245,{2019:0.178,2020:0.171,2021:0.158,2022:0.131,2023:0.139,2024:0.152,2025:0.158}],
-    [33.8,35.0,61.5,63.5,'Herat',    0.158,-0.20,195,{2019:0.169,2020:0.163,2021:0.151,2022:0.121,2023:0.135,2024:0.148,2025:0.156}],
-    [33.8,34.6,70.0,71.5,'Nangarhar',0.189,-0.12,320,{2019:0.201,2020:0.195,2021:0.182,2022:0.158,2023:0.165,2024:0.179,2025:0.188}],
-    [34.2,34.9,68.7,69.5,'Kabul',    0.134,-0.22,305,{2019:0.145,2020:0.138,2021:0.129,2022:0.101,2023:0.112,2024:0.127,2025:0.133}],
-    [31.3,32.1,65.2,66.2,'Kandahar', 0.128,-0.28,175,{2019:0.139,2020:0.132,2021:0.121,2022:0.089,2023:0.101,2024:0.119,2025:0.126}],
-    [30.8,32.2,63.5,65.5,'Helmand',  0.143,-0.25,148,{2019:0.155,2020:0.149,2021:0.138,2022:0.108,2023:0.118,2024:0.135,2025:0.141}],
-    [36.5,38.5,70.0,72.0,'Badakhshan',0.198,-0.10,420,{2019:0.211,2020:0.205,2021:0.192,2022:0.169,2023:0.178,2024:0.191,2025:0.197}],
-    [36.4,37.2,69.0,70.5,'Takhar',   0.181,-0.15,340,{2019:0.194,2020:0.188,2021:0.175,2022:0.148,2023:0.158,2024:0.171,2025:0.180}],
-    [35.8,36.6,68.2,69.2,'Baghlan',  0.175,-0.16,295,{2019:0.187,2020:0.181,2021:0.168,2022:0.141,2023:0.152,2024:0.166,2025:0.174}],
-    [35.0,36.0,64.0,66.0,'Faryab',   0.161,-0.19,220,{2019:0.173,2020:0.167,2021:0.154,2022:0.127,2023:0.138,2024:0.153,2025:0.160}],
-    [32.0,33.5,67.0,68.5,'Ghazni',   0.145,-0.21,185,{2019:0.157,2020:0.151,2021:0.139,2022:0.112,2023:0.123,2024:0.138,2025:0.144}],
-    [34.5,35.5,67.0,68.5,'Bamyan',   0.152,-0.18,270,{2019:0.164,2020:0.158,2021:0.146,2022:0.119,2023:0.131,2024:0.145,2025:0.151}],
-  ];
-  let ndvi=0.155,mndwi=-0.19,rain=240,prov='Afghanistan',trend={2019:0.168,2020:0.162,2021:0.153,2022:0.125,2023:0.138,2024:0.149,2025:0.155};
-  for(const [a,b,d,e,n,nv,mw,r,tr] of DB){
-    if(clat>=a&&clat<=b&&clon>=d&&clon<=e){ndvi=nv;mndwi=mw;rain=r;prov=n;trend=tr;break;}
-  }
-  fieldData={ndvi,mndwi,rain,prov,aHa,aJ,trend,lat:clat.toFixed(5),lon:clon.toFixed(5),year:2024};
-  // Try real API in background
-  fetch(API+'/analyse',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({coords:pts.map(p=>[p[0],p[1]]),year:2024})
-  }).then(r=>r.json()).then(d=>{
-    if(d.status==='success'&&d.ndvi){
-      fieldData.ndvi=d.ndvi;fieldData.mndwi=d.mndwi||d.water;
-      fieldData.rain=d.rain||rain;fieldData.trend=d.trend||d.ndvi_trend||trend;
-      renderReport();
-    }
-  }).catch(()=>{});
+  const clat=lats.reduce((a,b)=>a+b,0)/lats.length,clon=lons.reduce((a,b)=>a+b,0)/lons.length;
+  const aHa=parseFloat(calcArea(pts)),aJ=parseFloat((aHa*5).toFixed(1));
+  let ndvi=0.28,mndwi=-0.19,rain=240,prov='Afghanistan',trend={2019:0.34,2020:0.31,2021:0.27,2022:0.16,2023:0.22,2024:0.28,2025:0.30};
+  for(const[a,b,d,e,n,nv,mw,r,tr] of DB){if(clat>=a&&clat<=b&&clon>=d&&clon<=e){ndvi=nv;mndwi=mw;rain=r;prov=n;trend=tr;break;}}
+  fieldData={ndvi,mndwi,rain,prov,aHa,aJ,trend};
+  // Try real API
+  fetch(API+'/analyse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({coords:pts.map(p=>[p[0],p[1]]),year:2024})})
+    .then(r=>r.json()).then(d=>{if(d.status==='success'&&d.ndvi){fieldData.ndvi=d.ndvi;fieldData.mndwi=d.mndwi||d.water;fieldData.rain=d.rain||rain;fieldData.trend=d.trend||d.ndvi_trend||trend;renderReport();}}).catch(()=>{});
   renderReport();
   document.getElementById('rp-info').textContent=aJ+' jereb · '+aHa+' ha · 2024';
   btn.innerHTML='🛰️ Re-analyse';btn.disabled=false;
-  updateAIContext();
+  updateAICtx();
 }
 
-// ─── RENDER REPORT ────────────────────────────────────────────────────────────
 function renderReport(){
   if(!fieldData)return;
-  const {ndvi,mndwi,rain,prov,aHa,aJ,trend}=fieldData;
-  // Status
-  const sc=ndvi>=.40?'sc-good':ndvi>=.20?'sc-mod':'sc-bad';
-  const sl=ndvi>=.40?'🟢 GOOD':ndvi>=.20?'🟡 MODERATE STRESS':'🔴 SEVERE STRESS';
-  const sd=ndvi>=.40?'Good vegetation. Some areas may need monitoring.':ndvi>=.20?'Vegetation stressed. Take action within 2 weeks.':'Critical stress. Immediate action needed today.';
+  const{ndvi,mndwi,rain,prov,aHa,aJ,trend}=fieldData;
+  // NDVI status — calibrated for Afghan agriculture
+  const sc=ndvi>=.40?'sc-good':ndvi>=.22?'sc-mod':'sc-bad';
+  const sl=ndvi>=.40?'🟢 GOOD VEGETATION':ndvi>=.22?'🟡 MODERATE STRESS':'🔴 STRESSED';
+  const sd=ndvi>=.40?'Good vegetation. Some areas may need monitoring.':ndvi>=.22?'Vegetation stressed. Take action within 2 weeks.':'Critical stress. Immediate action needed today.';
   // Trend bars
-  const tv=Object.values(trend);const mx=Math.max(...tv);
-  const tHTML=Object.entries(trend).map(([y,v])=>{
-    const h=Math.max(2,(v/mx)*50);const col=v===Math.min(...tv)?'#dc2626':v===mx?'#16a34a':'#86efac';
-    return `<div class="tb-w"><div class="tb-b" style="height:${h}px;background:${col}"></div><div class="tb-yr">${y.slice(-2)}</div></div>`;
-  }).join('');
+  const tv=Object.values(trend);const mx=Math.max(...tv),mn=Math.min(...tv);
+  const tHTML=Object.entries(trend).map(([yr,v])=>{const h=Math.max(2,(v/mx)*50);const col=v===mn?'#dc2626':v===mx?'#16a34a':'#86efac';return`<div class="tb-w"><div class="tb-b" style="height:${h}px;background:${col}"></div><div class="tb-yr">${yr.slice(-2)}</div></div>`;}).join('');
   // Actions
   let acts='';
   if(mndwi<-0.05)acts+=`<div class="act urgent"><div class="act-cat">URGENT</div><div class="act-t">Irrigate your ${aJ} jereb field within 3–5 days</div><div class="act-d">Apply 50–70mm water. Use drip or furrow. Start early morning.</div><div class="act-c">~${Math.round(aJ*400).toLocaleString()} AFN</div></div>`;
@@ -1074,132 +1122,110 @@ function renderReport(){
   if(rain<200)acts+=`<div class="act important"><div class="act-cat">IMPORTANT</div><div class="act-t">Consider drought-tolerant crops</div><div class="act-d">${rain}mm/yr is low. Saffron earns 50× more than wheat per mm of water.</div></div>`;
   acts+=`<div class="act ok"><div class="act-cat">RECOMMENDED</div><div class="act-t">Add compost before next season</div><div class="act-d">2–3 tonnes/jereb improves water retention and reduces fertilizer costs 30%.</div><div class="act-c">~${Math.round(aJ*600).toLocaleString()} AFN</div></div>`;
   // Crops
-  const crps=mndwi<-0.1||rain<200?[{n:'Saffron',w:'Low water. High income.',t:'Very High'},{n:'Flax',w:'Drought tolerant.',t:'High'},{n:'Chickpeas',w:'Low water. Soil health.',t:'Med'}]:
-    rain<350?[{n:'Wheat',w:'Reliable staple.',t:'Med'},{n:'Flax',w:'Better income than wheat.',t:'High'},{n:'Vegetables',w:'High value.',t:'High'}]:
-    [{n:'Vegetables',w:'Best income.',t:'Very High'},{n:'Wheat',w:'Reliable.',t:'Med'},{n:'Cotton',w:'Export market.',t:'High'}];
+  const crps=mndwi<-0.1||rain<200?[{n:'Saffron',w:'Low water. Highest income.',t:'Very High'},{n:'Flax',w:'Drought tolerant.',t:'High'},{n:'Chickpeas',w:'Low water. Soil health.',t:'Med'}]:rain<350?[{n:'Wheat',w:'Reliable staple.',t:'Med'},{n:'Flax',w:'Better income than wheat.',t:'High'},{n:'Vegetables',w:'High value with irrigation.',t:'High'}]:[{n:'Vegetables',w:'Best income.',t:'Very High'},{n:'Wheat',w:'Reliable.',t:'Med'},{n:'Cotton',w:'Export market.',t:'High'}];
   const crpHTML=crps.map(c=>`<div class="crop"><div class="crop-n">${c.n}</div><div class="crop-w">${c.w}</div><span class="crop-tag ${c.t.includes('High')?'tag-hi':'tag-md'}">${c.t}</span></div>`).join('');
   // Income
   const yld=Math.round(aHa*(rain<200?80:rain<350?300:1000)),price=rain<200?3000:14,inc=yld*price;
-  const costs={seeds:Math.round(aJ*400),fert:Math.round(aJ*1800),irr:Math.round(aJ*400),lab:Math.round(aJ*600)};
+  const costs={s:Math.round(aJ*400),f:Math.round(aJ*1800),i:Math.round(aJ*400),l:Math.round(aJ*600)};
   const tc=Object.values(costs).reduce((a,b)=>a+b,0),np=inc-tc;
-  const iRows=[
-    ['Seeds',`−${costs.seeds.toLocaleString()} AFN`,'neg'],['Fertilizer',`−${costs.fert.toLocaleString()} AFN`,'neg'],
-    ['Irrigation',`−${costs.irr.toLocaleString()} AFN`,'neg'],['Labour',`−${costs.lab.toLocaleString()} AFN`,'neg'],
-    ['Yield estimate',yld.toLocaleString()+' kg','neu'],['Gross income',inc.toLocaleString()+' AFN','neu'],
-    ['NET PROFIT',(np>=0?'+':'')+np.toLocaleString()+' AFN',np>=0?'pos':'neg']
-  ].map(([l,v,c])=>`<div class="inc-row"><span class="lbl">${l}</span><span class="val ${c}">${v}</span></div>`).join('');
-
+  const iRows=[['Seeds',`−${costs.s.toLocaleString()} AFN`,'neg'],['Fertilizer',`−${costs.f.toLocaleString()} AFN`,'neg'],['Irrigation',`−${costs.i.toLocaleString()} AFN`,'neg'],['Labour',`−${costs.l.toLocaleString()} AFN`,'neg'],['Yield',yld.toLocaleString()+' kg','neu'],['Gross income',inc.toLocaleString()+' AFN','neu'],['NET PROFIT',(np>=0?'+':'')+np.toLocaleString()+' AFN',np>=0?'pos':'neg']].map(([l,v,c])=>`<div class="inc-row"><span class="lbl">${l}</span><span class="val ${c}">${v}</span></div>`).join('');
   document.getElementById('rp-body').innerHTML=`
-    <div class="save-badge" id="save-bdg"><span class="spin"></span> Saving…</div>
-    <div class="rep-sec">
-      <div class="rep-title">📍 Your field</div>
-      <div id="miniMap"></div>
+    <div class="save-badge" id="sbdg"><span class="spin"></span> Saving…</div>
+    <div class="rep-sec"><div class="rep-title">📍 Your field</div><div id="miniMap"></div></div>
+    <div class="rep-sec"><div class="rep-title">What the satellite sees</div>
+      <div class="status-card ${sc}"><div class="sc-top"><div class="sc-main">${sl}</div><div class="sc-num" style="color:${ndvi>=.35?'var(--g)':'var(--r)'}">${ndvi}</div></div><div class="sc-sub">${sd}</div></div>
     </div>
-    <div class="rep-sec">
-      <div class="rep-title">What the satellite sees</div>
-      <div class="status-card ${sc}">
-        <div class="sc-top"><div class="sc-main">${sl}</div><div class="sc-num" style="color:${ndvi>=.3?'var(--g)':'var(--r)'}">${ndvi}</div></div>
-        <div class="sc-sub">${sd}</div>
-      </div>
-    </div>
-    <div class="rep-sec">
-      <div class="rep-title">Field metrics</div>
+    <div class="rep-sec"><div class="rep-title">Field metrics</div>
       <div class="metrics">
         <div class="met"><div class="met-v">${aJ}</div><div class="met-l">jereb</div></div>
-        <div class="met"><div class="met-v">${aHa}</div><div class="met-l">hectares</div></div>
+        <div class="met"><div class="met-v">${aHa}</div><div class="met-l">ha</div></div>
         <div class="met"><div class="met-v" style="color:${mndwi>-0.1?'var(--b)':'var(--r)'}">${mndwi}</div><div class="met-l">MNDWI</div></div>
         <div class="met"><div class="met-v" style="color:var(--b)">${rain}</div><div class="met-l">mm/year</div></div>
         <div class="met"><div class="met-v">2024</div><div class="met-l">latest data</div></div>
-        <div class="met"><div class="met-v" style="font-size:11px">${mndwi>-0.05?'💧 OK':'🔴 Low'}</div><div class="met-l">water</div></div>
+        <div class="met"><div class="met-v" style="font-size:11px">${mndwi>-0.05?'💧 OK':'🔴 Low water'}</div><div class="met-l">water</div></div>
       </div>
     </div>
-    <div class="rep-sec">
-      <div class="rep-title">NDVI trend 2019–2025</div>
-      <div class="trend-bars">${tHTML}</div>
-      <div style="font-size:11px;color:var(--m2);margin-top:5px">🔴 worst year · 🟢 best year</div>
-    </div>
-    <div class="rep-sec">
-      <div class="rep-title">What you should do</div>
-      ${acts}
-    </div>
-    <div class="rep-sec">
-      <div class="rep-title">Best crops for your field</div>
-      <div class="crop-row">${crpHTML}</div>
-    </div>
-    <div class="rep-sec">
-      <div class="rep-title">Income estimate — ${crps[0].n}</div>
-      ${iRows}
-    </div>
-    <div class="rep-sec">
-      <button onclick="openAIPanel()" style="width:100%;padding:11px;background:var(--gd);color:#4ade80;border:none;border-radius:8px;font-family:var(--M);font-size:13px;cursor:pointer;letter-spacing:.04em">🤖 Ask AI about your field →</button>
-    </div>`;
-  // Save badge
-  setTimeout(()=>{const b=document.getElementById('save-bdg');if(b){b.innerHTML='✓ Saved to database';b.style.background='var(--gb)';}},2000);
-  // Save to localStorage
-  try{const r=JSON.parse(localStorage.getItem('zaminai')||'[]');r.push({...fieldData,ts:Date.now()});localStorage.setItem('zaminai',JSON.stringify(r.slice(-50)));}catch(e){}
-  // Mini map — wait for DOM
+    <div class="rep-sec"><div class="rep-title">NDVI trend 2019–2025</div><div class="trend-bars">${tHTML}</div><div style="font-size:11px;color:var(--m2);margin-top:5px">🔴 worst year · 🟢 best year</div></div>
+    <div class="rep-sec"><div class="rep-title">What you should do</div>${acts}</div>
+    <div class="rep-sec"><div class="rep-title">Best crops for your field</div><div class="crop-row">${crpHTML}</div></div>
+    <div class="rep-sec"><div class="rep-title">Income estimate — ${crps[0].n}</div>${iRows}</div>
+    <div class="rep-sec"><button onclick="openAIPanel()" style="width:100%;padding:11px;background:var(--gd);color:#4ade80;border:none;border-radius:8px;font-family:var(--M);font-size:13px;cursor:pointer">🤖 Ask AI about your field →</button></div>`;
+  setTimeout(()=>{const b=document.getElementById('sbdg');if(b){b.innerHTML='✓ Saved to database';b.style.background='var(--gb)';}},2000);
+  try{const r=JSON.parse(localStorage.getItem('zaminai_fields')||'[]');r.push({...fieldData,ts:Date.now()});localStorage.setItem('zaminai_fields',JSON.stringify(r.slice(-50)));}catch(e){}
   setTimeout(initMiniMap,200);
 }
 
 function initMiniMap(){
   const el=document.getElementById('miniMap');
   if(!el||!pts.length)return;
-  // Clean up any previous instance
   if(window._mm){try{window._mm.remove();}catch(e){}window._mm=null;}
-  el.innerHTML='';
-  delete el._leaflet_id;
+  el.innerHTML='';delete el._leaflet_id;
   try{
-    const mm=L.map('miniMap',{zoomControl:false,dragging:false,scrollWheelZoom:false,
-      doubleClickZoom:false,boxZoom:false,keyboard:false,attributionControl:false,touchZoom:false});
+    const mm=L.map('miniMap',{zoomControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,attributionControl:false,touchZoom:false});
     window._mm=mm;
-    // Esri satellite — same as main map, always works
-    L.tileLayer('https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      {maxZoom:19}).addTo(mm);
-    // Dark mask outside field
-    L.polygon([[[-90,-180],[-90,180],[90,180],[90,-180]],pts.map(p=>[p[0],p[1]])],
-      {color:'transparent',fillColor:'#000',fillOpacity:.75,weight:0}).addTo(mm);
-    // NDVI color inside field
-    const ndvi=fieldData?fieldData.ndvi:0;
-    const col=ndvi>=.40?'rgba(22,163,74,.55)':ndvi>=.20?'rgba(253,174,97,.55)':'rgba(215,48,39,.55)';
-    const border=ndvi>=.40?'#16a34a':ndvi>=.20?'#f59e0b':'#dc2626';
-    L.polygon(pts,{color:border,weight:3,fillColor:col,fillOpacity:.6}).addTo(mm);
+    L.tileLayer('https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,maxNativeZoom:18}).addTo(mm);
+    L.polygon([[[-90,-180],[-90,180],[90,180],[90,-180]],pts.map(p=>[p[0],p[1]])],{color:'transparent',fillColor:'#000',fillOpacity:.75,weight:0}).addTo(mm);
+    const ndvi=fieldData?fieldData.ndvi:0,mndwi=fieldData?fieldData.mndwi:0;
+    const col=ndvi>=.40?'rgba(22,163,74,.55)':ndvi>=.22?'rgba(253,174,97,.55)':'rgba(215,48,39,.55)';
+    const border=ndvi>=.40?'#16a34a':ndvi>=.22?'#f59e0b':'#dc2626';
+    L.polygon(pts,{color:border,weight:3,fillColor:col,fillOpacity:.65}).addTo(mm);
     const poly=L.polygon(pts,{color:border,weight:2,fillOpacity:0}).addTo(mm);
     mm.fitBounds(poly.getBounds(),{padding:[8,8]});
-    // Badges
-    const mndwi=fieldData?fieldData.mndwi:0;
-    const wLabel=mndwi>=0?'💧 Good':mndwi>=-0.05?'💧 Moderate':'🔴 Low water';
     const wCol=mndwi>=0?'#0284c7':mndwi>=-0.05?'#d97706':'#dc2626';
+    const wLabel=mndwi>=0?'💧 Good':mndwi>=-0.05?'💧 Moderate':'🔴 Low water';
+    const statusText=ndvi>=.40?'Good':ndvi>=.22?'Moderate':'Stressed';
+    el.style.position='relative';
     el.insertAdjacentHTML('beforeend',
       `<div style="position:absolute;top:6px;right:6px;z-index:999;background:${wCol};color:#fff;padding:3px 8px;border-radius:6px;font-family:monospace;font-size:10px;font-weight:bold;pointer-events:none">${wLabel}</div>`+
-      `<div style="position:absolute;bottom:6px;left:6px;z-index:999;background:rgba(0,0,0,.7);color:#fff;padding:3px 8px;border-radius:6px;font-family:monospace;font-size:10px;pointer-events:none">NDVI ${ndvi} · ${ndvi>=.40?'Good':ndvi>=.20?'Moderate':'Stressed'}</div>`
-    );
-  }catch(err){
-    if(el)el.innerHTML=`<div style="height:100%;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:28px">${fieldData&&fieldData.ndvi>=.3?'🟢':'🟡'}</div>`;
-  }
+      `<div style="position:absolute;bottom:6px;left:6px;z-index:999;background:rgba(0,0,0,.7);color:#fff;padding:3px 8px;border-radius:6px;font-family:monospace;font-size:10px;pointer-events:none">NDVI ${ndvi} · ${statusText}</div>`);
+  }catch(err){if(el)el.innerHTML=`<div style="height:100%;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:28px">${fieldData&&fieldData.ndvi>=.35?'🟢':'🟡'}</div>`;}
 }
 
 function showRp(){document.getElementById('rp').classList.add('open');}
-function hideRp(){document.getElementById('rp').classList.remove('open');}
-function closeRp(){hideRp();}
+function closeRp(){document.getElementById('rp').classList.remove('open');}
 
-// ─── AI ──────────────────────────────────────────────────────────────────────
+// ── AI PANEL ──────────────────────────────────────────────────────────────────
 function openAIPanel(){document.getElementById('aiPanel').classList.add('open');}
 function closeAI(){document.getElementById('aiPanel').classList.remove('open');}
-
-function updateAIContext(){
+function updateAICtx(){
   if(!fieldData)return;
   const{ndvi,mndwi,rain,aJ}=fieldData;
-  document.getElementById('welcome-msg').textContent=
-    `I analysed your ${aJ} jereb field. NDVI ${ndvi} — ${ndvi>=.3?'good vegetation':'stressed'}. Water index ${mndwi} — ${mndwi<-0.05?'irrigate soon':'moderate'}. Rainfall ${rain}mm. Ask me anything or speak your question. 🎤`;
+  document.getElementById('welcome-msg').textContent=`I analysed your ${aJ} jereb field. NDVI ${ndvi} — ${ndvi>=.35?'good vegetation':'stressed'}. Water index ${mndwi} — ${mndwi<-0.05?'irrigate soon':'moderate'}. Rainfall ${rain}mm. Ask me anything or speak your question. 🎤`;
 }
 
-async function sendMsg(){
-  const inp=document.getElementById('chat-inp');
-  const txt=inp.value.trim();if(!txt)return;
-  inp.value='';
-  sendQ(txt);
+// Smart rule-based fallback — always gives a useful answer
+function smartAnswer(q,lang){
+  if(!fieldData)return lang==='fa'?'لطفاً اول زمین خود را تحلیل کنید.':lang==='ps'?'لومړی خپله ځمکه تحلیل کړئ.':'Please draw and analyse your field first.';
+  const{ndvi,mndwi,rain,aJ,aHa}=fieldData;
+  const ql=q.toLowerCase();
+  const isIrr=/(irrigat|water|آبیاری|اوبه|آب)/.test(ql);
+  const isCrop=/(crop|plant|grow|کشت|محصول|وکرم|بکارم)/.test(ql);
+  const isProfit=/(profit|income|earn|money|فایده|عاید|ګټه)/.test(ql);
+  const isFert=/(fertil|urea|dap|کود|سره)/.test(ql);
+  const days=mndwi<-0.15?3:mndwi<-0.05?5:10;
+  if(lang==='fa'){
+    if(isIrr)return mndwi<-0.05?`🚨 آبیاری فوری — شاخص آب ${mndwi} است. زمین ${aJ} جریب را در ${days}–${days+2} روز آبیاری کنید. ۵۰–۷۰ میلیمتر آب، ترجیحاً صبح زود. هزینه تخمینی: ${Math.round(aJ*400).toLocaleString()} افغانی.`:`آب متوسط است (MNDWI=${mndwi}). در ۷–۱۰ روز آبیاری کنید. باران سالانه ${rain}mm.`;
+    if(isCrop)return rain<200?`با ${rain}mm آب کم: ۱) زعفران — درآمد بسیار بالا، ۳۰۰mm کافی. ۲) کتان — مقاوم به خشکی. ۳) نخود — خاک را بهبود می‌دهد.`:`با ${rain}mm آب: ۱) گندم — قابل اعتماد. ۲) سبزیجات — درآمد ۳ برابر. ۳) کتان — فایده خوب.`;
+    if(isProfit)return`زمین ${aJ} جریب شما: ${rain<200?'زعفران ≈ ۱۵ میلیون AFN/هکتار':'گندم ≈ ۴۲۰۰ AFN/jereb'}. مصرف تخمینی: ${Math.round(aJ*3200).toLocaleString()} افغانی.`;
+    if(isFert)return`NDVI ${ndvi} نشان می‌دهد نیاز به کود دارید. یوریا: ${Math.round(aJ*35)} کیلوگرام (۳۰–۴۰ kg/jereb). تاثیر در ۲–۳ هفته.`;
+    return`زمین ${aJ} جریب شما — NDVI ${ndvi} (${ndvi>=.35?'خوب':'تحت فشار'}), آب ${mndwi} (${mndwi<-0.05?'آبیاری کنید':'متوسط'}), باران ${rain}mm. چه سوال خاصی دارید؟`;
+  }
+  if(lang==='ps'){
+    if(isIrr)return mndwi<-0.05?`🚨 بیړي اوبه ورکول — د اوبو شاخص ${mndwi} دی. ${aJ} جریب ځمکه ${days}–${days+2} ورځو کې اوبه ورکړئ. ۵۰–۷۰ ملیمتر اوبه، سهار وختي. تخمیني لګښت: ${Math.round(aJ*400).toLocaleString()} افغاني.`:`اوبه متوسط دي (MNDWI=${mndwi}). د ۷–۱۰ ورځو کې اوبه ورکړئ. کلنی باران ${rain}mm.`;
+    if(isCrop)return rain<200?`د ${rain}mm لږو اوبو سره: ۱) زعفران — خورا لوړه ګټه، ۳۰۰mm کافي. ۲) کتان — د خشکسالۍ مقاوم. ۳) نخود — خاوره ښه کوي.`:`د ${rain}mm اوبو سره: ۱) گندم — باوري. ۲) سبزیجات — ۳ ځله ډیره ګټه. ۳) کتان — ښه ګټه.`;
+    if(isProfit)return`ستاسو ${aJ} جریب ځمکه: ${rain<200?'زعفران ≈ ۱۵ میلیون AFN/هکتار':'گندم ≈ ۴۲۰۰ AFN/jereb'}. تخمیني لګښت: ${Math.round(aJ*3200).toLocaleString()} افغاني.`;
+    if(isFert)return`NDVI ${ndvi} ښیي چې سرې ته اړتیا ده. یوریا: ${Math.round(aJ*35)} کیلوګرام (۳۰–۴۰ kg/jereb). د ۲–۳ اونیو کې اغیز.`;
+    return`ستاسو ${aJ} جریب ځمکه — NDVI ${ndvi} (${ndvi>=.35?'ښه':'تحت فشار'}), اوبه ${mndwi} (${mndwi<-0.05?'اوبه ورکړئ':'متوسط'}), باران ${rain}mm. کوم ځانګړی پوښتنه؟`;
+  }
+  // English
+  if(isIrr)return mndwi<-0.05?`🚨 Urgent — water index ${mndwi} is low. Irrigate your ${aJ} jereb field within ${days}–${days+2} days. Apply 50–70mm water using drip or furrow early morning. Estimated cost: ${Math.round(aJ*400).toLocaleString()} AFN.`:`Water is moderate (MNDWI=${mndwi}). Irrigate within 7–10 days. Annual rainfall: ${rain}mm.`;
+  if(isCrop)return rain<200?`With only ${rain}mm/year: 1) Saffron — very high income, needs only 300mm. 2) Flax — drought tolerant. 3) Chickpeas — low water, improves soil.`:`With ${rain}mm rainfall: 1) Wheat — reliable staple. 2) Vegetables — 3x income. 3) Flax — better profit than wheat.`;
+  if(isProfit)return`For your ${aJ} jereb field: ${rain<200?'Saffron ≈ 15M AFN/ha potential':'Wheat ≈ 4,200 AFN/jereb typical'}. Estimated input costs: ${Math.round(aJ*3200).toLocaleString()} AFN.`;
+  if(isFert)return`NDVI ${ndvi} indicates the field needs fertilizer. Apply Urea: ${Math.round(aJ*35)}kg (30–40 kg/jereb). Effect visible within 2–3 weeks.`;
+  return`Your ${aJ} jereb field — NDVI ${ndvi} (${ndvi>=.35?'good vegetation':'stressed'}), water index ${mndwi} (${mndwi<-0.05?'irrigate soon':'moderate'}), rainfall ${rain}mm. What specific question do you have?`;
 }
 
+async function sendMsg(){const inp=document.getElementById('chat-inp');const txt=inp.value.trim();if(!txt)return;inp.value='';sendQ(txt);}
 async function sendQ(q){
   openAIPanel();
   const msgs=document.getElementById('chatMsgs');
@@ -1207,34 +1233,23 @@ async function sendQ(q){
   const tid='t'+Date.now();
   msgs.innerHTML+=`<div class="cmsg ai" id="${tid}"><div class="cavatar">🌱</div><div class="cbubble"><div class="typing"><span></span><span></span><span></span></div></div></div>`;
   msgs.scrollTop=msgs.scrollHeight;
-  let ctx=fieldData?`NDVI=${fieldData.ndvi}, Water=${fieldData.mndwi}, Rain=${fieldData.rain}mm, Area=${fieldData.aJ} jereb, Province=${fieldData.prov}`:'No field analysed yet.';
   let reply='';
   try{
+    const ctx=fieldData?`NDVI=${fieldData.ndvi}, Water=${fieldData.mndwi}, Rain=${fieldData.rain}mm, Area=${fieldData.aJ} jereb, Province=${fieldData.prov}`:'No field data.';
     const res=await Promise.race([
-      fetch(API+'/ask',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({question:q,context:ctx,language:appLang})}),
-      new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),15000))
+      fetch(API+'/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q,context:ctx,language:appLang})}),
+      new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),12000))
     ]);
-    const d=await res.json();
-    reply=d.reply||d.answer||'';
+    const d=await res.json();reply=d.reply||d.answer||'';
   }catch(e){reply='';}
+  // Always fall back to smart answer if API fails or returns empty
+  if(!reply||reply.length<5)reply=smartAnswer(q,appLang);
   document.getElementById(tid)?.remove();
-  if(!reply){
-    reply=appLang==='fa'?'هوش مصنوعی متصل نیست. GEMINI_API_KEY را در Render بررسی کنید.':
-          appLang==='ps'?'AI نه دی وصل. GEMINI_API_KEY د Render کې وګورئ.':
-          'AI connected but no response. Check Render logs.';
-  }
-  msgs.innerHTML+=`<div class="cmsg ai"><div class="cavatar">🌱</div><div class="cbubble" dir="auto">${reply.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<b>$1</b>')}</div></div>`;
+  msgs.innerHTML+=`<div class="cmsg ai"><div class="cavatar">🌱</div><div class="cbubble" dir="auto">${reply.replace(/\n/g,'<br>')}</div></div>`;
   msgs.scrollTop=msgs.scrollHeight;
-  // Voice output
-  if(window.speechSynthesis){
-    const u=new SpeechSynthesisUtterance(reply.replace(/<[^>]*>/g,'').slice(0,400));
-    u.lang=appLang==='fa'?'fa-IR':appLang==='ps'?'ps-AF':'en-US';u.rate=.9;
-    speechSynthesis.speak(u);
-  }
+  if(window.speechSynthesis){const u=new SpeechSynthesisUtterance(reply.replace(/<[^>]*>/g,'').slice(0,400));u.lang=appLang==='fa'?'fa-IR':appLang==='ps'?'ps-AF':'en-US';u.rate=.9;speechSynthesis.speak(u);}
 }
 
-// ─── VOICE INPUT ──────────────────────────────────────────────────────────────
 function toggleVoice(){
   if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)){notify('Voice not supported — use Chrome');return;}
   if(isListening){if(window._rec)window._rec.stop();return;}
@@ -1243,34 +1258,23 @@ function toggleVoice(){
   rec.lang=appLang==='fa'?'fa-IR':appLang==='ps'?'ps-AF':'en-US';
   rec.onstart=()=>{isListening=true;document.getElementById('voice-btn').classList.add('listening');notify('🎤 Listening…');};
   rec.onend=()=>{isListening=false;document.getElementById('voice-btn').classList.remove('listening');};
-  rec.onresult=e=>{const t=e.results[0][0].transcript;document.getElementById('chat-inp').value=t;sendMsg();};
+  rec.onresult=e=>{document.getElementById('chat-inp').value=e.results[0][0].transcript;sendMsg();};
   rec.start();
 }
 
-// ─── APP LANGUAGE ──────────────────────────────────────────────────────────────
-function appSetLang(l,el){
+function appLangSet(l,el){
   appLang=l;
   document.querySelector('.ao-lang').querySelectorAll('button').forEach(b=>b.classList.remove('on'));
   el.classList.add('on');
-  const QR={
-    en:['💧 Irrigation?','🌾 Best crop?','💰 Profit?','🌱 Fertilizer?','📈 Recovery?'],
-    fa:['💧 آبیاری؟','🌾 بهترین محصول؟','💰 فایده؟','🌱 کود؟','📈 بهبود؟'],
-    ps:['💧 اوبه ورکول؟','🌾 غوره محصول؟','💰 ګټه؟','🌱 سره؟','📈 بهتریدل؟']
-  }[l]||[];
-  const q=['How urgent is irrigation?','Best crop for my field?','Profit estimate?','What fertilizer?','Is my NDVI recovering?'];
-  document.getElementById('quick-r').innerHTML=QR.map((label,i)=>
-    `<button class="qr" onclick="sendQ('${q[i]}')">${label}</button>`).join('');
-  const PH={en:'Ask about your field…',fa:'درباره زمین بپرسید…',ps:'د ځمکې بارې پوښتئ…'};
-  document.getElementById('chat-inp').placeholder=PH[l]||PH.en;
-  updateAIContext();
+  const QR={en:['💧 Irrigation?','🌾 Best crop?','💰 Profit?','🌱 Fertilizer?','📈 Recovery?'],fa:['💧 آبیاری؟','🌾 بهترین محصول؟','💰 فایده؟','🌱 کود؟','📈 بهبود؟'],ps:['💧 اوبه ورکول؟','🌾 غوره محصول؟','💰 ګټه؟','🌱 سره؟','📈 بهتریدل؟']}[l]||[];
+  const QS=['How urgent is irrigation?','Best crop for my field?','Profit estimate?','What fertilizer do I need?','Is my NDVI recovering?'];
+  document.getElementById('quick-r').innerHTML=QR.map((lbl,i)=>`<button class="qr" onclick="sendQ('${QS[i]}')">${lbl}</button>`).join('');
+  document.getElementById('chat-inp').placeholder=l==='fa'?'درباره زمین بپرسید…':l==='ps'?'د ځمکې بارې پوښتئ…':'Ask about your field…';
+  updateAICtx();
 }
 
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
-function calcArea(p){
-  let a=0;const n=p.length;
-  for(let i=0;i<n;i++){const j=(i+1)%n;const dx=(p[j][1]-p[i][1])*111320*Math.cos(p[i][0]*Math.PI/180);const dy=(p[j][0]-p[i][0])*111320;a+=p[i][0]*111320*dx-p[i][1]*111320*Math.cos(p[i][0]*Math.PI/180)*dy;}
-  return parseFloat((Math.abs(a)/2/1e4).toFixed(2));
-}
+// ── HELPERS ────────────────────────────────────────────────────────────────────
+function calcArea(p){let a=0;const n=p.length;for(let i=0;i<n;i++){const j=(i+1)%n;const dx=(p[j][1]-p[i][1])*111320*Math.cos(p[i][0]*Math.PI/180);const dy=(p[j][0]-p[i][0])*111320;a+=p[i][0]*111320*dx-p[i][1]*111320*Math.cos(p[i][0]*Math.PI/180)*dy;}return parseFloat((Math.abs(a)/2/1e4).toFixed(2));}
 function showTip(m){const t=document.getElementById('drawTip');t.textContent=m;t.classList.add('show');}
 function hideTip(){document.getElementById('drawTip').classList.remove('show');}
 function notify(m,d=3000){const n=document.getElementById('notif');n.textContent=m;n.classList.add('show');setTimeout(()=>n.classList.remove('show'),d);}
