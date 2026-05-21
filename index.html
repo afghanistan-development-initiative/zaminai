@@ -2077,37 +2077,107 @@ async function analyseField(){
     saveField(za_fieldData);
     updateAIContext(za_fieldData);
     
-    // Render mini satellite map of the drawn field
-    setTimeout(()=>{
+    // Render NDVI heatmap of drawn field
+    setTimeout(async ()=>{
       const miniDiv = document.getElementById('fieldMiniMap');
-      if(miniDiv && za_points.length >= 3){
-        // Create a small Leaflet map showing the field
-        const miniMap = L.map('fieldMiniMap', {
-          zoomControl:false, dragging:false, scrollWheelZoom:false,
-          doubleClickZoom:false, boxZoom:false, keyboard:false,
-          attributionControl:false
+      if(!miniDiv || za_points.length < 3) return;
+
+      // Destroy previous mini map if exists
+      if(window._miniMap){ window._miniMap.remove(); window._miniMap=null; }
+
+      const ndvi  = za_fieldData.ndvi;
+      const mndwi = za_fieldData.mndwi;
+      const ndviBorder = ndvi>=0.45?'#16a34a':ndvi>=0.30?'#22c55e':
+                         ndvi>=0.15?'#f59e0b':'#dc2626';
+
+      const miniMap = L.map('fieldMiniMap', {
+        zoomControl:false, dragging:false, scrollWheelZoom:false,
+        doubleClickZoom:false, boxZoom:false, keyboard:false,
+        attributionControl:false, touchZoom:false
+      });
+      window._miniMap = miniMap;
+
+      // Base satellite layer
+      L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+        {maxZoom:21}).addTo(miniMap);
+
+      // Draw field outline
+      const miniPoly = L.polygon(za_points, {
+        color: ndviBorder, weight: 3,
+        fillColor:'transparent', fillOpacity:0
+      }).addTo(miniMap);
+
+      const bounds = miniPoly.getBounds();
+      miniMap.fitBounds(bounds, {padding:[8,8]});
+
+      // Dark mask OUTSIDE field
+      L.polygon([
+        [[-90,-180],[-90,180],[90,180],[90,-180]],
+        za_points.map(p=>[p[0],p[1]])
+      ], {color:'transparent',fillColor:'#000',fillOpacity:0.5,weight:0}).addTo(miniMap);
+
+      // Try to get real NDVI heatmap from API
+      try {
+        const tileResp = await fetch('https://zaminai.onrender.com/ndvi_tile', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({coords:za_points.map(p=>[p[0],p[1]])})
         });
-        // Satellite tiles
-        L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
-          {maxZoom:20}).addTo(miniMap);
-        // Draw the field polygon
-        const miniPoly = L.polygon(za_points, {
-          color:'#4ade80', weight:2.5,
-          fillColor:'#4ade80', fillOpacity:0.2
+        const tileData = await tileResp.json();
+        if(tileData.status==='success' && tileData.tile_url){
+          // Add NDVI heatmap layer — exactly like your examples!
+          L.tileLayer(tileData.tile_url, {
+            maxZoom:21, opacity:0.85
+          }).addTo(miniMap);
+          console.log('✓ Real NDVI heatmap loaded');
+        }
+      } catch(e){
+        // Fallback: solid NDVI color if API not available
+        const ndviColor = ndvi>=0.45?'rgba(22,163,74,0.5)':
+                          ndvi>=0.30?'rgba(166,217,106,0.5)':
+                          ndvi>=0.15?'rgba(253,174,97,0.5)':
+                                     'rgba(215,48,39,0.5)';
+        L.polygon(za_points, {
+          color:'transparent', fillColor:ndviColor, fillOpacity:0.6
         }).addTo(miniMap);
-        // Fit map to field bounds
-        miniMap.fitBounds(miniPoly.getBounds(), {padding:[10,10]});
-        // Add NDVI color overlay
-        const ndviColor = za_fieldData.ndvi>=0.35?'#16a34a':
-                          za_fieldData.ndvi>=0.15?'#f59e0b':'#dc2626';
-        // Add NDVI badge on map
-        const badge = L.divIcon({
-          html:`<div style="background:${ndviColor};color:white;padding:3px 8px;border-radius:10px;font-family:monospace;font-size:11px;font-weight:bold;white-space:nowrap;">NDVI ${za_fieldData.ndvi}</div>`,
-          className:'', iconAnchor:[0,0]
-        });
-        L.marker(miniPoly.getBounds().getCenter(), {icon:badge}).addTo(miniMap);
       }
-    }, 200);
+
+      // NDVI legend bar at bottom
+      const statusLabel = ndvi>=0.45?'Excellent':ndvi>=0.30?'Good':
+                          ndvi>=0.15?'Moderate':'Stressed';
+      const legend = L.control({position:'bottomleft'});
+      legend.onAdd = ()=>{
+        const div = L.DomUtil.create('div');
+        div.innerHTML=`
+          <div style="background:rgba(0,0,0,0.7);color:white;padding:4px 8px;
+            border-radius:6px;font-family:monospace;font-size:10px;line-height:1.6">
+            <div style="margin-bottom:3px;font-weight:bold">NDVI ${ndvi} · ${statusLabel}</div>
+            <div style="display:flex;gap:2px;align-items:center">
+              <div style="width:8px;height:8px;background:#d73027;border-radius:2px"></div>
+              <span style="font-size:9px">Stressed</span>
+              <div style="width:8px;height:8px;background:#fee08b;border-radius:2px;margin-left:4px"></div>
+              <span style="font-size:9px">Moderate</span>
+              <div style="width:8px;height:8px;background:#1a9850;border-radius:2px;margin-left:4px"></div>
+              <span style="font-size:9px">Healthy</span>
+            </div>
+          </div>`;
+        return div;
+      };
+      legend.addTo(miniMap);
+
+      // Water badge top right
+      const waterLabel = mndwi>0?'💧 Good':mndwi>-0.05?'💧 Moderate':'🔴 Low water';
+      const waterBadge = L.control({position:'topright'});
+      waterBadge.onAdd = ()=>{
+        const div = L.DomUtil.create('div');
+        div.innerHTML=`<div style="background:${mndwi>0?'#0284c7':mndwi>-0.05?'#f59e0b':'#dc2626'};
+          color:white;padding:3px 7px;border-radius:6px;font-family:monospace;
+          font-size:10px;font-weight:bold;">${waterLabel}</div>`;
+        return div;
+      };
+      waterBadge.addTo(miniMap);
+
+    }, 300);
   } catch(err) {
     console.error('Report render error:', err);
     document.getElementById('reportBody').innerHTML = `
