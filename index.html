@@ -319,13 +319,13 @@ footer{padding:3rem 5rem;border-top:1px solid var(--br);display:flex;justify-con
 <nav>
   <a href="#" class="logo"><span class="logo-dot"></span>ZaminAI</a>
   <div class="nv">
-    <a href="#global">Global</a>
-    <a href="#features">Features</a>
-    <a href="#calculator">Calculator</a>
-    <a href="#languages">Languages</a>
-    <a href="#impact">Impact</a>
+    <a href="#global" id="nav-global">Global</a>
+    <a href="#features" id="nav-features">Features</a>
+    <a href="#calculator" id="nav-calc">Calculator</a>
+    <a href="#languages" id="nav-lang">Languages</a>
+    <a href="#impact" id="nav-impact">Impact</a>
     <div class="lang-sw">
-      <span class="lsw on">EN</span>
+      <span class="lsw on" onclick="switchLang('en',this)">EN</span>
       <a href="#languages" onclick="setL('fa',this)" class="lsw">دری</a>
       <a href="#languages" onclick="setL('ps',this)" class="lsw">پښتو</a>
     </div>
@@ -348,24 +348,24 @@ footer{padding:3rem 5rem;border-top:1px solid var(--br);display:flex;justify-con
     <div class="dp" style="top:70%;left:55%;animation-delay:3s"></div>
   </div>
   <div class="hc">
-    <div class="htag"><span class="pd"></span>LIVE · REAL SATELLITE DATA · WORLDWIDE</div>
+    <div class="htag"><span class="pd"></span><span id="hero-tag-text">LIVE · REAL SATELLITE DATA · WORLDWIDE</span></div>
     <h1 class="htitle">
-      <span class="t1">ZAMIN</span>
-      <span class="t2">AI</span>
+      <span class="t1" id="hero-t1">ZAMIN</span>
+      <span class="t2" id="hero-t2">AI</span>
       <span class="t3">Smart Farming Intelligence · For Every Farmer on Earth</span>
     </h1>
-    <p class="hdesc">Real satellite data for every field on earth. AI recommendations in any language. Built for 500 million smallholder farmers who make decisions without any digital support.</p>
+    <p class="hdesc" id="hero-desc"><span id="hero-desc">Real satellite data for every field on earth. AI recommendations in any language. Built for 500 million smallholder farmers who make decisions without any digital support.</span></p>
     <div class="hbtns">
       <a href="#" class="bp" onclick="openModal(event)">Open ZaminAI — Free →</a>
-      <a href="#calculator" class="bg2">Calculate farm profit</a>
+      <a href="#calculator" class="bg2" id="hero-btn2">Calculate farm profit</a>
     </div>
     <div class="hstats">
-      <div><div class="sv" id="c1">0</div><div class="sl2">Satellites</div></div>
-      <div><div class="sv" id="c2">0</div><div class="sl2">Countries · live</div></div>
-      <div><div class="sv" id="c3">0</div><div class="sl2">Years of data</div></div>
-      <div><div class="sv" id="c4">0</div><div class="sl2">Languages live</div></div>
-      <div><div class="sv" id="c5">0</div><div class="sl2">Coming soon</div></div>
-      <div><div class="sv" id="c6">0</div><div class="sl2">Data sources</div></div>
+      <div><div class="sv" id="c1">0</div><div class="sl2" id="stat1-l">Satellites</div></div>
+      <div><div class="sv" id="c2">0</div><div class="sl2" id="stat2-l">Countries · live</div></div>
+      <div><div class="sv" id="c3">0</div><div class="sl2" id="stat3-l">Years of data</div></div>
+      <div><div class="sv" id="c4">0</div><div class="sl2" id="stat4-l">Languages live</div></div>
+      <div><div class="sv" id="c5">0</div><div class="sl2" id="stat5-l">Coming soon</div></div>
+      <div><div class="sv" id="c6">0</div><div class="sl2" id="stat6-l">Data sources</div></div>
     </div>
   </div>
 </section>
@@ -406,19 +406,11 @@ footer{padding:3rem 5rem;border-top:1px solid var(--br);display:flex;justify-con
     <div class="world-vis">
       <div class="eye">Live now · Expanding globally</div>
       <h2 class="sh" style="font-size:clamp(36px,4vw,56px)">One platform.<br>Every country.</h2>
-      <p style="font-size:14px;color:var(--m);font-weight:300;margin-top:1rem;line-height:1.7">Same satellite data. Same AI. Different language, different crop, different country. ZaminAI works anywhere on earth — because Sentinel-2 covers the whole planet.</p>
-      <div style="margin-top:2rem" class="region-list">
-        <div class="region"><div class="region-flag">🇦🇫</div><div class="region-info"><div class="region-name">Afghanistan</div><div class="region-detail">Wheat · Flax · Saffron · Dari · Pashto</div></div><span class="region-status st-live">● Live</span></div>
-        <div class="region"><div class="region-flag">🇮🇷</div><div class="region-info"><div class="region-name">Iran</div><div class="region-detail">Wheat · Saffron · Pistachios · Farsi</div></div><span class="region-status st-dev">◐ In development</span></div>
-        <div class="region"><div class="region-flag">🇵🇰</div><div class="region-info"><div class="region-name">Pakistan</div><div class="region-detail">Wheat · Rice · Cotton · Urdu · Pashto</div></div><span class="region-status st-plan">○ Planned</span></div>
-        <div class="region"><div class="region-flag">🇹🇯</div><div class="region-info"><div class="region-name">Tajikistan</div><div class="region-detail">Cotton · Wheat · Dari speakers</div></div><span class="region-status st-plan">○ Planned</span></div>
-        <div class="region"><div class="region-flag">🇪🇹</div><div class="region-info"><div class="region-name">Ethiopia</div><div class="region-detail">Coffee · Teff · Maize · Amharic</div></div><span class="region-status st-plan">○ Planned</span></div>
-        <div class="region"><div class="region-flag">🇳🇬</div><div class="region-info"><div class="region-name">Nigeria</div><div class="region-detail">Cassava · Maize · Sorghum · Hausa</div></div><span class="region-status st-plan">○ Planned</span></div>
-        <div class="region"><div class="region-flag">🌍</div><div class="region-info"><div class="region-name">+ Many more</div><div class="region-detail">Any country with smallholder farmers</div></div><span class="region-status st-plan">○ Open</span></div>
-      </div>
+      <p style="font-size:14px;color:var(--m);font-weight:300;margin-top:1rem;line-height:1.7"><span id="global-sub">Same satellite data. Same AI. Different language, different crop, different country.</span></p>
+      <div style="margin-top:2rem" class="region-list" id="region-list"><!-- dynamic --></div>
     </div>
     <div class="global-text">
-      <div class="eye">The global opportunity</div>
+      <div class="eye"><span id="global-opp-eye">The global opportunity</span></div>
       <h2 class="sh">500 million farmers.<br>Zero digital support.</h2>
       <p class="ss">Today, 500 million smallholder farmers make planting, irrigation, and harvest decisions with no satellite data, no AI, no digital tools. They rely on tradition and guesswork — even as climate change makes those decisions harder every year.</p>
       <p class="ss" style="margin-top:1rem">ZaminAI gives any farmer — anywhere on earth — the same quality of agricultural intelligence that large commercial farms pay thousands for. Free. In their language. On their phone.</p>
@@ -473,8 +465,8 @@ footer{padding:3rem 5rem;border-top:1px solid var(--br);display:flex;justify-con
 
 <!-- FEATURES -->
 <section class="features" id="features">
-  <div class="eye">What ZaminAI does</div>
-  <h2 class="sh">Everything a farmer needs</h2>
+  <div class="eye" id="feat-eye">What ZaminAI does</div>
+  <h2 class="sh" id="feat-h">Everything a farmer needs</h2>
   <div class="fg">
     <div class="fc"><span class="fi">🛰️</span><div class="fn">01 · Satellite</div><div class="ft">Field Analysis</div><p class="fd">Draw your field on GPS map. Real NDVI, water, rainfall for your exact coordinates — updated every 5 days. Works in any country.</p><span class="ftag live">● Live</span></div>
     <div class="fc"><span class="fi">📊</span><div class="fn">02 · Economics</div><div class="ft">Yield + Profit</div><p class="fd">AI predicts yield from NDVI and water. Calculates seeds, fertilizer, irrigation, machinery — and net profit before you plant.</p><span class="ftag live">● Live</span></div>
@@ -487,24 +479,24 @@ footer{padding:3rem 5rem;border-top:1px solid var(--br);display:flex;justify-con
 
 <!-- HOW IT WORKS -->
 <section class="how" id="how">
-  <div class="eye">How it works</div>
-  <h2 class="sh">Four steps. Real results.</h2>
+  <div class="eye" id="how-eye">How it works</div>
+  <h2 class="sh" id="how-h">Four steps. Real results.</h2>
   <div class="steps">
-    <div class="step"><div class="step-ico">📍</div><div class="step-n">01</div><div class="step-t">Open on phone</div><p class="step-d">GPS locates your position anywhere on earth. Satellite map loads your exact location.</p></div>
-    <div class="step"><div class="step-ico">✏️</div><div class="step-n">02</div><div class="step-t">Draw your field</div><p class="step-d">Tap the corners of your field. System calculates exact area in hectares, jereb, or acres.</p></div>
-    <div class="step"><div class="step-ico">🛰️</div><div class="step-n">03</div><div class="step-t">Satellite analyses</div><p class="step-d">Google Earth Engine pulls real Sentinel-2 data for your exact field polygon. Updated every 5 days.</p></div>
-    <div class="step"><div class="step-ico">🎤</div><div class="step-n">04</div><div class="step-t">Ask anything</div><p class="step-d">Speak in your language. AI reads your real data and answers with specific recommendations — aloud.</p></div>
+    <div class="step"><div class="step-ico">📍</div><div class="step-n">01</div><div class="step-t" id="step1-t">Open on phone</div><p class="step-d"><span id="step1-d">GPS locates your position anywhere on earth. Satellite map loads your exact location.</span></p></div>
+    <div class="step"><div class="step-ico">✏️</div><div class="step-n">02</div><div class="step-t" id="step2-t">Draw your field</div><p class="step-d">گوشه‌های زمین را لمس کنید. سیستم مساحت دقیق را در جریب حساب می‌کند.</p></div>
+    <div class="step"><div class="step-ico">🛰️</div><div class="step-n">03</div><div class="step-t" id="step3-t">Satellite analyses</div><p class="step-d"><span id="step3-d">Google Earth Engine pulls real Sentinel-2 data for your exact field polygon. Updated every 5 days.</span></p></div>
+    <div class="step"><div class="step-ico">🎤</div><div class="step-n">04</div><div class="step-t" id="step4-t">Ask anything</div><p class="step-d"><span id="step4-d">Speak in your language. AI reads your real data and answers with specific recommendations — aloud.</span></p></div>
   </div>
 </section>
 
 <!-- CALCULATOR -->
 <section class="calc" id="calculator">
-  <div class="eye">Farm Intelligence Calculator</div>
-  <h2 class="sh">Know your numbers<br>before you plant</h2>
-  <p class="ss" style="max-width:620px">Enter your farm details. ZaminAI calculates expected yield based on satellite NDVI data, all input costs, and net profit — so you can decide what to grow before spending a single coin.</p>
+  <div class="eye" id="calc-eye">Farm Intelligence Calculator</div>
+  <h2 class="sh" id="calc-h">Know your numbers<br>before you plant</h2>
+  <p class="ss" style="max-width:620px"><span id="calc-desc-text">Enter your farm details. ZaminAI calculates expected yield based on satellite NDVI data, all input costs, and net profit — so you can decide what to grow before spending a single coin.</span></p>
   <div class="calc-wrap">
     <div class="calc-form">
-      <div class="ci"><label>Crop</label>
+      <div class="ci"><label id="lbl-crop">Crop</label>
         <select id="crop" onchange="calc()">
           <option value="wheat">Wheat / گندم</option>
           <option value="flax">Flax / کتان</option>
@@ -517,18 +509,18 @@ footer{padding:3rem 5rem;border-top:1px solid var(--br);display:flex;justify-con
           <option value="rice">Rice / برنج</option>
         </select>
       </div>
-      <div class="ci"><label>Land size (jereb)</label>
+      <div class="ci"><label id="lbl-land">Land size (jereb)</label>
         <input type="range" id="land" min="1" max="30" step="1" value="5" oninput="upd()">
         <div class="rv"><span id="lv">5</span> jereb &nbsp;<span style="font-size:16px;color:var(--m2)" id="lh">(1.0 ha)</span></div>
       </div>
-      <div class="ci"><label>Water availability</label>
+      <div class="ci"><label id="lbl-water">Water availability</label>
         <select id="water" onchange="calc()">
-          <option value="good">Good — river or canal nearby</option>
+          <option value="good" data-en="Good — river or canal nearby" data-fa="خوب — دریا یا کانال نزدیک" data-ps="ښه — سیند یا کانال نږدې">Good — river or canal nearby</option>
           <option value="moderate" selected>Moderate — seasonal water</option>
           <option value="low">Low — drought conditions</option>
         </select>
       </div>
-      <div class="ci"><label>Irrigation system</label>
+      <div class="ci"><label id="lbl-irr">Irrigation system</label>
         <select id="irr" onchange="calc()">
           <option value="drip">Drip irrigation — 85-95% efficient</option>
           <option value="furrow" selected>Furrow irrigation — 50-60%</option>
@@ -536,7 +528,7 @@ footer{padding:3rem 5rem;border-top:1px solid var(--br);display:flex;justify-con
           <option value="sprinkler">Sprinkler — 70-80%</option>
         </select>
       </div>
-      <div class="ci"><label>Fertilizer</label>
+      <div class="ci"><label id="lbl-fert">Fertilizer</label>
         <select id="fert" onchange="calc()">
           <option value="full">Full package — Urea + DAP + Potassium</option>
           <option value="basic" selected>Basic — Urea + DAP</option>
@@ -544,30 +536,34 @@ footer{padding:3rem 5rem;border-top:1px solid var(--br);display:flex;justify-con
           <option value="none">None</option>
         </select>
       </div>
-      <div class="ci"><label>Machinery</label>
+      <div class="ci"><label id="lbl-mach">Machinery</label>
         <select id="mach" onchange="calc()">
           <option value="tractor">Tractor (rent) — all operations</option>
           <option value="partial" selected>Tractor — plowing only</option>
           <option value="manual">Manual — hand tools only</option>
         </select>
       </div>
-      <button class="cbtn" onclick="calc()">🛰️ Calculate with satellite data</button>
+      <button class="cbtn" onclick="calc()"><span id="btn-calc">🛰️ Calculate with satellite data</span></button>
     </div>
     <div>
       <div class="results">
-        <div class="res-head">Satellite-based calculation results</div>
+        <div class="res-head"><span id="calc-results-label">Satellite-based calculation results</span></div>
         <div class="res-grid">
           <div class="ri"><div class="rv2" id="r1">—</div><div class="rl">Expected yield kg</div></div>
-          <div class="ri"><div class="rv2" id="r2">—</div><div class="rl">Gross income AFN</div></div>
+          <div class="ri"><div class="rv2" id="r2">—</div><div class="rl" id="rl-gross">Gross income AFN</div></div>
           <div class="ri"><div class="rv2" id="r3">—</div><div class="rl">Total input costs AFN</div></div>
-          <div class="ri"><div class="rv2" id="r4">—</div><div class="rl">Net profit AFN</div></div>
+          <div class="ri"><div class="rv2" id="r4">—</div><div class="rl" id="rl-profit">Net profit AFN</div></div>
         </div>
         <div class="rec-box" id="rec">Select your crop and land size to calculate.</div>
       </div>
       <div style="margin-top:1.25rem">
-        <div style="font-family:var(--M);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--m);margin-bottom:0.75rem">Full cost breakdown</div>
+        <div style="font-family:var(--M);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--m);margin-bottom:0.75rem"><span id="cost-breakdown-label">Full cost breakdown</span></div>
         <table class="cost-tbl">
-          <thead><tr><th>Item</th><th>Per jereb</th><th>Your total</th></tr></thead>
+          <thead id="cost-thead"><tr>
+  <th id="th-item">Item</th>
+  <th id="th-per">Per jereb</th>
+  <th id="th-total">Your total</th>
+</tr></thead>
           <tbody id="ctbl"><tr><td colspan="3" style="color:var(--m2);font-style:italic;padding:0.75rem">Calculate first to see breakdown</td></tr></tbody>
         </table>
       </div>
@@ -577,9 +573,9 @@ footer{padding:3rem 5rem;border-top:1px solid var(--br);display:flex;justify-con
 
 <!-- LANGUAGES -->
 <section class="lang" id="languages">
-  <div class="eye">Languages</div>
-  <h2 class="sh">Speaks your language</h2>
-  <p class="ss" style="max-width:560px;margin:0 auto;text-align:center">Live now in 3 languages. Expanding as we grow to new countries — every new country gets its own language support.</p>
+  <div class="eye" id="lang-eye">Languages</div>
+  <h2 class="sh" id="lang-h">Speaks your language</h2>
+  <p class="ss" style="max-width:560px;margin:0 auto;text-align:center"><span id="lang-sub2">Live now in 3 languages. Expanding as we grow to new countries — every new country gets its own language support.</span></p>
   <div class="lg2">
     <div class="lc on" onclick="setL('en',this)">
       <div class="lcf">🇬🇧</div><div class="lcn">English</div>
@@ -610,43 +606,43 @@ footer{padding:3rem 5rem;border-top:1px solid var(--br);display:flex;justify-con
 
 <!-- GLOBAL VISION -->
 <section class="vision">
-  <div class="eye">Expansion roadmap</div>
-  <h2 class="sh">Three phases.<br>One mission.</h2>
+  <div class="eye" id="roadmap-eye">Expansion roadmap</div>
+  <h2 class="sh"><span id="roadmap-h">Three phases.<br>One mission.</span></h2>
   <div class="vision-grid">
     <div class="vc">
-      <div class="vc-phase">Phase 1 · Now live</div>
-      <div class="vc-t">Afghanistan</div>
+      <div class="vc-phase"><span id="phase1-label">Phase 1 · Now live</span></div>
+      <div class="vc-t" id="phase1-t">Afghanistan</div>
       <ul class="vc-list">
-        <li>34 provinces covered by satellite</li>
-        <li>Real Sentinel-2 data 2019–2024</li>
-        <li>Dari and Pashto voice assistant</li>
-        <li>GPS field drawing and analysis</li>
-        <li>Irrigation, machinery, seed guides</li>
-        <li>Farmer profile and data collection</li>
+        <li id="p1-0">34 provinces covered by satellite</li>
+        <li id="p1-1">Real Sentinel-2 data 2019–2024</li>
+        <li id="p1-2">Dari and Pashto voice assistant</li>
+        <li id="p1-3">GPS field drawing and analysis</li>
+        <li id="p1-4">Irrigation, machinery, seed guides</li>
+        <li id="p1-5">Farmer profile and data collection</li>
       </ul>
     </div>
     <div class="vc">
-      <div class="vc-phase" style="color:var(--a)">Phase 2 · In development</div>
-      <div class="vc-t">Central Asia + MENA</div>
+      <div class="vc-phase" style="color:var(--a)"><span id="phase2-label">Phase 2 · In development</span></div>
+      <div class="vc-t" id="phase2-t">Central Asia + MENA</div>
       <ul class="vc-list">
-        <li>Iran — Farsi language · saffron crops</li>
-        <li>Pakistan — Urdu + Pashto · wheat + rice</li>
-        <li>Tajikistan — Dari speakers · cotton</li>
-        <li>Uzbekistan — water crisis · cotton belt</li>
-        <li>Yemen — conflict + drought conditions</li>
-        <li>Each country gets local crop database</li>
+        <li id="p2-0">Iran — Farsi language · saffron crops</li>
+        <li id="p2-1">Pakistan — Urdu + Pashto · wheat + rice</li>
+        <li id="p2-2">Tajikistan — Dari speakers · cotton</li>
+        <li id="p2-3">Uzbekistan — water crisis · cotton belt</li>
+        <li id="p2-4">Yemen — conflict + drought conditions</li>
+        <li id="p2-5">Each country gets local crop database</li>
       </ul>
     </div>
     <div class="vc">
-      <div class="vc-phase" style="color:var(--b)">Phase 3 · Planned</div>
-      <div class="vc-t">Africa + South Asia</div>
+      <div class="vc-phase" style="color:var(--b)"><span id="phase3-label">Phase 3 · Planned</span></div>
+      <div class="vc-t" id="phase3-t">Africa + South Asia</div>
       <ul class="vc-list">
-        <li>Ethiopia — coffee + teff + Amharic</li>
-        <li>Nigeria — cassava + maize + Hausa</li>
-        <li>Bangladesh — rice + flood risk</li>
-        <li>Mali + Niger — Sahel drought zone</li>
-        <li>India — smallholder rice + wheat belt</li>
-        <li>Any country with a local partner</li>
+        <li id="p3-0">Ethiopia — coffee + teff + Amharic</li>
+        <li id="p3-1">Nigeria — cassava + maize + Hausa</li>
+        <li id="p3-2">Bangladesh — rice + flood risk</li>
+        <li id="p3-3">Mali + Niger — Sahel drought zone</li>
+        <li id="p3-4">India — smallholder rice + wheat belt</li>
+        <li id="p3-5">Any country with a local partner</li>
       </ul>
     </div>
   </div>
@@ -654,8 +650,8 @@ footer{padding:3rem 5rem;border-top:1px solid var(--br);display:flex;justify-con
 
 <!-- YOLO VISION -->
 <section class="yolo">
-  <div class="eye">Computer Vision</div>
-  <h2 class="sh">YOLO sees what<br>the eye misses</h2>
+  <div class="eye" id="yolo-eye">Computer Vision</div>
+  <h2 class="sh"><span id="yolo-h">YOLO sees what<br>the eye misses</span></h2>
   <div class="yg">
     <div class="ydemo">
       <div class="yscreen">
@@ -679,18 +675,18 @@ footer{padding:3rem 5rem;border-top:1px solid var(--br);display:flex;justify-con
       </div>
     </div>
     <div class="yfs">
-      <div class="yf vis"><div class="yft">Disease detection</div><div class="yfd">YOLO identifies wheat rust, leaf blight, powdery mildew and 50+ crop diseases from a phone photo — with confidence score and treatment in the farmer's language.</div></div>
-      <div class="yf vis" style="border-left-color:var(--b);transition-delay:0.1s"><div class="yft" style="color:var(--b)">Pest identification</div><div class="yfd">Aphids, locusts, stem borers — detected and counted per photo. AI recommends pesticide type, dose, and timing for your exact field size.</div></div>
-      <div class="yf vis" style="border-left-color:var(--a);transition-delay:0.2s"><div class="yft" style="color:var(--a)">Yield estimation</div><div class="yfd">Photo of crop head → AI estimates maturity stage and optimal harvest window — cross-checked with satellite NDVI data for maximum accuracy.</div></div>
-      <div class="yf vis" style="border-left-color:var(--p);transition-delay:0.3s"><div class="yft" style="color:var(--p)">Soil health analysis</div><div class="yfd">Photo of soil → identifies soil type, moisture, compaction issues. Combined with SoilGrids API data for a complete soil profile in seconds.</div></div>
+      <div class="yf vis"><div class="yft" id="yolo-f1-t">Disease detection</div><div class="yfd" id="yolo-f1-d">YOLO identifies wheat rust, leaf blight, powdery mildew and 50+ crop diseases from a phone photo — with confidence score and treatment in the farmer's language.</div></div>
+      <div class="yf vis" style="border-left-color:var(--b);transition-delay:0.1s"><div class="yft" id="yolo-f2-t" style="color:var(--b)">Pest identification</div><div class="yfd" id="yolo-f2-d">Aphids, locusts, stem borers — detected and counted per photo. AI recommends pesticide type, dose, and timing for your exact field size.</div></div>
+      <div class="yf vis" style="border-left-color:var(--a);transition-delay:0.2s"><div class="yft" id="yolo-f3-t" style="color:var(--a)">Yield estimation</div><div class="yfd" id="yolo-f3-d">Photo of crop head → AI estimates maturity stage and optimal harvest window — cross-checked with satellite NDVI data for maximum accuracy.</div></div>
+      <div class="yf vis" style="border-left-color:var(--p);transition-delay:0.3s"><div class="yft" id="yolo-f4-t" style="color:var(--p)">Soil health analysis</div><div class="yfd" id="yolo-f4-d">Photo of soil → identifies soil type, moisture, compaction issues. Combined with SoilGrids API data for a complete soil profile in seconds.</div></div>
     </div>
   </div>
 </section>
 
 <!-- SDG IMPACT -->
 <section class="sdg" id="impact">
-  <div class="eye">Global impact</div>
-  <h2 class="sh">6 SDGs. 1 platform.</h2>
+  <div class="eye" id="sdg-eye">Global impact</div>
+  <h2 class="sh" id="sdg-h">6 SDGs. 1 platform.</h2>
   <div class="sdgg">
     <div class="sdc"><div class="sdn" style="color:#e5243b">1</div><div class="sdl">No Poverty</div></div>
     <div class="sdc"><div class="sdn" style="color:#dda63a">2</div><div class="sdl">Zero Hunger</div></div>
@@ -700,18 +696,18 @@ footer{padding:3rem 5rem;border-top:1px solid var(--br);display:flex;justify-con
     <div class="sdc"><div class="sdn" style="color:#19486a">17</div><div class="sdl">Partnerships</div></div>
   </div>
   <div class="stats-r">
-    <div class="src"><div class="srn">53%</div><div class="srl">Cropland collapse in Kunduz 2019→2022 · confirmed by satellite</div></div>
-    <div class="src"><div class="srn" style="color:#f87171">76%</div><div class="srl">Water surface decline in 2022 drought · r=0.97 water–cropland</div></div>
-    <div class="src"><div class="srn" style="color:#fbbf24">500M</div><div class="srl">Smallholder farmers worldwide making decisions without any data</div></div>
+    <div class="src"><div class="srn">53%</div><div class="srl"><span id="stat-s1">Cropland collapse in Kunduz 2019→2022 · confirmed by satellite</span></div></div>
+    <div class="src"><div class="srn" style="color:#f87171">76%</div><div class="srl"><span id="stat-s2">Water surface decline in 2022 drought · r=0.97 water–cropland</span></div></div>
+    <div class="src"><div class="srn" style="color:#fbbf24">500M</div><div class="srl"><span id="stat-s3">Smallholder farmers worldwide making decisions without any data</span></div></div>
   </div>
 </section>
 
 <!-- CTA -->
 <section class="cta">
-  <h2 class="ct">FARM<br>SMARTER<br>TODAY</h2>
-  <p class="cs">Open ZaminAI. Draw your field anywhere on earth. Get real satellite data and AI recommendations in your language — free, forever.</p>
+  <h2 class="ct" id="cta-h">FARM<br>SMARTER<br>TODAY</h2>
+  <p class="cs"><span id="cta-sub2">Open ZaminAI. Draw your field anywhere on earth. Get real satellite data and AI recommendations in your language — free, forever.</span></p>
   <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;position:relative;z-index:1">
-    <a href="#" onclick="openModal(event)" style="font-family:var(--M);font-size:14px;padding:17px 46px;background:#4ade80;color:#052e16;text-decoration:none;border-radius:4px;font-weight:500;letter-spacing:0.06em;transition:all 0.2s;cursor:none;">Open ZaminAI — Free →</a>
+    <a href="#" onclick="openModal(event)" style="font-family:var(--M);font-size:14px;padding:17px 46px;background:#4ade80;color:#052e16;text-decoration:none;border-radius:4px;font-weight:500;letter-spacing:0.06em;transition:all 0.2s;cursor:none;"><span id="cta-btn2">Open ZaminAI — Free →</span></a>
     <a href="https://afghanistan-development-initiative.github.io" style="font-family:var(--M);font-size:14px;padding:17px 32px;background:transparent;color:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.18);text-decoration:none;border-radius:4px;transition:all 0.2s;" target="_blank">ADI Platform</a>
   </div>
   <div style="margin-top:3rem;font-family:var(--M);font-size:11px;color:rgba(255,255,255,0.25);letter-spacing:0.1em;position:relative;z-index:1">AFGHANISTAN DEVELOPMENT INITIATIVE · ZAMINAI.ORG · 2025</div>
@@ -754,12 +750,584 @@ const ld={
   ps:{q:"ایا زما ځمکه پدې فصل کې کافي اوبه لري؟",t:"پښتو · Pashto · خپله پوښتنه ولیکئ یا ووایئ",dir:"rtl"},
   cs:{q:"Coming soon — Farsi · Urdu · Amharic · Hausa · Bengali · Swahili · and more",t:"12 languages planned as ZaminAI expands worldwide",dir:"ltr"}
 };
+// ── FULL TRANSLATION DATABASE ──
+const TRANS = {
+  en: {
+    dir: "ltr",
+    nav_global:"Global", nav_features:"Features", nav_calc:"Calculator",
+    nav_lang:"Languages", nav_impact:"Impact", nav_open:"Open App →",
+    hero_tag:"LIVE · REAL SATELLITE DATA · WORLDWIDE",
+    hero_t1:"ZAMIN", hero_t2:"AI",
+    hero_t3:"Smart Farming Intelligence · For Every Farmer on Earth",
+    hero_desc:"Real satellite data for every field on earth. AI recommendations in any language. Built for 500 million smallholder farmers who make decisions without any digital support.",
+    hero_btn1:"Open ZaminAI — Free →", hero_btn2:"Calculate farm profit",
+    stat1:"Satellites", stat2:"Countries · live", stat3:"Years of data",
+    stat4:"Languages live", stat5:"Coming soon", stat6:"Data sources",
+    global_eye:"Global Vision", global_h:"Afghanistan first.The world next.",
+    global_sub:"Same satellite data. Same AI. Different language, different crop, different country.",
+    feat_eye:"What ZaminAI does", feat_h:"Everything a farmer needs",
+    how_eye:"How it works", how_h:"Four steps. Real results.",
+    calc_eye:"Farm Intelligence Calculator", calc_h:"Know your numbersbefore you plant",
+    calc_sub:"Enter your farm details. ZaminAI calculates expected yield, all input costs, and net profit.",
+    lang_eye:"Languages", lang_h:"Speaks your language",
+    lang_sub:"Live in 3 languages now. Expanding to 15+ as we grow globally.",
+    sdg_eye:"Global Impact", sdg_h:"6 SDGs. 1 platform.",
+    cta_h:"FARMSMARTERTODAY",
+    cta_sub:"Open ZaminAI. Draw your field. Know your yield, costs, and profit before you plant. Free, forever.",
+    cta_btn:"Open ZaminAI — Free →",
+    step1_t:"Open on phone", step1_d:"GPS locates your position anywhere on earth.",
+    step2_t:"Draw your field", step2_d:"Tap field corners. System calculates exact area in hectares and jereb.",
+    step3_t:"Satellite analyses", step3_d:"Google Earth Engine pulls real Sentinel-2 data for your exact field.",
+    step4_t:"Ask anything", step4_d:"Speak in your language. AI answers with specific recommendations — aloud.",
+    lbl_crop:"Crop", lbl_land:"Land size (jereb)", lbl_water:"Water availability",
+    lbl_irr:"Irrigation system", lbl_fert:"Fertilizer", lbl_mach:"Machinery",
+    btn_calc:"🛰️ Calculate with satellite data",
+    w_good:"Good — river or canal nearby", w_mod:"Moderate — seasonal water", w_low:"Low — drought conditions",
+    chat_placeholder:"Ask about your field...",
+  },
+  fa: {
+    dir: "rtl",
+    nav_global:"جهانی", nav_features:"ویژگی‌ها", nav_calc:"حساب کتاب",
+    nav_lang:"ژبې", nav_impact:"تاثیر", nav_open:"خلاصول برنامه ←",
+    hero_tag:"زنده · داده‌های ماهواره‌ای · جهانی",
+    hero_t1:"زمین", hero_t2:"هوش",
+    hero_t3:"هوش دهقانی هوشمند · برای هر دهقانی در زمین",
+    hero_desc:"داده‌های ماهواره‌ای واقعی برای هر زمین. مشوره‌های هوش مصنوعی به هر زبانی. برای ۵۰۰ میلیون دهقان کوچک ساخته شده.",
+    hero_btn1:"خلاصول ZaminAI — وړیا ←", hero_btn2:"محاسبه ګټه مزرعه",
+    stat1:"ماهواره‌ها", stat2:"کشورها · فعال", stat3:"سال‌های داده",
+    stat4:"ژبېی فعال", stat5:"به زودی", stat6:"منابع داده",
+    global_eye:"دیدگاه جهانی", global_h:"افغانستان اول.بعد جهان.",
+    global_sub:"همان داده ماهواره‌ای. همان هوش مصنوعی. زبان، محصول و کشور متفاوت.",
+    feat_eye:"ZaminAI چه می‌کند", feat_h:"همه چیزی که دهقان نیاز دارد",
+    how_eye:"چگونه کار می‌کند", how_h:"چهار مرحله. نتایج واقعی.",
+    calc_eye:"حساب کتاب هوشمند مزرعه", calc_h:"اعداد خود را قبل از کاشت بدانید",
+    calc_sub:"جزئیات مزرعه را وارد کنید. ZaminAI حاصل مورد انتظار، لګښت‌ها و ګټه خالص را محاسبه می‌کند.",
+    lang_eye:"ژبې", lang_h:"به زبان شما صحبت می‌کند",
+    lang_sub:"حالا در ۳ زبان فعال. در حال گسترش به ۱۵+ زبان.",
+    sdg_eye:"تاثیر جهانی", sdg_h:"۶ هدف توسعه. ۱ پلتفرم.",
+    cta_h:"هوشمندتردهقانیکنید",
+    cta_sub:"ZaminAI را خلاص کنید. زمین خود را رسم کنید. حاصل، لګښت‌ها و ګټه را قبل از کاشت بدانید. وړیا، تل.",
+    cta_btn:"خلاصول ZaminAI — وړیا ←",
+    step1_t:"روی تلفن خلاص کنید", step1_d:"GPS موقعیت شما را در هر جای زمین پیدا می‌کند.",
+    step2_t:"زمین خود را رسم کنید", step2_d:"گوشه‌های زمین را لمس کنید. سیستم مساحت دقیق را محاسبه می‌کند.",
+    step3_t:"ماهواره تحلیل می‌کند", step3_d:"Google Earth Engine داده Sentinel-2 واقعی را برای زمین دقیق شما می‌آورد.",
+    step4_t:"هر چیزی بپرسید", step4_d:"به زبان خود صحبت کنید. هوش مصنوعی با مشوره‌های خاص پاسخ می‌دهد.",
+    lbl_crop:"محصول", lbl_land:"اندازه زمین (جریب)", lbl_water:"دسترسی به آب",
+    lbl_irr:"سیستم آبیاری", lbl_fert:"کود", lbl_mach:"ماشین‌آلات",
+    btn_calc:"🛰️ محاسبه با داده ماهواره",
+    w_good:"خوب — رودخانه یا کانال نزدیک", w_mod:"متوسط — آب فصلی", w_low:"کم — شرایط خشکسالی",
+    chat_placeholder:"درباره مزرعه‌تان بپرسید...",
+  },
+  ps: {
+    dir: "rtl",
+    nav_global:"نړیوال", nav_features:"ځانګړتیاوې", nav_calc:"حساب",
+    nav_lang:"ژبې", nav_impact:"اغیز", nav_open:"اپ خلاصول ←",
+    hero_tag:"ژوندی · د ماهواره‌ای معلومات · نړیوال",
+    hero_t1:"ځمکه", hero_t2:"هوش",
+    hero_t3:"هوښیار کرنه · د ځمکې هر کرنکي لپاره",
+    hero_desc:"د هر ځمکې لپاره واقعي ماهواره‌ای معلومات. د هرې ژبې AI سپارښتنې. د ۵۰۰ میلیون کوچني کرنکیو لپاره جوړ شوی.",
+    hero_btn1:"ZaminAI خلاصول — وړیا ←", hero_btn2:"د مزرعې ګټه حساب کول",
+    stat1:"ماهواره‌ای", stat2:"هیوادونه · ژوندي", stat3:"د معلوماتو کلونه",
+    stat4:"ژوندۍ ژبې", stat5:"ډیر ژر", stat6:"د معلوماتو سرچینې",
+    global_eye:"نړیوال لید", global_h:"افغانستان لومړی.بیا نړۍ.",
+    global_sub:"ورته ماهواره‌ای معلومات. ورته AI. بیله ژبه، بیل محصول او بیل هیواد.",
+    feat_eye:"ZaminAI څه کوي", feat_h:"هر هغه شی چې کرنکي ورته اړتیا لري",
+    how_eye:"دا څنګه کار کوي", how_h:"څلور ګامونه. واقعي پایلې.",
+    calc_eye:"د مزرعې هوښیار حساب", calc_h:"د کرلو دمخه خپل شمیرې وپیژنئ",
+    calc_sub:"د مزرعې توضیحات دننه کړئ. ZaminAI متوقع حاصل، ټول لګښتونه او خالص ګټه حساب کوي.",
+    lang_eye:"ژبې", lang_h:"ستاسو ژبه غږیږي",
+    lang_sub:"اوس ۳ ژبو کې ژوندی. نړۍ ته پراخیږي.",
+    sdg_eye:"نړیوال اغیز", sdg_h:"۶ هدفونه. ۱ پلتفورم.",
+    cta_h:"هوښیارکرنهوکړئ",
+    cta_sub:"ZaminAI خلاص کړئ. خپله ځمکه رسم کړئ. حاصل، لګښتونه او ګټه د کرلو دمخه وپیژنئ. وړیا، تل.",
+    cta_btn:"ZaminAI خلاصول — وړیا ←",
+    step1_t:"تلیفون خلاص کړئ", step1_d:"GPS ستاسو موقعیت د ځمکې هر ځای کې موندي.",
+    step2_t:"خپله ځمکه رسم کړئ", step2_d:"د ځمکې کونجونه ووهئ. سیستم دقیق مساحت حساب کوي.",
+    step3_t:"ماهواره تحلیلوي", step3_d:"Google Earth Engine ستاسو دقیقې ځمکې لپاره واقعي Sentinel-2 معلومات راوړي.",
+    step4_t:"هر شی وپوښتئ", step4_d:"خپلې ژبې کې وغږیږئ. AI ځانګړې سپارښتنې ورکوي.",
+    lbl_crop:"محصول", lbl_land:"د ځمکې اندازه (جریب)", lbl_water:"د اوبو شتون",
+    lbl_irr:"د اوبو سیستم", lbl_fert:"سره", lbl_mach:"ماشینري",
+    btn_calc:"🛰️ د ماهواره معلوماتو سره حساب",
+    w_good:"ښه — نږدې سیند یا کانال", w_mod:"متوسط — موسمي اوبه", w_low:"لږ — د خشکسالۍ شرایط",
+    chat_placeholder:"د خپلې ځمکې بارې پوښتنه وکړئ...",
+  }
+};
+
+// ── REGIONS DATA ──
+const REGIONS = {
+  en:[
+    {flag:"🇦🇫",name:"Afghanistan",detail:"Wheat · Flax · Saffron · Dari · Pashto",status:"● Live",cls:"st-live"},
+    {flag:"🇮🇷",name:"Iran",detail:"Wheat · Saffron · Pistachios · Farsi",status:"◐ In development",cls:"st-dev"},
+    {flag:"🇵🇰",name:"Pakistan",detail:"Wheat · Rice · Cotton · Urdu · Pashto",status:"○ Planned",cls:"st-plan"},
+    {flag:"🇹🇯",name:"Tajikistan",detail:"Cotton · Wheat · Dari speakers",status:"○ Planned",cls:"st-plan"},
+    {flag:"🇪🇹",name:"Ethiopia",detail:"Coffee · Teff · Maize · Amharic",status:"○ Planned",cls:"st-plan"},
+    {flag:"🇳🇬",name:"Nigeria",detail:"Cassava · Maize · Sorghum · Hausa",status:"○ Planned",cls:"st-plan"},
+    {flag:"🌍",name:"+ Many more",detail:"Any country with smallholder farmers",status:"○ Open",cls:"st-plan"},
+  ],
+  fa:[
+    {flag:"🇦🇫",name:"افغانستان",detail:"گندم · کتان · زعفران · دری · پشتو",status:"● فعال",cls:"st-live"},
+    {flag:"🇮🇷",name:"ایران",detail:"گندم · زعفران · پسته · فارسی",status:"◐ در جریان انکشاف",cls:"st-dev"},
+    {flag:"🇵🇰",name:"پاکستان",detail:"گندم · برنج · پنبه · اردو · پشتو",status:"○ پلان شده",cls:"st-plan"},
+    {flag:"🇹🇯",name:"تاجیکستان",detail:"پنبه · گندم · دری زبانان",status:"○ پلان شده",cls:"st-plan"},
+    {flag:"🇪🇹",name:"اتیوپی",detail:"قهوه · تف · ذرت · امهری",status:"○ پلان شده",cls:"st-plan"},
+    {flag:"🇳🇬",name:"نیجریه",detail:"کاساوا · ذرت · سورگوم · هوسا",status:"○ پلان شده",cls:"st-plan"},
+    {flag:"🌍",name:"+ موارد بیشتر",detail:"هر کشوری با دهقانان کوچک",status:"○ باز",cls:"st-plan"},
+  ],
+  ps:[
+    {flag:"🇦🇫",name:"افغانستان",detail:"گندم · کتان · زعفران · دري · پښتو",status:"● ژوندی",cls:"st-live"},
+    {flag:"🇮🇷",name:"ایران",detail:"گندم · زعفران · پسته · فارسي",status:"◐ د پراختیا لاندې",cls:"st-dev"},
+    {flag:"🇵🇰",name:"پاکستان",detail:"گندم · وریجې · پنبه · اردو · پښتو",status:"○ پلان شوی",cls:"st-plan"},
+    {flag:"🇹🇯",name:"تاجیکستان",detail:"پنبه · گندم · دري ژبې",status:"○ پلان شوی",cls:"st-plan"},
+    {flag:"🇪🇹",name:"ایتیوپیا",detail:"قهوه · تیف · جوار · امهري",status:"○ پلان شوی",cls:"st-plan"},
+    {flag:"🇳🇬",name:"نایجیریا",detail:"کاساوا · جوار · سورغم · هوسا",status:"○ پلان شوی",cls:"st-plan"},
+    {flag:"🌍",name:"+ نور ډیر",detail:"د کوچنیو کرنکیو لرونکي هر هیواد",status:"○ خلاص",cls:"st-plan"},
+  ]
+};
+
+function renderRegions(l){
+  const list = document.getElementById('region-list');
+  if(!list) return;
+  const regions = REGIONS[l] || REGIONS.en;
+  list.innerHTML = regions.map(r=>`
+    <div class="region">
+      <div class="region-flag">${r.flag}</div>
+      <div class="region-info">
+        <div class="region-name">${r.name}</div>
+        <div class="region-detail">${r.detail}</div>
+      </div>
+      <span class="region-status ${r.cls}">${r.status}</span>
+    </div>
+  `).join('');
+}
+
+let currentLang = 'en';
+function switchLang(l,el){
+  currentLang = l;
+  document.querySelectorAll('.lsw').forEach(b=>b.classList.remove('on'));
+  if(el) el.classList.add('on');
+  translatePage(l);
+}
+
 function setL(l,el){
+  // Language demo switcher
   document.querySelectorAll(".lc").forEach(p=>p.classList.remove("on"));
   el.classList.add("on");
   const q=document.getElementById("lq"),t=document.getElementById("lt");
   q.style.opacity="0";q.style.transform="translateY(8px)";
   setTimeout(()=>{q.textContent=ld[l].q;t.textContent=ld[l].t;q.style.direction=ld[l].dir;q.style.transition="all 0.35s";q.style.opacity="1";q.style.transform="translateY(0)";},200);
+  // Full page translation
+  translatePage(l);
+}
+
+function translatePage(l){
+  const T=TRANS[l]||TRANS.en;
+  document.documentElement.dir=T.dir;
+  document.documentElement.lang=l;
+
+  const set=(id,val)=>{const el=document.getElementById(id);if(el)el.innerHTML=val;};
+  const setTxt=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val;};
+
+  // Nav
+  setTxt('nav-global',T.nav_global);setTxt('nav-features',T.nav_features);
+  setTxt('nav-calc',T.nav_calc);setTxt('nav-lang',T.nav_lang);
+  setTxt('nav-impact',T.nav_impact);setTxt('nav-open',T.nav_open);
+
+  // Hero
+  setTxt('hero-tag-text',T.hero_tag);
+  setTxt('hero-t1',T.hero_t1);setTxt('hero-t2',T.hero_t2);setTxt('hero-t3',T.hero_t3);
+  setTxt('hero-desc',T.hero_desc);
+  setTxt('hero-btn1',T.hero_btn1);setTxt('hero-btn2',T.hero_btn2);
+  setTxt('stat1-l',T.stat1);setTxt('stat2-l',T.stat2);setTxt('stat3-l',T.stat3);
+  setTxt('stat4-l',T.stat4);setTxt('stat5-l',T.stat5);setTxt('stat6-l',T.stat6);
+
+  // Sections
+  setTxt('global-eye',T.global_eye);set('global-h',T.global_h);setTxt('global-sub',T.global_sub);
+  setTxt('feat-eye',T.feat_eye);setTxt('feat-h',T.feat_h);
+  setTxt('how-eye',T.how_eye);setTxt('how-h',T.how_h);
+  setTxt('calc-eye',T.calc_eye);set('calc-h',T.calc_h);setTxt('calc-sub',T.calc_sub);
+  setTxt('lang-eye',T.lang_eye);setTxt('lang-h',T.lang_h);setTxt('lang-sub',T.lang_sub);
+  setTxt('sdg-eye',T.sdg_eye);setTxt('sdg-h',T.sdg_h);
+  set('cta-h',T.cta_h);setTxt('cta-sub',T.cta_sub);setTxt('cta-btn',T.cta_btn);
+
+  // Steps
+  setTxt('step1-t',T.step1_t);setTxt('step1-d',T.step1_d);
+  setTxt('step2-t',T.step2_t);setTxt('step2-d',T.step2_d);
+  setTxt('step3-t',T.step3_t);setTxt('step3-d',T.step3_d);
+  setTxt('step4-t',T.step4_t);setTxt('step4-d',T.step4_d);
+
+  // Calculator labels
+  setTxt('lbl-crop',T.lbl_crop);setTxt('lbl-land',T.lbl_land);
+  setTxt('lbl-water',T.lbl_water);setTxt('lbl-irr',T.lbl_irr);
+  setTxt('lbl-fert',T.lbl_fert);setTxt('lbl-mach',T.lbl_mach);
+  setTxt('btn-calc',T.btn_calc);
+
+  // Regions list - fully translated
+  renderRegions(l);
+  currentLang = l;
+
+  // Table headers
+  const thLabels={
+    en:{item:'Item',per:'Per jereb',total:'Your total'},
+    fa:{item:'آیتم',per:'فی جریب',total:'مجموع شما'},
+    ps:{item:'توکی',per:'فی جریب',total:'ستاسو مجموع'}
+  }[l]||{item:'Item',per:'Per jereb',total:'Your total'};
+  const thItem=document.getElementById('th-item');
+  const thPer=document.getElementById('th-per');
+  const thTotal=document.getElementById('th-total');
+  if(thItem) thItem.textContent=thLabels.item;
+  if(thPer) thPer.textContent=thLabels.per;
+  if(thTotal) thTotal.textContent=thLabels.total;
+
+  // Calc section
+  const calcLabels={
+    en:{results:'Satellite-based calculation results',breakdown:'Full cost breakdown',
+        desc:'Enter your farm details. ZaminAI calculates expected yield based on satellite NDVI data, all input costs, and net profit.',
+        rec_btn:'🛰️ Calculate with satellite data'},
+    fa:{results:'نتایج محاسبه بر اساس ماهواره',breakdown:'تفصیل کامل مصرف',
+        desc:'جزئیات مزرعه خود را وارد کنید. ZaminAI حاصل متوقع، مجموع مصرف و فایده خالص را حساب می‌کند.',
+        rec_btn:'🛰️ محاسبه با داده ماهواره'},
+    ps:{results:'د ماهواره پر بنسټ محاسبې پایلې',breakdown:'د لګښت بشپړ توضیح',
+        desc:'د مزرعې توضیحات دننه کړئ. ZaminAI متوقع حاصل، ټول لګښتونه او خالص ګټه حساب کوي.',
+        rec_btn:'🛰️ د ماهواره معلوماتو سره حساب'}
+  }[l]||{results:'Satellite-based calculation results',breakdown:'Full cost breakdown',
+         desc:'Enter your farm details.',rec_btn:'🛰️ Calculate with satellite data'};
+  
+  const setText2=(id,v)=>{const e=document.getElementById(id);if(e)e.innerHTML=v;};
+  setText2('calc-results-label', calcLabels.results);
+  setText2('cost-breakdown-label', calcLabels.breakdown);
+  setText2('calc-desc-text', calcLabels.desc);
+  setText2('btn-calc', calcLabels.rec_btn);
+
+  // Language section
+  const langSubs={
+    en:'Live in 3 languages now. Expanding to 15+ as we grow globally.',
+    fa:'حالا در ۳ زبان فعال. به ۱۵+ زبان در سراسر جهان گسترش می‌یابد.',
+    ps:'اوس ۳ ژبو کې فعال. نړۍ ته ۱۵+ ژبو ته پراخیږي.'
+  };
+  setText2('lang-sub2', langSubs[l]||langSubs.en);
+
+  // Roadmap section
+  const roadmapTrans={
+    en:{eye:'Expansion roadmap',h:'Three phases.<br>One mission.',
+        p1:'Phase 1 · Now live',p2:'Phase 2 · In development',p3:'Phase 3 · Planned',
+        t1:'Afghanistan',t2:'Central Asia + MENA',t3:'Africa + South Asia'},
+    fa:{eye:'نقشه راه گسترش',h:'سه مرحله.<br>یک مأموریت.',
+        p1:'مرحله ۱ · هم اکنون فعال',p2:'مرحله ۲ · در حال انکشاف',p3:'مرحله ۳ · برنامه‌ریزی شده',
+        t1:'افغانستان',t2:'آسیای مرکزی + خاورمیانه',t3:'افریقا + جنوب آسیا'},
+    ps:{eye:'د پراختیا نقشه',h:'درې مرحلې.<br>یوه ماموریت.',
+        p1:'مرحله ۱ · اوس فعال',p2:'مرحله ۲ · د پراختیا لاندې',p3:'مرحله ۳ · پلان شوی',
+        t1:'افغانستان',t2:'مرکزي آسیا + خاورمیانه',t3:'افریقا + سویلي آسیا'}
+  }[l]||{eye:'Expansion roadmap',h:'Three phases.<br>One mission.',
+          p1:'Phase 1 · Now live',p2:'Phase 2 · In development',p3:'Phase 3 · Planned',
+          t1:'Afghanistan',t2:'Central Asia + MENA',t3:'Africa + South Asia'};
+  
+  setText2('roadmap-eye', roadmapTrans.eye);
+  setText2('roadmap-h', roadmapTrans.h);
+  setText2('phase1-label', roadmapTrans.p1);
+  setText2('phase2-label', roadmapTrans.p2);
+  setText2('phase3-label', roadmapTrans.p3);
+  setText2('phase1-t', roadmapTrans.t1);
+  setText2('phase2-t', roadmapTrans.t2);
+  setText2('phase3-t', roadmapTrans.t3);
+
+  // Phase list items
+  const phaseLists={
+    en:{
+      p1:['34 provinces covered by satellite','Real Sentinel-2 data 2019–2024',
+          'Dari and Pashto voice assistant','GPS field drawing and analysis',
+          'Irrigation, machinery, seed guides','Farmer profile and data collection'],
+      p2:['Iran — Farsi language · saffron crops','Pakistan — Urdu + Pashto · wheat + rice',
+          'Tajikistan — Dari speakers · cotton','Uzbekistan — water crisis · cotton belt',
+          'Yemen — conflict + drought conditions','Each country gets local crop database'],
+      p3:['Ethiopia — coffee + teff + Amharic','Nigeria — cassava + maize + Hausa',
+          'Bangladesh — rice + flood risk','Mali + Niger — Sahel drought zone',
+          'India — smallholder rice + wheat belt','Any country with a local partner']
+    },
+    fa:{
+      p1:['۳۴ ولایت تحت پوشش ماهواره','داده واقعی Sentinel-2 از ۲۰۱۹ تا ۲۰۲۴',
+          'دستیار آوازی دری و پشتو','رسم زمین GPS و تحلیل',
+          'راهنمای آبیاری، ماشین‌آلات و تخم','پروفایل دهقانان و جمع‌آوری داده'],
+      p2:['ایران — زبان فارسی · زعفران','پاکستان — اردو + پشتو · گندم + وریجه',
+          'تاجیکستان — دری زبانان · پنبه','ازبکستان — بحران آب · کمربند پنبه',
+          'یمن — شرایط درگیری + خشکسالی','هر کشور دیتابیس محصول محلی دارد'],
+      p3:['اتیوپیا — قهوه + تف + امهری','نایجیریا — کاساوا + جواری + هوسا',
+          'بنگلادیش — وریجه + خطر سیل','مالی + نیجر — منطقه خشکسالی ساحل',
+          'هند — کمربند وریجه + گندم کوچک','هر کشوری با یک شریک محلی']
+    },
+    ps:{
+      p1:['۳۴ ولایتونه د ماهواره پوښنه لاندې','واقعي Sentinel-2 معلومات ۲۰۱۹–۲۰۲۴',
+          'دري او پښتو آوازي مرستیال','د ځمکې GPS رسم او تحلیل',
+          'د اوبو، ماشینري او تخمو لارښود','د دهقانانو پروفایل او د معلوماتو راټولول'],
+      p2:['ایران — فارسي ژبه · زعفران','پاکستان — اردو + پښتو · گندم + وریجې',
+          'تاجیکستان — دري ژبې · پنبه','ازبکستان — د اوبو بحران · د پنبې کمربند',
+          'یمن — د شخړې + خشکسالۍ شرایط','هر هیواد ځایي د محصول ډیټابیس لري'],
+      p3:['ایتیوپیا — قهوه + تیف + امهري','نایجیریا — کاساوا + جوار + هوسا',
+          'بنګلادیش — وریجې + د سیلاب خطر','مالي + نیجر — د ساحل د خشکسالۍ سیمه',
+          'هند — د وریجو + گندم کوچني کرنکي','د ځایي شریک سره هر هیواد']
+    }
+  };
+  ['p1','p2','p3'].forEach(ph=>{
+    [0,1,2,3,4,5].forEach(i=>{
+      const el=document.getElementById(ph+'-'+i);
+      if(el&&phaseLists[l]&&phaseLists[l][ph]) el.textContent=phaseLists[l][ph][i]||el.textContent;
+    });
+  });
+
+  // YOLO section
+  const yoloTrans={
+    en:{eye:'Computer Vision',h:'YOLO sees what<br>the eye misses',
+        f1t:'Disease detection',f2t:'Pest identification',f3t:'Yield estimation',f4t:'Soil health analysis',
+        f1d:'YOLO identifies wheat rust, leaf blight, powdery mildew and 50+ crop diseases from a phone photo — with confidence score and treatment in the farmer language.',
+        f2d:'Aphids, locusts, stem borers — detected and counted per photo. AI recommends pesticide type, dose, and timing for your exact field size.',
+        f3d:'Photo of crop head → AI estimates maturity stage and optimal harvest window — cross-checked with satellite NDVI data for maximum accuracy.',
+        f4d:'Photo of soil — identifies soil type, moisture, compaction. Combined with SoilGrids API data for a complete soil profile.'},
+    fa:{eye:'بینایی کمپیوتر',h:'YOLO چیزی می‌بیند که<br>چشم از دست می‌دهد',
+        f1t:'تشخیص بیماری',f2t:'شناسایی آفات',f3t:'برآورد حاصل',f4t:'تحلیل صحت خاک',
+        f1d:'YOLO زنگ گندم، لکه برگ، کپک آردی و ۵۰+ بیماری محصول را از عکس تلیفون تشخیص می‌دهد — با امتیاز اطمینان و درمان به زبان دهقان.',
+        f2d:'شته، ملخ، حشرات — در هر عکس شناسایی و شمارش می‌شوند. هوش مصنوعی نوع، دوز و زمان سم‌پاشی را توصیه می‌کند.',
+        f3d:'عکس سر محصول → هوش مصنوعی مرحله بلوغ و بهترین زمان برداشت را تخمین می‌زند — با داده NDVI ماهواره بررسی می‌شود.',
+        f4d:'عکس خاک → نوع خاک، رطوبت، مشکلات تراکم را شناسایی می‌کند. با داده API SoilGrids ترکیب می‌شود.'},
+    ps:{eye:'د کمپیوتر لید',h:'YOLO هغه ویني چې<br>سترګه یې نه ویني',
+        f1t:'د ناروغۍ تشخیص',f2t:'د آفاتو پیژندنه',f3t:'د حاصل اټکل',f4t:'د خاورې روغتیا تحلیل',
+        f1d:'YOLO د تلیفون له عکس نه د گندم زنګ، د پاڼو پاڼه، او ۵۰+ د محصول ناروغۍ تشخیصوي — د دهقان ژبې کې د درملنې سپارښتنه.',
+        f2d:'شنه بیا، ملخ، حشرات — هر عکس کې موندل او شمیرل کیږي. AI د سم، دوز او وخت سپارښتنه کوي.',
+        f3d:'د محصول سر عکس → AI د بلوغ مرحله او د ترلاسه کولو غوره وخت اټکل کوي — د NDVI ماهواره معلوماتو سره.',
+        f4d:'د خاورې عکس → د خاورې ډول، لندبل، د فشار ستونزې پیژني. د SoilGrids API معلوماتو سره یوځای کیږي.'}
+  }[l]||{eye:'Computer Vision',h:'YOLO sees what<br>the eye misses',
+          f1t:'Disease detection',f2t:'Pest identification',f3t:'Yield estimation',f4t:'Soil health analysis',
+          f1d:'',f2d:'',f3d:'',f4d:''};
+  
+  setText2('yolo-eye', yoloTrans.eye);
+  setText2('yolo-h', yoloTrans.h);
+  setText2('yolo-f1-t', yoloTrans.f1t);
+  setText2('yolo-f2-t', yoloTrans.f2t);
+  setText2('yolo-f3-t', yoloTrans.f3t);
+  setText2('yolo-f4-t', yoloTrans.f4t);
+  setText2('yolo-f1-d', yoloTrans.f1d);
+  setText2('yolo-f2-d', yoloTrans.f2d);
+  setText2('yolo-f3-d', yoloTrans.f3d);
+  setText2('yolo-f4-d', yoloTrans.f4d);
+
+  // Stats section
+  const statTrans={
+    en:['Cropland collapse in Kunduz 2019→2022 · confirmed by satellite',
+        'Water surface decline in 2022 drought · r=0.97 water–cropland',
+        'Smallholder farmers worldwide making decisions without any data'],
+    fa:['فروپاشی زمین زراعتی در کندز ۲۰۱۹→۲۰۲۲ · تأیید شده توسط ماهواره',
+        'کاهش سطح آب در خشکسالی ۲۰۲۲ · r=0.97 آب–زمین زراعتی',
+        'دهقانان کوچک جهانی که بدون هیچ داده‌ای تصمیم می‌گیرند'],
+    ps:['د کندز د کرهڼي ځمکې سقوط ۲۰۱۹→۲۰۲۲ · د ماهواره لخوا تأییدیږي',
+        'د ۲۰۲۲ خشکسالۍ کې د اوبو کمښت · r=0.97 اوبه–کرهنیزه ځمکه',
+        'د نړۍ کوچني دهقانان چې پرته له کوم معلوماتو پرېکړه کوي']
+  };
+  ['stat-s1','stat-s2','stat-s3'].forEach((id,i)=>{
+    setText2(id,(statTrans[l]||statTrans.en)[i]);
+  });
+
+  // CTA second button and subtitle
+  const ctaTrans2={
+    en:{sub:'Open ZaminAI. Draw your field anywhere on earth. Get real satellite data and AI recommendations in your language — free, forever.',btn:'Open ZaminAI — Free →'},
+    fa:{sub:'ZaminAI را خلاص کنید. زمین خود را در هر جای زمین رسم کنید. معلومات ماهواره‌ای واقعی و مشوره‌های هوش مصنوعی به زبان خود — وړیا، تل.',btn:'خلاص کنید ZaminAI — وړیا →'},
+    ps:{sub:'ZaminAI خلاص کړئ. خپله ځمکه د ځمکې هر ځای کې رسم کړئ. واقعي ماهواره‌ای معلومات او AI مشورې ستاسو ژبې کې — وړیا، تل.',btn:'ZaminAI خلاصول — وړیا →'}
+  }[l]||{sub:'',btn:'Open ZaminAI — Free →'};
+  setText2('cta-sub2', ctaTrans2.sub);
+  setText2('cta-btn2', ctaTrans2.btn);
+
+  // Global opportunity section
+  const globalOppTrans={
+    en:{eye:'The global opportunity',
+        title:'500 million farmers.<br>Zero digital support.',
+        desc1:'Today, 500 million smallholder farmers make planting, irrigation, and harvest decisions with no satellite data, no AI, no digital tools. They rely on tradition and guesswork — even as climate change makes those decisions harder every year.',
+        desc2:'ZaminAI gives any farmer — anywhere on earth — the same quality of agricultural intelligence that large commercial farms pay thousands for. Free. In their language. On their phone.'},
+    fa:{eye:'فرصت جهانی',
+        title:'۵۰۰ میلیون دهقان.<br>صفر حمایت دیجیتال.',
+        desc1:'امروز، ۵۰۰ میلیون دهقان کوچک تصمیمات کشت، آبیاری و برداشت را بدون داده ماهواره‌ای، بدون هوش مصنوعی، بدون هیچ ابزار دیجیتال می‌گیرند.',
+        desc2:'ZaminAI به هر دهقان — در هر جای زمین — همان کیفیت هوش زراعتی را می‌دهد که مزارع تجاری بزرگ هزاران دالر برایش پرداخت می‌کنند. وړیا. به زبان خودش. روی تلیفونش.'},
+    ps:{eye:'نړیواله فرصت',
+        title:'۵۰۰ میلیون دهقانان.<br>صفر دیجیتال حمایت.',
+        desc1:'نن ورځ، ۵۰۰ میلیون کوچني دهقانان د کرلو، اوبه ورکولو او راټولولو پرېکړې پرته له ماهواره‌ای معلوماتو، پرته له AI، پرته له کوم دیجیتال وسیلې کوي.',
+        desc2:'ZaminAI هر دهقان ته — د ځمکې هر ځای کې — هماغه کیفیت زراعتي هوش ورکوي چې لوی سوداګریز مزارع ورته زرګونه ورکوي. وړیا. خپلې ژبې کې. خپل تلیفون کې.'}
+  }[l]||{eye:'The global opportunity',title:'500 million farmers.',desc1:'',desc2:''};
+  
+  setText2('global-opp-eye', globalOppTrans.eye);
+  const goh=document.getElementById('global-opp-h');
+  if(goh) goh.innerHTML=globalOppTrans.title;
+  const god1=document.getElementById('global-opp-d1');
+  if(god1) god1.textContent=globalOppTrans.desc1;
+  const god2=document.getElementById('global-opp-d2');
+  if(god2) god2.textContent=globalOppTrans.desc2;
+
+  // Update result labels
+  // Update result metric labels
+  const metricLabels={
+    en:['Expected yield kg','Gross income AFN','Total input costs AFN','Net profit AFN'],
+    fa:['حاصل متوقع کیلوگرام','عاید مجموعی افغانی','مجموع مصرف افغانی','فایده خالص افغانی'],
+    ps:['متوقع حاصل کیلوګرام','مجموعي عاید افغاني','ټول لګښتونه افغاني','خالص ګټه افغاني']
+  };
+  const mls = metricLabels[l]||metricLabels.en;
+  ['r1','r2','r3','r4'].forEach((id,i)=>{
+    const el=document.getElementById(id);
+    if(el&&el.nextElementSibling) el.nextElementSibling.textContent=mls[i];
+  });
+
+  // Features - translate cards
+  const featTitles={
+    en:['Field Analysis','Yield + Profit','Any Language','YOLO Diagnosis','Irrigation Guide','Seeds + Market'],
+    fa:['تحلیل زمین','حاصل + ګټه','هر زبانی','تشخیص YOLO','راهنمای آبیاری','تخم + بازار'],
+    ps:['د ځمکې تحلیل','حاصل + ګټه','هره ژبه','YOLO تشخیص','د اوبو لارښود','تخم + بازار']
+  };
+  const featDescs={
+    en:['Draw your field on GPS map. Real NDVI, water, rainfall for your exact coordinates.',
+        'AI predicts yield from NDVI and water. Calculates seeds, fertilizer, irrigation, machinery — and net profit.',
+        'Ask in Dari, Pashto, or any language. Voice in, voice out.',
+        'Upload plant photo. YOLO detects disease, pests, water stress with 90%+ accuracy.',
+        'All 5 systems compared. Satellite-based recommendation for your exact water availability.',
+        'Best seed varieties for your soil. Current market prices. Where to sell.'],
+    fa:['زمین خود را روی نقشه رسم کنید. معلومات واقعی NDVI، آب و بارندگی برای مختصات دقیق شما.',
+        'هوش مصنوعی حاصل را از NDVI حساب می‌کند. همه مصرف‌ها و فایده خالص.',
+        'به دری، پشتو یا هر زبانی بپرسید. آواز ورودی، آواز خروجی.',
+        'عکس نبات را بارگذاری کنید. YOLO بیماری و آفات را شناسایی می‌کند.',
+        '۵ سیستم مقایسه شده. مشوره بر اساس ماهواره برای آب شما.',
+        'بهترین ارقام تخم. قیمت‌های فعلی بازار. کجا بفروشید.'],
+    ps:['خپله ځمکه د GPS نقشه کې رسم کړئ. NDVI، اوبه، باران ستاسو دقیقو مختصاتو لپاره.',
+        'AI د NDVI او اوبو نه حاصل پیش ګوري. ټول لګښتونه او خالص ګټه.',
+        'دري، پښتو یا هره ژبه کې وپوښتئ. غږ دننه، غږ بهر.',
+        'د نبات عکس اپلوډ کړئ. YOLO ناروغي، آفات ۹۰٪+ دقت سره موندي.',
+        '۵ سیستمونه پرتله شوي. د ماهواره سپارښتنه ستاسو اوبو لپاره.',
+        'د خاورې لپاره غوره تخم. اوسني بازار قیمتونه. چیرته وپلورئ.']
+  };
+  document.querySelectorAll('.ft').forEach((el,i)=>{
+    if(featTitles[l]&&featTitles[l][i]) el.textContent=featTitles[l][i];
+  });
+  document.querySelectorAll('.fd').forEach((el,i)=>{
+    if(featDescs[l]&&featDescs[l][i]) el.textContent=featDescs[l][i];
+  });
+
+  // Platform section titles
+  const platTitles={
+    en:['🛰️ Satellite Layer','👤 Farmer Database','🤖 AI + Vision Layer'],
+    fa:['🛰️ لایه ماهواره‌ای','👤 دیتابیس دهقانان','🤖 هوش مصنوعی + بینایی'],
+    ps:['🛰️ د ماهواره پوسته','👤 د دهقانانو ډیټابیس','🤖 AI + لید پوسته']
+  };
+  document.querySelectorAll('.pat').forEach((el,i)=>{
+    if(platTitles[l]&&platTitles[l][i]) el.innerHTML=platTitles[l][i];
+  });
+
+  // Platform items
+  const platItems={
+    en:[
+      ['Sentinel-2 NDVI · MNDWI','Vegetation · water · 10m · 5-day · global'],
+      ['CHIRPS Rainfall','Daily precipitation · 5km · 1981–now'],
+      ['MODIS Snow + ET','Snowmelt · evapotranspiration · 500m'],
+      ['ERA5 Temperature','Heat stress · 11km · daily · global'],
+      ['Hansen Forest Watch','Deforestation · 30m · annual'],
+      ['SoilGrids REST API','Soil pH · carbon · clay · 250m'],
+      ['OpenWeatherMap','7-day forecast · global · coming soon'],
+      ['Farmer profiles','Name · country · land size · crops grown'],
+      ['Field GPS polygons','Exact boundaries · area · coordinates'],
+      ['Conversation history','All AI chats → structured JSON data'],
+      ['Photo analyses','Disease · pest · soil photos + YOLO diagnosis'],
+      ['Yield + cost records','Planted · harvested · sold · profit'],
+      ['Feedback data','Did recommendation work · yield change · rating'],
+      ['Storage: Sheets + Firebase','Permanent · real-time · offline sync'],
+      ['Claude AI (Anthropic)','Answers in any language · voice · text'],
+      ['YOLO v8 Vision','Disease · pest · crop detection in photos'],
+      ['Yield prediction model','NDVI + weather + soil → yield estimate'],
+      ['Cost + income calculator','All inputs → net profit before planting'],
+      ['Alert system','NDVI drop · drought · pest outbreak'],
+      ['SMS alerts (Twilio)','Works without internet · coming soon'],
+      ['Carbon credit tracker','Verify crop switches via satellite · coming'],
+    ],
+    fa:[
+      ['Sentinel-2 NDVI · MNDWI','نباتات · آب · ۱۰ متر · هر ۵ روز · جهانی'],
+      ['باران CHIRPS','بارندگی روزانه · ۵ کیلومتر · ۱۹۸۱ تاکنون'],
+      ['برف + تبخیر MODIS','ذوب برف · تبخیر و تعرق · ۵۰۰ متر'],
+      ['دمای ERA5','فشار گرما · ۱۱ کیلومتر · روزانه · جهانی'],
+      ['رصد جنگل Hansen','جنگل‌زدایی · ۳۰ متر · سالانه'],
+      ['API ربانی SoilGrids','pH خاک · کربن · رس · ۲۵۰ متر'],
+      ['OpenWeatherMap','پیش‌بینی ۷ روزه · جهانی · به زودی'],
+      ['پروفایل دهقانان','نام · کشور · اندازه زمین · محصولات'],
+      ['پولیگون GPS زمین','مرزهای دقیق · مساحت · مختصات'],
+      ['تاریخچه مکالمات','همه چت‌های AI → داده JSON'],
+      ['تحلیل عکس‌ها','بیماری · آفات · عکس خاک + تشخیص YOLO'],
+      ['سوابق حاصل + مصرف','کشت شده · برداشت · فروخته · فایده'],
+      ['داده بازخورد','آیا مشوره کار کرد · تغییر حاصل · امتیاز'],
+      ['ذخیره‌سازی: Sheets + Firebase','دائمی · لحظه‌ای · همگام‌سازی آفلاین'],
+      ['Claude AI (Anthropic)','جواب به هر زبان · آواز · متن'],
+      ['بینایی YOLO v8','تشخیص بیماری · آفات · محصول در عکس'],
+      ['مدل پیش‌بینی حاصل','NDVI + هوا + خاک → برآورد حاصل'],
+      ['حساب مصرف + فایده','همه ورودی‌ها → فایده خالص قبل از کشت'],
+      ['سیستم هشدار','افت NDVI · خشکسالی · طغیان آفات'],
+      ['پیام‌های SMS (Twilio)','بدون انترنت کار می‌کند · به زودی'],
+      ['ردیاب کربن','تأیید تغییر محصول از طریق ماهواره · به زودی'],
+    ],
+    ps:[
+      ['Sentinel-2 NDVI · MNDWI','نباتات · اوبه · ۱۰ متره · هر ۵ ورځې · نړیوال'],
+      ['باران CHIRPS','ورځنی باران · ۵ کیلومتره · ۱۹۸۱ نه تر اوسه'],
+      ['واوه + تبخیر MODIS','د واوې ویلیدل · تبخیر · ۵۰۰ متره'],
+      ['تودوخه ERA5','د ګرمۍ فشار · ۱۱ کیلومتره · ورځنی · نړیوال'],
+      ['د ځنګل کتنه Hansen','ځنګل ویجاړول · ۳۰ متره · کلنی'],
+      ['API SoilGrids','د خاورې pH · کاربن · خټه · ۲۵۰ متره'],
+      ['OpenWeatherMap','۷ ورځو پیش‌بینی · نړیوال · ډیر ژر'],
+      ['د دهقانانو پروفایلونه','نوم · هیواد · د ځمکې اندازه · محصولات'],
+      ['د ځمکې GPS پولیګون','دقیق سرحدونه · مساحت · مختصات'],
+      ['د خبرو تاریخچه','ټول AI چیټونه → JSON ډیټا'],
+      ['د عکس تحلیلونه','ناروغي · آفات · د خاورې عکس + YOLO تشخیص'],
+      ['د حاصل + لګښت سوابق','کرل شوي · راټول · پلورل شوي · ګټه'],
+      ['د بازخورد ډیټا','آیا سپارښتنه کار وکړ · د حاصل بدلون · نمره'],
+      ['ذخیره: Sheets + Firebase','دوامداره · لحظوي · آفلاین همغږي'],
+      ['Claude AI (Anthropic)','د هرې ژبې جواب · غږ · متن'],
+      ['YOLO v8 لید','د ناروغۍ · آفاتو · محصول تشخیص'],
+      ['د حاصل وړاندوینې ماډل','NDVI + هوا + خاوره → د حاصل اټکل'],
+      ['د لګښت + ګټې حساب','ټول ورودي → د کرلو دمخه خالص ګټه'],
+      ['د خبرداري سیستم','د NDVI کمښت · خشکسالي · د آفاتو طغیان'],
+      ['SMS خبرتیاوې (Twilio)','د انترنت پرته کار کوي · ډیر ژر'],
+      ['د کاربن ردیاب','د ماهواره له لارې د محصول بدلون تأیید · ډیر ژر'],
+    ]
+  };
+  document.querySelectorAll('.pan').forEach((el,i)=>{
+    if(platItems[l]&&platItems[l][i]) el.textContent=platItems[l][i][0];
+  });
+  document.querySelectorAll('.padt').forEach((el,i)=>{
+    if(platItems[l]&&platItems[l][i]) el.textContent=platItems[l][i][1];
+  });
+
+  // Also translate the platform description
+  const platDescs={
+    en:'Satellite data + farmer database + AI — connected into one global agricultural intelligence system.',
+    fa:'داده ماهواره + دیتابیس دهقانان + هوش مصنوعی — به یک سیستم جهانی هوش زراعتی متصل.',
+    ps:'د ماهواره‌ای معلومات + د دهقانانو ډیټابیس + AI — یو نړیوال د زراعتي هوش سیستم ته نښلول شوي.'
+  };
+  const pdEl=document.querySelector('.platform .ss');
+  if(pdEl) pdEl.textContent=platDescs[l]||platDescs.en;
+
+  // Translate global stats boxes
+  const globalStats={
+    en:['500M','Smallholder farmers worldwide','2B','People dependent on smallholder agriculture','5%','Have access to any digital agricultural service','€0','Cost for farmers — free forever'],
+    fa:['۵۰۰ میلیون','دهقانان کوچک در جهان','۲ میلیارد','مردمی که به زراعت کوچک وابسته‌اند','۵٪','دسترسی به هر خدمت دیجیتال زراعتی دارند','€0','مصرف برای دهقانان — همیشه وړیا'],
+    ps:['۵۰۰ میلیون','د نړۍ کوچني دهقانان','۲ میلیارد','هغه خلک چې د کوچني زراعت پورې اړه لري','۵٪','د کوم دیجیتال زراعتي خدمت لاسرسی لري','€0','د دهقانانو لپاره لګښت — تل وړیا']
+  };
+  const gsEls=document.querySelectorAll('.gs');
+  if(gsEls.length>=4&&globalStats[l]){
+    gsEls[0].querySelector('.gs-v').textContent=globalStats[l][0];
+    gsEls[0].querySelector('.gs-l').textContent=globalStats[l][1];
+    gsEls[1].querySelector('.gs-v').textContent=globalStats[l][2];
+    gsEls[1].querySelector('.gs-l').textContent=globalStats[l][3];
+    gsEls[2].querySelector('.gs-v').textContent=globalStats[l][4];
+    gsEls[2].querySelector('.gs-l').textContent=globalStats[l][5];
+    gsEls[3].querySelector('.gs-v').textContent=globalStats[l][6];
+    gsEls[3].querySelector('.gs-l').textContent=globalStats[l][7];
+  }
+
+  // SDG labels
+  const sdgLabels={
+    en:['No Poverty','Zero Hunger','Clean Water','Climate Action','Life on Land','Partnerships'],
+    fa:['بدون فقر','صفر گرسنگی','آب پاک','اقدام آب‌وهوایی','زندگی روی زمین','مشارکت‌ها'],
+    ps:['بې فقره','صفر لوږه','پاک اوبه','د اقلیم عمل','ځمکه کې ژوند','ملګرتیاوې']
+  };
+  document.querySelectorAll('.sdl').forEach((el,i)=>{
+    if(sdgLabels[l]&&sdgLabels[l][i]) el.textContent=sdgLabels[l][i];
+  });
 }
 
 // Calculator
@@ -819,16 +1387,22 @@ function calc(){
   document.getElementById("r4").textContent=(np>=0?"+":"")+fmt(np)+" AFN";
   document.getElementById("r4").style.color=np>=0?"#4ade80":"#f87171";
 
+  const _cl=typeof currentLang!=='undefined'?currentLang:'en';
+  const _ct={
+    en:{seeds:"Seeds",fert:"Fertilizer",irr:"Irrigation",mach:"Machinery",lab:"Labour",other:"Other",total:"Total costs",gross:"Gross income",profit:"Net profit"},
+    fa:{seeds:"تخم",fert:"کود",irr:"آبیاری",mach:"ماشین‌آلات",lab:"کارگر",other:"سایر",total:"مجموع مصرف",gross:"عاید مجموعی",profit:"فایده خالص"},
+    ps:{seeds:"تخم",fert:"سره",irr:"اوبه ورکول",mach:"ماشینري",lab:"کارګر",other:"نور",total:"ټول لګښتونه",gross:"مجموعي عاید",profit:"خالص ګټه"}
+  }[_cl]||{seeds:"Seeds",fert:"Fertilizer",irr:"Irrigation",mach:"Machinery",lab:"Labour",other:"Other",total:"Total costs",gross:"Gross income",profit:"Net profit"};
   const rows=[
-    ["Seeds / تخم",sc,sc*land,"neg"],
-    ["Fertilizer / کود",fc,fc*land,"neg"],
-    ["Irrigation / آبیاری",ic,ic*land,"neg"],
-    ["Machinery / ماشین",mc,mc*land,"neg"],
-    ["Labour / کارگر",lc,lc*land,"neg"],
-    ["Other / سایر",oc,oc*land,"neg"],
-    ["<strong>Total costs</strong>",tcp,tc,"neg"],
-    ["<strong>Gross income</strong>","—",inc,"pos"],
-    ["<strong>Net profit</strong>","—",np,np>=0?"pos":"neg"]
+    [_ct.seeds,sc,sc*land,"neg"],
+    [_ct.fert,fc,fc*land,"neg"],
+    [_ct.irr,ic,ic*land,"neg"],
+    [_ct.mach,mc,mc*land,"neg"],
+    [_ct.lab,lc,lc*land,"neg"],
+    [_ct.other,oc,oc*land,"neg"],
+    ["<strong>"+_ct.total+"</strong>",tcp,tc,"neg"],
+    ["<strong>"+_ct.gross+"</strong>","—",inc,"pos"],
+    ["<strong>"+_ct.profit+"</strong>","—",np,np>=0?"pos":"neg"]
   ];
   document.getElementById("ctbl").innerHTML=rows.map(r=>`
     <tr>
