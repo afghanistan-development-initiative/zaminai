@@ -646,13 +646,26 @@ let synth = window.speechSynthesis;
 // ─── MAP ─────────────────────────────────────────────────────────────────────
 const map = L.map('map',{center:[34.5,67.7],zoom:6,zoomControl:true});
 
-// Hybrid: satellite + city/village/road labels
-L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
-  attribution:'Google', maxZoom:20, opacity:1
-}).addTo(map);
-L.tileLayer('https://mt1.google.com/vt/lyrs=h&x={x}&y={y}&z={z}',{
+// OpenStreetMap - shows ALL cities, villages, roads, country names
+const _osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  attribution:'© OpenStreetMap contributors',
+  maxZoom:19
+});
+const _satLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
+  attribution:'Google Satellite', maxZoom:20
+});
+const _satLabelLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=h&x={x}&y={y}&z={z}',{
   attribution:'Google', maxZoom:20
-}).addTo(map);
+});
+
+// Default: OpenStreetMap (best for farmers - shows village names)
+_osmLayer.addTo(map);
+
+// Store globally for toggle
+window._osmLayer = _osmLayer;
+window._satLayer = _satLayer;
+window._satLabelLayer = _satLabelLayer;
+window._currentBaseMap = 'street';
 
 L.control.zoom({position:'bottomright'}).addTo(map);
 
@@ -1533,32 +1546,29 @@ setTimeout(()=>{document.getElementById('satStatus').textContent='Sentinel-2 liv
 notify('🌱 ZaminAI ready — draw your field to begin');
 
 // Map type toggle
-let _mapType = 'hybrid';
-const _satelliteTile = 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}';
-const _hybridTile    = 'https://mt1.google.com/vt/lyrs=h&x={x}&y={y}&z={z}';
-const _streetTile    = 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
-let _labelLayer = null;
+// Map type toggle vars managed via window._currentBaseMap
 
 window.toggleMapType = function(){
   const btn = document.getElementById('btn-maptype');
-  _mapType = _mapType==='hybrid'?'street':_mapType==='street'?'satellite':'hybrid';
-  
-  // Remove all tile layers
-  za_map.eachLayer(l=>{ if(l._url) za_map.removeLayer(l); });
-  
-  if(_mapType==='hybrid'){
-    L.tileLayer(_satelliteTile,{maxZoom:20}).addTo(za_map);
-    L.tileLayer(_hybridTile,{maxZoom:20}).addTo(za_map);
-    if(btn) btn.textContent='🛰️';
-    if(btn) btn.title='Now: Satellite + Labels. Click for Street';
-  } else if(_mapType==='street'){
-    L.tileLayer(_streetTile,{maxZoom:20}).addTo(za_map);
-    if(btn) btn.textContent='🗺️';
-    if(btn) btn.title='Now: Street Map. Click for Satellite';
+  const theMap = window._zaminaiMap || za_map;
+  const cur = window._currentBaseMap || 'street';
+
+  // Remove current base layers
+  if(window._osmLayer)      theMap.removeLayer(window._osmLayer);
+  if(window._satLayer)      theMap.removeLayer(window._satLayer);
+  if(window._satLabelLayer) theMap.removeLayer(window._satLabelLayer);
+
+  if(cur === 'street'){
+    // Switch to satellite + labels
+    window._satLayer.addTo(theMap);
+    window._satLabelLayer.addTo(theMap);
+    window._currentBaseMap = 'hybrid';
+    if(btn){ btn.textContent='🛰️'; btn.title='Satellite view — click for street map'; }
   } else {
-    L.tileLayer(_satelliteTile,{maxZoom:20}).addTo(za_map);
-    if(btn) btn.textContent='📡';
-    if(btn) btn.title='Now: Satellite only. Click for Hybrid';
+    // Switch to OpenStreetMap (street with all names)
+    window._osmLayer.addTo(theMap);
+    window._currentBaseMap = 'street';
+    if(btn){ btn.textContent='🗺️'; btn.title='Street map — click for satellite'; }
   }
 };
 </script>
@@ -2744,9 +2754,18 @@ if(_mapEl && _mapEl._leaflet_id){
 const za_map = L.map('map',{center:[34.5,67.7],zoom:6,zoomControl:true});
 window._zaminaiMap = za_map;
 
-L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
-  attribution:'Google Satellite', maxZoom:20, crossOrigin:true
-}).addTo(za_map);
+// OpenStreetMap - shows cities, villages, roads, country names
+window._osmLayer = window._osmLayer || L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  attribution:'© OpenStreetMap contributors', maxZoom:19
+});
+window._satLayer = window._satLayer || L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
+  attribution:'Google Satellite', maxZoom:20
+});
+window._satLabelLayer = window._satLabelLayer || L.tileLayer('https://mt1.google.com/vt/lyrs=h&x={x}&y={y}&z={z}',{
+  attribution:'Google', maxZoom:20
+});
+window._currentBaseMap = 'street';
+window._osmLayer.addTo(za_map);
 
 L.control.zoom({position:'bottomright'}).addTo(za_map);
 
