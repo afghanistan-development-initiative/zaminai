@@ -1018,21 +1018,46 @@ function closeApp(){document.getElementById('appOverlay').classList.remove('open
 
 function initMap(){
   if(mapInited)return;
-  // Esri Clarity — high zoom coverage for rural Afghanistan
-  const esriClarity=L.tileLayer('https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{attribution:'© Esri Clarity',maxZoom:20,maxNativeZoom:18});
-  const esriLabels=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{attribution:'',maxZoom:20,maxNativeZoom:18,opacity:.8});
-  const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19});
-  appMap=L.map('map',{center:[34.5,67.7],zoom:6,layers:[esriClarity,esriLabels],zoomControl:false});
-  window._esriClarity=esriClarity;window._esriLabels=esriLabels;window._osm=osm;
+  // OSM street default (best zoom everywhere including rural Afghanistan)
+  const osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:21,maxNativeZoom:19});
+  // Esri Clarity satellite — good up to zoom 18 in most of Afghanistan
+  const esriClarity=L.tileLayer('https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{attribution:'© Esri',maxZoom:21,maxNativeZoom:18,errorTileUrl:''});
+  // Esri labels overlay on top of satellite
+  const esriLabels=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{attribution:'',maxZoom:21,maxNativeZoom:18,opacity:.7});
+  // Google satellite — better zoom in some areas (fallback)
+  const googleSat=L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{attribution:'© Google',maxZoom:21,maxNativeZoom:20});
+  // Start with OSM street — best zoom in Afghanistan rural areas
+  appMap=L.map('map',{center:[34.5,67.7],zoom:6,layers:[osm],zoomControl:false});
+  window._esriClarity=esriClarity;window._esriLabels=esriLabels;window._osm=osm;window._googleSat=googleSat;
+  window._isSat=false; // track current mode
   L.control.zoom({position:'bottomright'}).addTo(appMap);
   appMap.on('click',onMapClick);appMap.on('dblclick',onMapDbl);
   mapInited=true;notify('🌱 ZaminAI ready — draw your field');
 }
 
 function toggleTiles(){
-  if(!appMap)return;isSat=!isSat;
-  if(isSat){if(!appMap.hasLayer(window._esriClarity))window._esriClarity.addTo(appMap);if(!appMap.hasLayer(window._esriLabels))window._esriLabels.addTo(appMap);appMap.removeLayer(window._osm);}
-  else{appMap.removeLayer(window._esriClarity);appMap.removeLayer(window._esriLabels);if(!appMap.hasLayer(window._osm))window._osm.addTo(appMap);}
+  if(!appMap)return;
+  // 3-mode cycle: street → satellite(Esri) → satellite(Google) → street
+  const cur=window._isSat||'street';
+  // Remove all base layers first
+  [window._osm,window._esriClarity,window._esriLabels,window._googleSat].forEach(l=>{if(l&&appMap.hasLayer(l))appMap.removeLayer(l);});
+  if(cur==='street'){
+    // Switch to Esri satellite
+    window._esriClarity.addTo(appMap);
+    window._esriLabels.addTo(appMap);
+    window._isSat='esri';
+    notify('🛰️ Esri satellite (zoom 18 max in rural areas)');
+  } else if(cur==='esri'){
+    // Switch to Google satellite (better zoom in Afghanistan)
+    window._googleSat.addTo(appMap);
+    window._isSat='google';
+    notify('🛰️ Google satellite (zoom 20 — best for Afghanistan)');
+  } else {
+    // Back to OSM street
+    window._osm.addTo(appMap);
+    window._isSat='street';
+    notify('🗺️ Street map (best zoom everywhere)');
+  }
 }
 
 function onMapClick(e){
@@ -1109,9 +1134,10 @@ function renderReport(){
   if(!fieldData)return;
   const{ndvi,mndwi,rain,prov,aHa,aJ,trend}=fieldData;
   // NDVI status — calibrated for Afghan agriculture
-  const sc=ndvi>=.40?'sc-good':ndvi>=.22?'sc-mod':'sc-bad';
-  const sl=ndvi>=.40?'🟢 GOOD VEGETATION':ndvi>=.22?'🟡 MODERATE STRESS':'🔴 STRESSED';
-  const sd=ndvi>=.40?'Good vegetation. Some areas may need monitoring.':ndvi>=.22?'Vegetation stressed. Take action within 2 weeks.':'Critical stress. Immediate action needed today.';
+  // Afghan NDVI: 0.30+ = good, 0.18-0.30 = moderate, <0.18 = stressed
+  const sc=ndvi>=.30?'sc-good':ndvi>=.18?'sc-mod':'sc-bad';
+  const sl=ndvi>=.30?'🟢 GOOD VEGETATION':ndvi>=.18?'🟡 MODERATE STRESS':'🔴 STRESSED';
+  const sd=ndvi>=.30?'Vegetation looks healthy for this region.':ndvi>=.18?'Some stress detected. Monitor and consider irrigation.':'Critical stress. Immediate action needed today.';
   // Trend bars
   const tv=Object.values(trend);const mx=Math.max(...tv),mn=Math.min(...tv);
   const tHTML=Object.entries(trend).map(([yr,v])=>{const h=Math.max(2,(v/mx)*50);const col=v===mn?'#dc2626':v===mx?'#16a34a':'#86efac';return`<div class="tb-w"><div class="tb-b" style="height:${h}px;background:${col}"></div><div class="tb-yr">${yr.slice(-2)}</div></div>`;}).join('');
@@ -1133,7 +1159,7 @@ function renderReport(){
     <div class="save-badge" id="sbdg"><span class="spin"></span> Saving…</div>
     <div class="rep-sec"><div class="rep-title">📍 Your field</div><div id="miniMap"></div></div>
     <div class="rep-sec"><div class="rep-title">What the satellite sees</div>
-      <div class="status-card ${sc}"><div class="sc-top"><div class="sc-main">${sl}</div><div class="sc-num" style="color:${ndvi>=.35?'var(--g)':'var(--r)'}">${ndvi}</div></div><div class="sc-sub">${sd}</div></div>
+      <div class="status-card ${sc}"><div class="sc-top"><div class="sc-main">${sl}</div><div class="sc-num" style="color:${ndvi>=.30?'var(--g)':ndvi>=.18?'var(--a)':'var(--r)'}">${ndvi}</div></div><div class="sc-sub">${sd}</div></div>
     </div>
     <div class="rep-sec"><div class="rep-title">Field metrics</div>
       <div class="metrics">
@@ -1169,14 +1195,15 @@ function initMiniMap(){
     L.tileLayer('https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,maxNativeZoom:18}).addTo(mm);
     L.polygon([[[-90,-180],[-90,180],[90,180],[90,-180]],pts.map(p=>[p[0],p[1]])],{color:'transparent',fillColor:'#000',fillOpacity:.75,weight:0}).addTo(mm);
     const ndvi=fieldData?fieldData.ndvi:0,mndwi=fieldData?fieldData.mndwi:0;
-    const col=ndvi>=.40?'rgba(22,163,74,.55)':ndvi>=.22?'rgba(253,174,97,.55)':'rgba(215,48,39,.55)';
-    const border=ndvi>=.40?'#16a34a':ndvi>=.22?'#f59e0b':'#dc2626';
+    // Afghan NDVI thresholds: 0.30+ = good green crops, 0.20-0.30 = moderate (yellow), <0.20 = stressed (red)
+    const col=ndvi>=.30?'rgba(22,163,74,.55)':ndvi>=.18?'rgba(253,174,97,.55)':'rgba(215,48,39,.55)';
+    const border=ndvi>=.30?'#16a34a':ndvi>=.18?'#f59e0b':'#dc2626';
     L.polygon(pts,{color:border,weight:3,fillColor:col,fillOpacity:.65}).addTo(mm);
     const poly=L.polygon(pts,{color:border,weight:2,fillOpacity:0}).addTo(mm);
     mm.fitBounds(poly.getBounds(),{padding:[8,8]});
     const wCol=mndwi>=0?'#0284c7':mndwi>=-0.05?'#d97706':'#dc2626';
     const wLabel=mndwi>=0?'💧 Good':mndwi>=-0.05?'💧 Moderate':'🔴 Low water';
-    const statusText=ndvi>=.40?'Good':ndvi>=.22?'Moderate':'Stressed';
+    const statusText=ndvi>=.30?'Good':ndvi>=.18?'Moderate':'Stressed';
     el.style.position='relative';
     el.insertAdjacentHTML('beforeend',
       `<div style="position:absolute;top:6px;right:6px;z-index:999;background:${wCol};color:#fff;padding:3px 8px;border-radius:6px;font-family:monospace;font-size:10px;font-weight:bold;pointer-events:none">${wLabel}</div>`+
