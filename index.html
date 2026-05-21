@@ -612,10 +612,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:var(--B);
     </div>
   </div>
   <div class="quick-r" id="quickReplies">
-    <button class="qr" onclick="askAI('What should I plant?')">What to plant?</button>
-    <button class="qr" onclick="askAI('When should I irrigate?')">When to irrigate?</button>
-    <button class="qr" onclick="askAI('How much profit can I make?')">Profit?</button>
-    <button class="qr" onclick="askAI('My wheat leaves are yellow')">Yellow leaves?</button>
+    <button class="qr" id="qr1" onclick="askAI('How urgent is irrigation for my field?')">💧 Irrigation?</button>
+    <button class="qr" id="qr2" onclick="askAI('What is the best crop for my field?')">🌾 Best crop?</button>
+    <button class="qr" id="qr3" onclick="askAI('How much profit can I make?')">💰 Profit?</button>
+    <button class="qr" id="qr4" onclick="askAI('What fertilizer do I need?')">🌱 Fertilizer?</button>
+    <button class="qr" id="qr5" onclick="askAI('Is my NDVI recovering from 2022?')">📈 Recovery?</button>
   </div>
   <div class="chat-input-row">
     <button class="voice-btn idle" id="voiceBtn" onclick="toggleVoice()" title="Speak your question">🎤</button>
@@ -2055,7 +2056,7 @@ async function analyseField(){
   }
 
   // Try real API in background (Render.com) — updates if faster than 8s
-  fetch('https://zaminai-gee.onrender.com/analyse',{
+  fetch('https://zaminai.onrender.com/analyse',{
     method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({coords:za_points.map(p=>[p[0],p[1]]),year:2024})
   }).then(r=>r.json()).then(d=>{
@@ -2786,6 +2787,47 @@ function setLang(l,el){
 
   // Notification
   notify(T.app_loaded);
+
+  // Update quick reply buttons language
+  const QR_LABELS = {
+    en:[
+      {label:'💧 Irrigation?', q:'How urgent is irrigation for my field?'},
+      {label:'🌾 Best crop?',  q:'What is the best crop for my field?'},
+      {label:'💰 Profit?',     q:'How much profit can I make from my field?'},
+      {label:'🌱 Fertilizer?', q:'What fertilizer do I need?'},
+      {label:'📈 Recovery?',   q:'Is my field NDVI recovering from 2022?'},
+    ],
+    fa:[
+      {label:'💧 آبیاری؟',     q:'آبیاری زمین من چقدر فوری است؟'},
+      {label:'🌾 بهترین محصول؟', q:'بهترین محصول برای زمین من چیست؟'},
+      {label:'💰 فایده؟',      q:'از زمین خود چقدر فایده می‌گیرم؟'},
+      {label:'🌱 کود؟',        q:'به چه کودی نیاز دارم؟'},
+      {label:'📈 بهبود؟',      q:'آیا NDVI زمین من در حال بهبود است؟'},
+    ],
+    ps:[
+      {label:'💧 اوبه ورکول؟', q:'د زمکې اوبه ورکول څومره بیړي دي؟'},
+      {label:'🌾 غوره محصول؟', q:'د زمکې لپاره غوره محصول کوم دی؟'},
+      {label:'💰 ګټه؟',        q:'له زمکې نه به څومره ګټه وکړم؟'},
+      {label:'🌱 سره؟',        q:'کومې سرې ته اړتیا لرم؟'},
+      {label:'📈 بهتریدل؟',    q:'آیا زما د NDVI بهتریدل کیږي؟'},
+    ]
+  };
+  const qrData = QR_LABELS[l] || QR_LABELS.en;
+  ['qr1','qr2','qr3','qr4','qr5'].forEach((id,i)=>{
+    const el = document.getElementById(id);
+    if(el && qrData[i]){
+      el.textContent = qrData[i].label;
+      el.onclick = ()=>askAI(qrData[i].q);
+    }
+  });
+
+  // Update chat input placeholder
+  const ci = document.getElementById('chatInp');
+  if(ci){
+    ci.placeholder = l==='fa'?'درباره زمین خود بپرسید...':
+                     l==='ps'?'د خپلې ځمکې بارې پوښتنه وکړئ...':
+                     'Ask about your field...';
+  }
 
   // Update size option labels
   const sizeData = {
