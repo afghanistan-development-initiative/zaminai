@@ -1869,7 +1869,7 @@ const za_map = L.map('map',{center:[34.5,67.7],zoom:6,zoomControl:true});
 window._zaminaiMap = za_map;
 
 // OpenStreetMap - shows cities, villages, roads, country names
-window._osmLayer = window._osmLayer || L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+window._satLayer = window._satLayer || L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
   attribution:'© OpenStreetMap contributors', maxZoom:19
 });
 window._satLayer = window._satLayer || L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
@@ -2099,7 +2099,7 @@ async function analyseField(){
       window._miniMap = miniMap;
 
       // Base satellite layer
-      L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         {maxZoom:21}).addTo(miniMap);
 
       // Draw field outline
