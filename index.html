@@ -918,8 +918,8 @@ function initMap(){
   streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'© OpenStreetMap',maxZoom:19
   });
-  satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
-    attribution:'© Esri World Imagery',maxZoom:19
+  satLayer = L.tileLayer('https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
+    attribution:'© Esri Clarity',maxZoom:20,maxNativeZoom:18
   });
   const satLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{
     attribution:'',maxZoom:19,opacity:.8
@@ -1058,9 +1058,9 @@ function renderReport(){
   if(!fieldData)return;
   const {ndvi,mndwi,rain,prov,aHa,aJ,trend}=fieldData;
   // Status
-  const sc=ndvi>=.45?'sc-good':ndvi>=.3?'sc-mod':'sc-bad';
-  const sl=ndvi>=.45?'🟢 EXCELLENT':ndvi>=.3?'🟡 MODERATE STRESS':'🔴 SEVERE STRESS';
-  const sd=ndvi>=.45?'Dense healthy vegetation. Field in great condition.':ndvi>=.3?'Vegetation stressed. Take action within 2 weeks.':'Critical stress. Immediate action needed today.';
+  const sc=ndvi>=.40?'sc-good':ndvi>=.20?'sc-mod':'sc-bad';
+  const sl=ndvi>=.40?'🟢 GOOD':ndvi>=.20?'🟡 MODERATE STRESS':'🔴 SEVERE STRESS';
+  const sd=ndvi>=.40?'Good vegetation. Some areas may need monitoring.':ndvi>=.20?'Vegetation stressed. Take action within 2 weeks.':'Critical stress. Immediate action needed today.';
   // Trend bars
   const tv=Object.values(trend);const mx=Math.max(...tv);
   const tHTML=Object.entries(trend).map(([y,v])=>{
@@ -1153,15 +1153,15 @@ function initMiniMap(){
       doubleClickZoom:false,boxZoom:false,keyboard:false,attributionControl:false,touchZoom:false});
     window._mm=mm;
     // Esri satellite — same as main map, always works
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    L.tileLayer('https://clarity.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
       {maxZoom:19}).addTo(mm);
     // Dark mask outside field
     L.polygon([[[-90,-180],[-90,180],[90,180],[90,-180]],pts.map(p=>[p[0],p[1]])],
       {color:'transparent',fillColor:'#000',fillOpacity:.75,weight:0}).addTo(mm);
     // NDVI color inside field
     const ndvi=fieldData?fieldData.ndvi:0;
-    const col=ndvi>=.45?'rgba(22,163,74,.5)':ndvi>=.30?'rgba(166,217,96,.5)':ndvi>=.15?'rgba(253,174,97,.5)':'rgba(215,48,39,.5)';
-    const border=ndvi>=.45?'#16a34a':ndvi>=.30?'#22c55e':ndvi>=.15?'#f59e0b':'#dc2626';
+    const col=ndvi>=.40?'rgba(22,163,74,.55)':ndvi>=.20?'rgba(253,174,97,.55)':'rgba(215,48,39,.55)';
+    const border=ndvi>=.40?'#16a34a':ndvi>=.20?'#f59e0b':'#dc2626';
     L.polygon(pts,{color:border,weight:3,fillColor:col,fillOpacity:.6}).addTo(mm);
     const poly=L.polygon(pts,{color:border,weight:2,fillOpacity:0}).addTo(mm);
     mm.fitBounds(poly.getBounds(),{padding:[8,8]});
@@ -1171,7 +1171,7 @@ function initMiniMap(){
     const wCol=mndwi>=0?'#0284c7':mndwi>=-0.05?'#d97706':'#dc2626';
     el.insertAdjacentHTML('beforeend',
       `<div style="position:absolute;top:6px;right:6px;z-index:999;background:${wCol};color:#fff;padding:3px 8px;border-radius:6px;font-family:monospace;font-size:10px;font-weight:bold;pointer-events:none">${wLabel}</div>`+
-      `<div style="position:absolute;bottom:6px;left:6px;z-index:999;background:rgba(0,0,0,.7);color:#fff;padding:3px 8px;border-radius:6px;font-family:monospace;font-size:10px;pointer-events:none">NDVI ${ndvi} · ${ndvi>=.45?'Excellent':ndvi>=.30?'Good':ndvi>=.15?'Moderate':'Stressed'}</div>`
+      `<div style="position:absolute;bottom:6px;left:6px;z-index:999;background:rgba(0,0,0,.7);color:#fff;padding:3px 8px;border-radius:6px;font-family:monospace;font-size:10px;pointer-events:none">NDVI ${ndvi} · ${ndvi>=.40?'Good':ndvi>=.20?'Moderate':'Stressed'}</div>`
     );
   }catch(err){
     if(el)el.innerHTML=`<div style="height:100%;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:28px">${fieldData&&fieldData.ndvi>=.3?'🟢':'🟡'}</div>`;
