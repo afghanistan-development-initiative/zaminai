@@ -2,1242 +2,955 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ZaminAI — Smart Farming Intelligence</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
 <style>
-:root{
-  --bg:#f0f7f1;--w:#fff;--g:#16a34a;--gd:#052e16;--gb:#dcfce7;
-  --b:#0284c7;--a:#d97706;--r:#dc2626;--t:#0f2d16;--m:#3d6b47;--m2:#6b9e74;
-  --br:#c8e6cc;--br2:#a8d5ad;
-  --D:'Bebas Neue',sans-serif;--B:'DM Sans',sans-serif;--M:'DM Mono',monospace;
-  --shadow:0 24px 64px rgba(0,0,0,0.12);
-}
-*{margin:0;padding:0;box-sizing:border-box;}
-html,body{height:100%;overflow:hidden;background:var(--bg);font-family:var(--B);color:var(--t);}
+  :root {
+    --green: #16a34a; --green-light: #bbf7d0; --green-dark: #14532d;
+    --amber: #d97706; --red: #dc2626; --blue: #0284c7;
+    --bg: #f0fdf4; --card: #ffffff; --border: #d1fae5;
+    --text: #1a2e1a; --muted: #6b7280;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
 
-/* ── NAV ── */
-.nav{position:fixed;top:0;left:0;right:0;height:52px;z-index:300;display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--br);}
-.logo{font-family:var(--D);font-size:26px;color:var(--g);display:flex;align-items:center;gap:8px;}
-.logo-dot{width:7px;height:7px;background:var(--g);border-radius:50%;animation:pulse 2s infinite;}
-.nav-center{display:flex;gap:6px;}
-.lang-btn{font-family:var(--M);font-size:11px;padding:4px 12px;border:1px solid var(--br);border-radius:20px;background:var(--bg);color:var(--m);cursor:pointer;transition:all 0.2s;}
-.lang-btn.on,.lang-btn:hover{background:var(--gb);border-color:var(--g);color:var(--g);}
-.nav-right{display:flex;align-items:center;gap:10px;}
-.sat-status{font-family:var(--M);font-size:10px;color:var(--m2);display:flex;align-items:center;gap:5px;}
-.sat-dot{width:5px;height:5px;background:var(--g);border-radius:50%;animation:pulse 2s infinite;}
+  /* ── HEADER ── */
+  #header {
+    background: var(--green-dark); color: #fff;
+    padding: 10px 16px; display: flex; align-items: center;
+    justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    box-shadow: 0 2px 8px rgba(0,0,0,.3); z-index: 1000; position: relative;
+  }
+  #header .logo { font-size: 1.3rem; font-weight: 700; letter-spacing: -.5px; }
+  #header .logo span { color: #86efac; }
+  .lang-btns button {
+    background: transparent; border: 1px solid #86efac;
+    color: #86efac; border-radius: 4px; padding: 3px 9px;
+    font-size: .8rem; cursor: pointer; margin-left: 4px;
+  }
+  .lang-btns button.active { background: #86efac; color: var(--green-dark); font-weight: 700; }
 
-/* ── MAP — full screen ── */
-#map{position:fixed;top:52px;left:0;right:0;bottom:0;z-index:1;}
+  /* ── TOOLBAR ── */
+  #toolbar {
+    background: #fff; border-bottom: 1px solid var(--border);
+    padding: 8px 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+  }
+  .btn {
+    border: none; border-radius: 6px; padding: 7px 14px;
+    font-size: .85rem; font-weight: 600; cursor: pointer; display: flex;
+    align-items: center; gap: 5px; transition: all .15s;
+  }
+  .btn-primary { background: var(--green); color: #fff; }
+  .btn-primary:hover { background: #15803d; }
+  .btn-secondary { background: #f0fdf4; color: var(--green-dark); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: var(--green-light); }
+  .btn-danger { background: #fee2e2; color: var(--red); border: 1px solid #fca5a5; }
+  .btn-danger:hover { background: #fca5a5; }
+  .btn-analyse { background: #0f766e; color: #fff; }
+  .btn-analyse:hover { background: #0d5f58; }
+  .field-count {
+    margin-left: auto; background: var(--green-light);
+    color: var(--green-dark); border-radius: 20px;
+    padding: 4px 12px; font-size: .8rem; font-weight: 700;
+  }
 
-/* ── TOOLBAR — floating over map ── */
-.toolbar{position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:200;display:flex;gap:6px;background:rgba(255,255,255,0.96);backdrop-filter:blur(16px);border:1px solid var(--br);border-radius:40px;padding:6px 10px;box-shadow:0 4px 20px rgba(0,0,0,0.1);}
-.tool-btn{font-family:var(--M);font-size:11px;padding:7px 14px;border:1px solid transparent;border-radius:20px;cursor:pointer;transition:all 0.2s;background:transparent;color:var(--m);white-space:nowrap;display:flex;align-items:center;gap:5px;}
-.tool-btn.on,.tool-btn:hover{background:var(--gb);border-color:var(--g);color:var(--g);}
-.tool-btn.primary{background:var(--g);color:white;border-color:var(--g);}
-.tool-btn.primary:hover{background:var(--gd);}
-.tool-btn:disabled{opacity:0.4;cursor:not-allowed;}
-.tool-sep{width:1px;background:var(--br);margin:4px 0;}
+  /* ── MAIN LAYOUT ── */
+  #main { display: flex; height: calc(100vh - 100px); }
+  #map { flex: 1; min-width: 0; }
 
-/* ── GPS MODAL ── */
-.gps-modal{position:fixed;top:120px;left:50%;transform:translateX(-50%);z-index:250;background:var(--w);border:1px solid var(--br);border-radius:16px;padding:1.5rem;width:340px;box-shadow:var(--shadow);display:none;}
-.gps-modal.show{display:block;animation:slideDown 0.3s ease;}
-.modal-title{font-family:var(--D);font-size:22px;color:var(--g);margin-bottom:1rem;}
-.inp{width:100%;padding:9px 12px;border:1px solid var(--br2);border-radius:8px;background:var(--bg);font-family:var(--M);font-size:12px;color:var(--t);outline:none;margin-bottom:8px;}
-.inp:focus{border-color:var(--g);}
-.inp-label{font-family:var(--M);font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--m2);display:block;margin-bottom:4px;}
-.size-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
-.size-opt{border:1px solid var(--br);border-radius:8px;padding:8px;text-align:center;cursor:pointer;transition:all 0.2s;}
-.size-opt:hover,.size-opt.on{border-color:var(--g);background:var(--gb);}
-.size-jereb{font-family:var(--D);font-size:20px;color:var(--g);line-height:1;}
-.size-ha{font-family:var(--M);font-size:10px;color:var(--m2);margin-top:2px;}
-.modal-btn{width:100%;padding:10px;background:var(--g);color:white;border:none;border-radius:8px;font-family:var(--M);font-size:12px;font-weight:500;cursor:pointer;margin-top:4px;transition:all 0.2s;}
-.modal-btn:hover{background:var(--gd);}
-.modal-close{position:absolute;top:12px;right:14px;font-size:18px;cursor:pointer;color:var(--m2);background:none;border:none;}
-.tip{background:var(--gd);border-radius:8px;padding:0.6rem 0.75rem;font-size:12px;color:#86efac;line-height:1.6;margin-bottom:8px;}
+  /* ── SIDEBAR ── */
+  #sidebar {
+    width: 360px; min-width: 300px; background: #fff;
+    border-left: 1px solid var(--border); overflow-y: auto;
+    display: flex; flex-direction: column;
+  }
 
-/* ── DRAWING TIP ── */
-.draw-tip{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:200;background:var(--gd);color:#4ade80;font-family:var(--M);font-size:12px;padding:10px 20px;border-radius:20px;letter-spacing:0.04em;pointer-events:none;opacity:0;transition:opacity 0.3s;white-space:nowrap;}
-.draw-tip.show{opacity:1;}
+  /* ── FIELDS LIST ── */
+  #fields-panel { padding: 12px; border-bottom: 2px solid var(--border); }
+  .fields-header {
+    font-weight: 700; color: var(--green-dark);
+    font-size: .9rem; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .field-item {
+    border: 2px solid var(--border); border-radius: 8px;
+    padding: 10px; margin-bottom: 8px; cursor: pointer;
+    transition: all .15s; position: relative;
+  }
+  .field-item:hover { border-color: var(--green); background: #f0fdf4; }
+  .field-item.active { border-color: var(--green); background: #f0fdf4; box-shadow: 0 0 0 3px #bbf7d0; }
+  .field-item .fi-name {
+    font-weight: 700; font-size: .9rem; color: var(--green-dark);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .field-item .fi-meta { font-size: .78rem; color: var(--muted); margin-top: 3px; }
+  .field-item .fi-ndvi {
+    position: absolute; top: 10px; right: 10px;
+    font-size: .85rem; font-weight: 700; padding: 2px 8px;
+    border-radius: 12px;
+  }
+  .ndvi-good { background: #dcfce7; color: var(--green-dark); }
+  .ndvi-mod  { background: #fef9c3; color: #92400e; }
+  .ndvi-poor { background: #fee2e2; color: var(--red); }
+  .field-del {
+    position: absolute; bottom: 8px; right: 8px;
+    background: #fee2e2; color: var(--red); border: none;
+    border-radius: 4px; padding: 2px 7px; font-size: .75rem;
+    cursor: pointer;
+  }
+  .field-del:hover { background: #fca5a5; }
 
-/* ── REPORT PANEL — slides in from right ── */
-.report-panel{position:fixed;top:52px;right:-100%;bottom:0;width:440px;z-index:400;background:var(--w);border-left:1px solid var(--br);box-shadow:-8px 0 40px rgba(0,0,0,0.12);overflow-y:auto;transition:right 0.4s cubic-bezier(0.4,0,0.2,1);}
-.report-panel.open{right:0;}
-.report-header{background:var(--gd);padding:1.5rem;position:sticky;top:0;z-index:10;}
-.report-logo{font-family:var(--D);font-size:20px;color:#4ade80;letter-spacing:0.05em;margin-bottom:2px;}
-.report-field-info{font-family:var(--M);font-size:11px;color:rgba(255,255,255,0.5);letter-spacing:0.06em;}
-.report-close{position:absolute;top:12px;right:14px;background:rgba(255,255,255,0.1);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:16px;color:white;display:flex;align-items:center;justify-content:center;transition:all 0.2s;}
-.report-close:hover{background:rgba(255,255,255,0.2);}
-.report-body{padding:1.25rem;}
+  /* ── REPORT ── */
+  #report-panel { flex: 1; padding: 12px; }
+  .report-placeholder {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; height: 200px; color: var(--muted);
+    text-align: center; gap: 10px;
+  }
+  .report-placeholder .ph-icon { font-size: 2.5rem; }
 
-/* Report sections */
-.rep-section{margin-bottom:1.25rem;}
-.rep-title{font-family:var(--M);font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--m2);margin-bottom:0.6rem;display:flex;align-items:center;gap:6px;}
-.rep-title::after{content:'';flex:1;height:1px;background:var(--br);}
+  .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
+  .metric-card {
+    background: var(--bg); border-radius: 8px; padding: 10px;
+    border: 1px solid var(--border); text-align: center;
+  }
+  .metric-card .mc-val { font-size: 1.2rem; font-weight: 700; color: var(--green-dark); }
+  .metric-card .mc-lbl { font-size: .72rem; color: var(--muted); margin-top: 2px; }
 
-/* Status card */
-.rep-status{border-radius:10px;padding:1rem;border-left:4px solid;margin-bottom:6px;}
-.rep-status.excellent{background:#f0fdf4;border-color:#16a34a;}
-.rep-status.good{background:#f0fdf4;border-color:#22c55e;}
-.rep-status.moderate{background:#fffbeb;border-color:#d97706;}
-.rep-status.stressed{background:#fef2f2;border-color:#dc2626;}
-.status-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
-.status-main{font-family:var(--D);font-size:26px;letter-spacing:0.02em;line-height:1;}
-.status-num{font-family:var(--M);font-size:22px;font-weight:500;}
-.status-sub{font-size:12px;color:var(--m);line-height:1.5;}
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 12px; border-radius: 20px; font-weight: 700;
+    font-size: .85rem; margin-bottom: 10px;
+  }
+  .status-good  { background: #dcfce7; color: var(--green-dark); }
+  .status-mod   { background: #fef9c3; color: #92400e; }
+  .status-poor  { background: #fee2e2; color: var(--red); }
 
-/* Metrics grid */
-.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:1rem;}
-.metric{background:var(--bg);border:1px solid var(--br);border-radius:8px;padding:0.75rem;text-align:center;}
-.metric-v{font-family:var(--D);font-size:22px;line-height:1;color:var(--g);}
-.metric-l{font-family:var(--M);font-size:9px;color:var(--m2);text-transform:uppercase;letter-spacing:0.06em;margin-top:2px;}
+  /* Mini satellite map in report */
+  #mini-map { height: 140px; border-radius: 8px; overflow: hidden; margin: 8px 0; border: 2px solid var(--border); }
 
-/* Trend bars */
-.trend{display:flex;align-items:flex-end;gap:4px;height:56px;}
-.t-bar-w{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;}
-.t-bar{width:100%;border-radius:2px 2px 0 0;min-height:2px;transition:height 0.6s ease;}
-.t-yr{font-family:var(--M);font-size:8px;color:var(--m2);}
-.t-val{font-family:var(--M);font-size:8px;color:var(--m);}
+  /* NDVI trend bars */
+  .trend-bars { display: flex; gap: 3px; align-items: flex-end; height: 50px; margin: 8px 0; }
+  .trend-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .trend-bar { width: 100%; border-radius: 3px 3px 0 0; transition: height .4s; min-height: 4px; }
+  .trend-year { font-size: .62rem; color: var(--muted); }
 
-/* Action items */
-.action{border-radius:8px;padding:0.9rem;margin-bottom:6px;border-left:3px solid;}
-.action.urgent{background:#fef2f2;border-color:var(--r);}
-.action.important{background:#fffbeb;border-color:var(--a);}
-.action.good{background:#f0fdf4;border-color:var(--g);}
-.action-priority{font-family:var(--M);font-size:9px;text-transform:uppercase;font-weight:600;letter-spacing:0.1em;margin-bottom:3px;}
-.urgent .action-priority{color:var(--r);}
-.important .action-priority{color:var(--a);}
-.good .action-priority{color:var(--g);}
-.action-title{font-size:13px;font-weight:500;margin-bottom:3px;}
-.action-detail{font-size:12px;color:var(--m);line-height:1.55;}
-.action-cost{font-family:var(--M);font-size:10px;color:var(--m2);margin-top:5px;}
+  .actions-list { margin: 8px 0; }
+  .action-item {
+    border-radius: 6px; padding: 8px 10px;
+    margin-bottom: 6px; font-size: .82rem; line-height: 1.4;
+  }
+  .act-urgent   { background: #fee2e2; border-left: 3px solid var(--red); }
+  .act-warn     { background: #fef9c3; border-left: 3px solid var(--amber); }
+  .act-ok       { background: #dcfce7; border-left: 3px solid var(--green); }
 
-/* Crop cards */
-.crops{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
-.crop{background:var(--bg);border:1px solid var(--br);border-radius:8px;padding:0.75rem;text-align:center;transition:all 0.2s;}
-.crop:hover{border-color:var(--g);background:var(--gb);}
-.crop-name{font-family:var(--D);font-size:17px;margin-bottom:3px;}
-.crop-why{font-size:11px;color:var(--m);line-height:1.4;}
-.crop-tag{font-family:var(--M);font-size:9px;margin-top:5px;padding:2px 6px;border-radius:10px;display:inline-block;}
-.tag-hi{background:var(--gb);color:var(--g);}
-.tag-md{background:#fef3c7;color:var(--a);}
+  .crops-row { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+  .crop-chip {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 20px; padding: 4px 10px; font-size: .78rem;
+    color: var(--green-dark); font-weight: 600;
+  }
 
-/* Income table */
-.income-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--br);font-size:13px;}
-.income-row:last-child{border-bottom:none;font-weight:600;font-size:14px;}
-.income-row .label{color:var(--m);}
-.income-row .val{font-family:var(--M);}
-.val.pos{color:var(--g);}
-.val.neg{color:var(--r);}
-.val.neutral{color:var(--t);}
+  /* Multi-field comparison */
+  #compare-panel { padding: 12px; border-top: 2px solid var(--border); display: none; }
+  .compare-header { font-weight: 700; color: var(--green-dark); font-size: .9rem; margin-bottom: 8px; }
+  .compare-table { width: 100%; border-collapse: collapse; font-size: .78rem; }
+  .compare-table th { background: var(--green-dark); color: #fff; padding: 5px 8px; text-align: left; }
+  .compare-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); }
+  .compare-table tr:hover td { background: var(--bg); }
 
-/* Save badge */
-.save-badge{display:inline-flex;align-items:center;gap:6px;font-family:var(--M);font-size:11px;padding:6px 12px;border-radius:20px;background:var(--gb);color:var(--g);border:1px solid var(--br2);margin-bottom:1rem;}
+  /* ── AI CHAT ── */
+  #ai-panel {
+    border-top: 2px solid var(--border); padding: 12px;
+    display: flex; flex-direction: column; gap: 8px; max-height: 320px;
+  }
+  .ai-header { font-weight: 700; color: var(--green-dark); font-size: .88rem; display: flex; align-items: center; gap: 6px; }
+  #ai-messages {
+    flex: 1; overflow-y: auto; max-height: 160px;
+    background: var(--bg); border-radius: 8px; padding: 8px;
+    border: 1px solid var(--border); font-size: .82rem; line-height: 1.5;
+  }
+  .msg { margin-bottom: 6px; padding: 6px 8px; border-radius: 6px; }
+  .msg-user { background: var(--green-light); color: var(--green-dark); text-align: right; }
+  .msg-ai   { background: #f8fafc; color: var(--text); }
+  .msg-sys  { color: var(--muted); font-style: italic; font-size: .78rem; text-align: center; }
 
-/* ── AI VOICE PANEL — bottom sheet ── */
-.ai-panel{position:fixed;bottom:-100%;left:0;right:0;z-index:500;background:var(--w);border-top:1px solid var(--br);border-radius:20px 20px 0 0;box-shadow:0 -8px 40px rgba(0,0,0,0.12);transition:bottom 0.4s cubic-bezier(0.4,0,0.2,1);max-height:70vh;display:flex;flex-direction:column;}
-.ai-panel.open{bottom:0;}
-.ai-handle{width:40px;height:4px;background:var(--br2);border-radius:2px;margin:10px auto 0;}
-.ai-header{padding:0.75rem 1.25rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--br);}
-.ai-title{font-family:var(--D);font-size:22px;color:var(--g);letter-spacing:0.03em;display:flex;align-items:center;gap:8px;}
-.ai-close-btn{background:var(--bg);border:1px solid var(--br);border-radius:20px;padding:5px 12px;font-family:var(--M);font-size:11px;cursor:pointer;color:var(--m);transition:all 0.2s;}
-.ai-close-btn:hover{border-color:var(--g);color:var(--g);}
+  .quick-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+  .quick-btn {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 20px; padding: 3px 9px; font-size: .75rem;
+    cursor: pointer; color: var(--green-dark); transition: .12s;
+  }
+  .quick-btn:hover { background: var(--green-light); border-color: var(--green); }
 
-/* Chat messages */
-.chat-msgs{flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;gap:0.75rem;}
-.cmsg{display:flex;gap:8px;animation:fadeUp 0.3s ease;}
-.cmsg.user{flex-direction:row-reverse;}
-.cavatar{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;}
-.cmsg.ai .cavatar{background:var(--gb);}
-.cmsg.user .cavatar{background:#dbeafe;}
-.cbubble{max-width:88%;padding:0.65rem 0.9rem;border-radius:10px;font-size:13px;line-height:1.65;}
-.cmsg.ai .cbubble{background:var(--bg);border:1px solid var(--br);border-radius:4px 10px 10px 10px;}
-.cmsg.user .cbubble{background:var(--g);color:white;border-radius:10px 4px 10px 10px;}
+  #ai-input-row { display: flex; gap: 6px; }
+  #ai-input {
+    flex: 1; border: 1px solid var(--border); border-radius: 6px;
+    padding: 7px 10px; font-size: .82rem; outline: none;
+  }
+  #ai-input:focus { border-color: var(--green); }
+  #mic-btn {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 7px 10px; cursor: pointer; font-size: 1rem;
+  }
+  #mic-btn.listening { background: #fee2e2; border-color: var(--red); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+  #send-btn { background: var(--green); color: #fff; border: none; border-radius: 6px; padding: 7px 14px; cursor: pointer; font-size: .82rem; font-weight: 600; }
 
-/* Quick replies */
-.quick-r{display:flex;gap:6px;flex-wrap:wrap;padding:0.5rem 1rem;border-top:1px solid var(--br);}
-.qr{font-family:var(--M);font-size:11px;padding:6px 12px;background:var(--bg);border:1px solid var(--br);border-radius:20px;cursor:pointer;color:var(--m);transition:all 0.2s;white-space:nowrap;}
-.qr:hover{border-color:var(--g);color:var(--g);background:var(--gb);}
+  /* ── LOADING OVERLAY ── */
+  #loading {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
+    z-index: 9999; align-items: center; justify-content: center;
+  }
+  #loading.show { display: flex; }
+  .loading-box {
+    background: #fff; border-radius: 12px; padding: 24px 32px;
+    text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,.3);
+  }
+  .spinner {
+    width: 44px; height: 44px; border: 4px solid var(--border);
+    border-top-color: var(--green); border-radius: 50%;
+    animation: spin .7s linear infinite; margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Input row */
-.chat-input-row{padding:0.75rem 1rem;border-top:1px solid var(--br);display:flex;gap:8px;align-items:center;background:var(--bg);}
-.chat-inp{flex:1;padding:10px 14px;border:1px solid var(--br2);border-radius:24px;font-family:var(--B);font-size:13px;color:var(--t);background:var(--w);outline:none;transition:border 0.2s;}
-.chat-inp:focus{border-color:var(--g);}
-
-/* Voice button */
-.voice-btn{width:42px;height:42px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;transition:all 0.2s;position:relative;}
-.voice-btn.idle{background:var(--bg);border:1px solid var(--br);}
-.voice-btn.idle:hover{border-color:var(--g);background:var(--gb);}
-.voice-btn.listening{background:var(--r);animation:voicePulse 1s ease-in-out infinite;}
-.voice-btn.speaking{background:var(--g);animation:voicePulse 0.8s ease-in-out infinite;}
-.send-btn{width:42px;height:42px;background:var(--g);border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s;}
-.send-btn:hover{background:var(--gd);}
-
-/* Typing dots */
-.typing-dots{display:flex;gap:4px;padding:2px 0;}
-.typing-dots span{width:5px;height:5px;background:var(--m2);border-radius:50%;animation:bounce 1.2s ease-in-out infinite;}
-.typing-dots span:nth-child(2){animation-delay:0.2s;}
-.typing-dots span:nth-child(3){animation-delay:0.4s;}
-
-/* Voice indicator */
-.voice-wave{display:flex;align-items:center;gap:3px;height:20px;}
-.voice-bar{width:3px;border-radius:2px;background:var(--g);animation:wave 1s ease-in-out infinite;}
-.voice-bar:nth-child(1){animation-delay:0s;height:6px;}
-.voice-bar:nth-child(2){animation-delay:0.1s;height:14px;}
-.voice-bar:nth-child(3){animation-delay:0.2s;height:20px;}
-.voice-bar:nth-child(4){animation-delay:0.3s;height:14px;}
-.voice-bar:nth-child(5){animation-delay:0.4s;height:6px;}
-
-/* Notification */
-.notif{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--gd);color:#4ade80;font-family:var(--M);font-size:11px;padding:10px 20px;border-radius:20px;z-index:9999;opacity:0;transition:opacity 0.3s;pointer-events:none;letter-spacing:0.06em;white-space:nowrap;}
-.notif.show{opacity:1;}
-
-/* Spinner */
-.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top:2px solid white;border-radius:50%;animation:spinAnim 0.8s linear infinite;}
-
-@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(22,163,74,0.4);}50%{box-shadow:0 0 0 6px rgba(22,163,74,0);}}
-@keyframes fadeUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
-@keyframes slideDown{from{opacity:0;transform:translateY(-10px) translateX(-50%);}to{opacity:1;transform:translateY(0) translateX(-50%);}}
-@keyframes bounce{0%,60%,100%{transform:translateY(0);}30%{transform:translateY(-5px);}}
-@keyframes wave{0%,100%{transform:scaleY(0.5);}50%{transform:scaleY(1);}}
-@keyframes voicePulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,0.4);}50%{box-shadow:0 0 0 10px rgba(220,38,38,0);}}
-@keyframes spinAnim{to{transform:rotate(360deg);}}
-
-@media(max-width:768px){
-  .report-panel{width:100%;top:52px;}
-  .toolbar{padding:5px 8px;gap:4px;}
-  .tool-btn{padding:6px 10px;font-size:10px;}
-}
+  /* ── RESPONSIVE ── */
+  @media (max-width: 700px) {
+    #main { flex-direction: column; height: auto; }
+    #map { height: 55vw; min-height: 220px; }
+    #sidebar { width: 100%; max-height: 60vh; overflow-y: auto; }
+  }
 </style>
 </head>
 <body>
 
-<!-- NAV -->
-<nav class="nav">
-  <div class="logo"><span class="logo-dot"></span>ZaminAI</div>
-  <div class="nav-center">
-    <button class="lang-btn on" onclick="setLang('en',this)">EN</button>
-    <button class="lang-btn" onclick="setLang('fa',this)">دری</button>
-    <button class="lang-btn" onclick="setLang('ps',this)">پښتو</button>
-  </div>
-  <div class="nav-right">
-    <div class="sat-status"><span class="sat-dot"></span><span id="satStatus">Satellite ready</span></div>
-  </div>
-</nav>
-
-<!-- MAP -->
-<div id="map"></div>
-
-<!-- FLOATING TOOLBAR -->
-<div class="toolbar">
-  <button class="tool-btn on" id="btn-draw" onclick="setMode('draw',this)">✏️ <span id="btn-draw-txt">Draw field</span></button>
-  <button class="tool-btn" id="btn-gps" onclick="showGPSModal()">📍 <span id="btn-gps-txt">GPS auto-draw</span></button>
-  <div class="tool-sep"></div>
-  <button class="tool-btn" id="btn-clear" onclick="clearAll()">🗑️ <span id="btn-clear-txt">Clear</span></button>
-  <div class="tool-sep"></div>
-  <button class="tool-btn primary" id="btn-analyse" onclick="analyseField()" disabled>🛰️ <span id="btn-analyse-txt">Analyse</span></button>
-</div>
-
-<!-- GPS MODAL -->
-<div class="gps-modal" id="gpsModal">
-  <button class="modal-close" onclick="closeGPSModal()">✕</button>
-  <div class="modal-title" id="gps-modal-title">Auto-draw field</div>
-  <div class="tip" id="gps-tip-text">📱 Open Google Maps → long press your field → copy the numbers shown</div>
-  <label class="inp-label" id="gps-lat-label">GPS Coordinates</label>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
-    <input class="inp" id="gpsLat" placeholder="Latitude e.g. 36.73" type="number" step="0.0001">
-    <input class="inp" id="gpsLon" placeholder="Longitude e.g. 68.87" type="number" step="0.0001">
-  </div>
-  <label class="inp-label" id="gps-size-label">Field size</label>
-  <div class="size-row" id="sizeOptions">
-    <div class="size-opt on" onclick="selectSize(0.5,this)">
-      <div class="size-jereb" id="size1-j">2.5</div>
-      <div class="size-ha" id="size1-l">jereb · 0.5 ha</div>
-    </div>
-    <div class="size-opt" onclick="selectSize(1,this)">
-      <div class="size-jereb" id="size2-j">5</div>
-      <div class="size-ha" id="size2-l">jereb · 1 ha</div>
-    </div>
-    <div class="size-opt" onclick="selectSize(2,this)">
-      <div class="size-jereb" id="size3-j">10</div>
-      <div class="size-ha" id="size3-l">jereb · 2 ha</div>
-    </div>
-    <div class="size-opt" onclick="selectSize(5,this)">
-      <div class="size-jereb" id="size4-j">25</div>
-      <div class="size-ha" id="size4-l">jereb · 5 ha</div>
-    </div>
-  </div>
-  <label class="inp-label" style="margin-top:6px">Farmer name (optional)</label>
-  <input class="inp" id="farmerName" placeholder="Your name">
-  <label class="inp-label" id="gps-crop-label">Main crop</label>
-  <select class="inp" id="cropType">
-    <option value="wheat" data-en="Wheat" data-fa="گندم" data-ps="گندم">Wheat</option>
-    <option value="vegetables" data-en="Vegetables" data-fa="سبزیجات" data-ps="سبزیجات">Vegetables</option>
-    <option value="saffron" data-en="Saffron" data-fa="زعفران" data-ps="زعفران">Saffron</option>
-    <option value="flax" data-en="Flax" data-fa="کتان" data-ps="کتان">Flax</option>
-    <option value="chickpeas" data-en="Chickpeas" data-fa="نخود" data-ps="نخود">Chickpeas</option>
-    <option value="cotton" data-en="Cotton" data-fa="پنبه" data-ps="پنبه">Cotton</option>
-  </select>
-  <button class="modal-btn" id="gps-draw-btn" onclick="autoDrawFromGPS()">📍 Draw on map →</button>
-</div>
-
-<!-- DRAW TIP -->
-<div class="draw-tip" id="drawTip"><span id="drawTipText">Click map to draw field corners · Double-click to finish</span></div>
-
-<!-- ════ REPORT PANEL ════ -->
-<div class="report-panel" id="reportPanel">
-  <div class="report-header">
-    <div class="report-logo">🌱 <span id="report-logo-text">ZaminAI Report</span></div>
-    <div class="report-field-info" id="reportFieldInfo">Field analysis</div>
-    <button class="report-close" onclick="closeReport()">✕</button>
-  </div>
-  <div class="report-body" id="reportBody">
-    <!-- Filled by JS -->
+<!-- HEADER -->
+<div id="header">
+  <div class="logo">🌱 Zamin<span>AI</span></div>
+  <div class="lang-btns">
+    <button class="active" onclick="setLang('en')">EN</button>
+    <button onclick="setLang('fa')">دری</button>
+    <button onclick="setLang('ps')">پښتو</button>
   </div>
 </div>
 
-<!-- ════ AI VOICE PANEL ════ -->
-<div class="ai-panel" id="aiPanel">
-  <div class="ai-handle"></div>
-  <div class="ai-header">
-    <div class="ai-title">
-      🤖 <span id="aiTitle">ZaminAI Assistant</span>
-      <div class="voice-wave" id="voiceWave" style="display:none">
-        <div class="voice-bar"></div><div class="voice-bar"></div>
-        <div class="voice-bar"></div><div class="voice-bar"></div>
-        <div class="voice-bar"></div>
-      </div>
-    </div>
-    <button class="ai-close-btn" onclick="closeAI()">Close</button>
-  </div>
-  <div class="chat-msgs" id="chatMsgs">
-    <div class="cmsg ai">
-      <div class="cavatar">🌱</div>
-      <div class="cbubble" id="welcomeMsg">Hello! Analyse your field first, then ask me anything. I can speak in Dari, Pashto, or English.</div>
-    </div>
-  </div>
-  <div class="quick-r" id="quickReplies">
-    <button class="qr" onclick="askAI('What should I plant?')">What to plant?</button>
-    <button class="qr" onclick="askAI('When should I irrigate?')">When to irrigate?</button>
-    <button class="qr" onclick="askAI('How much profit can I make?')">Profit?</button>
-    <button class="qr" onclick="askAI('My wheat leaves are yellow')">Yellow leaves?</button>
-  </div>
-  <div class="chat-input-row">
-    <button class="voice-btn idle" id="voiceBtn" onclick="toggleVoice()" title="Speak your question">🎤</button>
-    <input class="chat-inp" id="chatInp" placeholder="Ask about your field..." onkeydown="if(event.key==='Enter')sendChat()">
-    <button class="send-btn" onclick="sendChat()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M22 2L11 13M22 2L15 22 11 13 2 9l20-7z"/></svg>
-    </button>
-  </div>
+<!-- TOOLBAR -->
+<div id="toolbar">
+  <button class="btn btn-primary" id="btn-draw" onclick="startDraw()">✏️ <span data-t="draw">Draw Field</span></button>
+  <button class="btn btn-secondary" id="btn-gps" onclick="useGPS()">📍 <span data-t="gps">GPS</span></button>
+  <button class="btn btn-secondary" id="btn-map-toggle" onclick="toggleMapType()">🗺️ <span data-t="map_toggle">Satellite</span></button>
+  <button class="btn btn-danger" id="btn-clear-last" onclick="clearLastField()">✕ <span data-t="clear_last">Remove Last</span></button>
+  <button class="btn btn-danger" id="btn-clear-all" onclick="clearAllFields()">🗑️ <span data-t="clear_all">Clear All</span></button>
+  <button class="btn btn-analyse" id="btn-analyse" onclick="analyseAll()">🛰️ <span data-t="analyse">Analyse All</span></button>
+  <div class="field-count" id="field-count">0 <span data-t="fields">fields</span></div>
 </div>
 
-<!-- AI OPEN BUTTON — fixed bottom right -->
-<button onclick="openAI()" style="position:fixed;bottom:20px;right:20px;z-index:300;width:52px;height:52px;background:var(--g);border:none;border-radius:50%;cursor:pointer;font-size:22px;box-shadow:0 4px 16px rgba(22,163,74,0.4);transition:all 0.2s;display:flex;align-items:center;justify-content:center;" id="aiFloatBtn" title="Ask AI">🤖</button>
+<!-- LOADING -->
+<div id="loading"><div class="loading-box">
+  <div class="spinner"></div>
+  <div id="loading-text" style="color:#16a34a;font-weight:700">Analysing with satellite…</div>
+</div></div>
 
-<!-- NOTIFICATION -->
-<div class="notif" id="notif"></div>
+<!-- MAIN -->
+<div id="main">
+  <div id="map"></div>
+  <div id="sidebar">
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script>
-// ─── STATE ───────────────────────────────────────────────────────────────────
-let lang = 'en';
-let mode = 'draw';
-let points = [];
-let polygon = null;
-let markers = [];
-let fieldData = null;
-let selectedSize = 0.5;
-let chatHistory = [];
-let isListening = false;
-let isSpeaking = false;
-let recognition = null;
-let synth = window.speechSynthesis;
-
-// ─── MAP ─────────────────────────────────────────────────────────────────────
-const map = L.map('map',{center:[34.5,67.7],zoom:6,zoomControl:true});
-
-L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
-  attribution:'Google Satellite', maxZoom:20
-}).addTo(map);
-
-L.control.zoom({position:'bottomright'}).addTo(map);
-
-// Click to draw
-map.on('click', e=>{
-  if(mode !== 'draw') return;
-  const {lat,lng} = e.latlng;
-  points.push([lat,lng]);
-  const m = L.circleMarker([lat,lng],{
-    radius:5,color:'#16a34a',fillColor:'#16a34a',fillOpacity:1,weight:2
-  }).addTo(map);
-  markers.push(m);
-  updatePolygon();
-  if(points.length >= 3){
-    document.getElementById('btn-analyse').disabled = false;
-  }
-  showTip(lang==='fa'?'برای پایان دوبار کلیک':lang==='ps'?'پای ته دوه ځله کلیک':
-    `${points.length} points · Double-click to finish`);
-});
-
-map.on('dblclick', e=>{
-  if(mode!=='draw'||points.length<3) return;
-  L.DomEvent.stop(e);
-  finishDraw();
-});
-
-function updatePolygon(){
-  if(polygon){map.removeLayer(polygon);polygon=null;}
-  if(points.length>=2){
-    polygon = L.polygon(points,{color:'#16a34a',fillColor:'#16a34a',fillOpacity:0.15,weight:2}).addTo(map);
-  }
-}
-
-function finishDraw(){
-  if(polygon){map.removeLayer(polygon);polygon=null;}
-  polygon = L.polygon(points,{color:'#16a34a',fillColor:'#16a34a',fillOpacity:0.2,weight:2.5}).addTo(map);
-  const areaHa = calcArea(points);
-  const areaJ  = (areaHa*5).toFixed(1);
-  const areaDisplay = lang==='en'?
-    `${areaHa} ha` :
-    `${areaJ} جریب · ${areaHa} هکتار`;
-  polygon.bindPopup(`<div style="font-family:monospace;font-size:12px;color:#052e16">✓ ${areaDisplay}</div>`).openPopup();
-  hideTip();
-  notify(lang==='en'?`✓ Field drawn — ${areaHa} ha`:`✓ ځمکه رسم شد — ${areaJ} جریب`);
-  document.getElementById('btn-analyse').disabled = false;
-}
-
-function clearAll(){
-  points=[];
-  markers.forEach(m=>map.removeLayer(m));
-  markers=[];
-  if(polygon){map.removeLayer(polygon);polygon=null;}
-  document.getElementById('btn-analyse').disabled=true;
-  closeReport();
-  hideTip();
-}
-
-function setMode(m,el){
-  mode=m;
-  document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('on'));
-  el.classList.add('on');
-  if(m==='draw') showTip(lang==='fa'?'برای رسم کلیک کنید':lang==='ps'?'رسم کولو لپاره کلیک':
-    'Click map to draw field · Double-click to finish');
-}
-
-// ─── GPS AUTO-DRAW ────────────────────────────────────────────────────────────
-function showGPSModal(){
-  document.getElementById('gpsModal').classList.add('show');
-  document.getElementById('gpsModal').style.display='block';
-}
-function closeGPSModal(){
-  document.getElementById('gpsModal').style.display='none';
-}
-function selectSize(sz,el){
-  selectedSize=sz;
-  document.querySelectorAll('.size-opt').forEach(o=>o.classList.remove('on'));
-  el.classList.add('on');
-}
-function autoDrawFromGPS(){
-  const lat=parseFloat(document.getElementById('gpsLat').value);
-  const lon=parseFloat(document.getElementById('gpsLon').value);
-  if(!lat||!lon){notify('Please enter GPS coordinates');return;}
-  const ha=selectedSize;
-  const latD=Math.sqrt(ha*10000)/111320;
-  const lonD=Math.sqrt(ha*10000)/(111320*Math.cos(lat*Math.PI/180));
-  clearAll();
-  points=[
-    [lat-latD/2,lon-lonD/2],[lat-latD/2,lon+lonD/2],
-    [lat+latD/2,lon+lonD/2],[lat+latD/2,lon-lonD/2]
-  ];
-  polygon=L.polygon(points,{color:'#16a34a',fillColor:'#16a34a',fillOpacity:0.2,weight:2.5}).addTo(map);
-  map.flyTo([lat,lon],15);
-  const areaJ=(ha*5).toFixed(1);
-  const autoDisplay = lang==='en'?`${ha} ha`:`${areaJ} جریب · ${ha} هکتار`;
-  polygon.bindPopup(`<div style="font-family:monospace;font-size:12px;color:#052e16">📍 ${autoDisplay}</div>`).openPopup();
-  closeGPSModal();
-  document.getElementById('btn-analyse').disabled=false;
-  notify(lang==="en"?`✓ ${ha} ha field drawn at your location`:`✓ ${areaJ} جریب ځمکه رسم شد`);
-}
-
-// ─── ANALYSE ─────────────────────────────────────────────────────────────────
-async function analyseField(){
-  if(points.length<3){notify('Draw your field first');return;}
-  const btn=document.getElementById('btn-analyse');
-  const _at=(APP_TRANS[lang]||APP_TRANS.en).analyse_first;btn.innerHTML='<span class="spin"></span> ';
-  btn.disabled=true;
-
-  // Open report panel immediately with loading state
-  document.getElementById('reportPanel').classList.add('open');
-  const TL = APP_TRANS[lang]||APP_TRANS.en;
-  const loadTexts = {
-    en:['Analysing your field...','Loading Sentinel-2 satellite data','Calculating NDVI · Water index · Rainfall','Generating recommendations'],
-    fa:['در حال تحلیل زمین شما...','در حال بارگذاری داده ماهواره Sentinel-2','محاسبه NDVI · شاخص آب · بارندگی','در حال تهیه مشوره‌ها'],
-    ps:['ستاسو ځمکه تحلیلیږي...','د Sentinel-2 ماهواره‌ای معلومات بارول','NDVI · د اوبو شاخص · باران حساب کول','سپارښتنې چمتو کیږي']
-  };
-  const lt2 = loadTexts[lang]||loadTexts.en;
-  document.getElementById('reportBody').innerHTML=`
-    <div style="text-align:center;padding:3rem 1rem">
-      <div style="font-size:48px;animation:spinAnim 1s linear infinite;display:inline-block">🛰️</div>
-      <div style="font-family:var(--D);font-size:24px;color:var(--g);margin:1rem 0">${lt2[0]}</div>
-      <div style="font-family:var(--M);font-size:12px;color:var(--m2);line-height:1.8">
-        ${lt2[1]}<br>${lt2[2]}<br>${lt2[3]}
-      </div>
-    </div>
-  `;
-
-  await new Promise(r=>setTimeout(r,2200));
-
-  const areaHa  = calcArea(points);
-  const areaJ   = (areaHa*5).toFixed(1);
-  const centroid = getCentroid(points);
-  const farmer  = document.getElementById('farmerName')?.value||'Farmer';
-  const crop    = document.getElementById('cropType')?.value||'wheat';
-  const year    = 2024;
-
-  // Satellite values (replace with real GEE API call)
-  const ndvi  = 0.3278;
-  const mndwi = -0.1431;
-  const rain  = 287;
-  const trend = {2019:0.48,2020:0.41,2021:0.35,2022:0.22,2023:0.29,2024:ndvi};
-
-  fieldData={ndvi,mndwi,rain_mm:rain,area_ha:areaHa,area_jereb:areaJ,
-    lat:centroid[0].toFixed(5),lon:centroid[1].toFixed(5),
-    ndvi_trend:trend,year,farmer,crop};
-
-  renderReport(fieldData);
-  saveField(fieldData);
-  updateAIContext(fieldData);
-
-  btn.innerHTML='🛰️ '+(APP_TRANS[lang]||APP_TRANS.en).reanalyse;
-  btn.disabled=false;
-  document.getElementById('reportFieldInfo').textContent=
-    `${areaJ} jereb · ${areaHa} ha · ${year}`;
-}
-
-// ─── RENDER REPORT ────────────────────────────────────────────────────────────
-function renderReport(r){
-  const l = lang || 'en';
-  const T = APP_TRANS[l] || APP_TRANS.en;
-  const {ndvi,mndwi,rain_mm:rain,area_ha:aHa,area_jereb:aJ,ndvi_trend:trend,year}=r;
-
-  // Vegetation status
-  const vegClass = ndvi>=0.45?'excellent':ndvi>=0.30?'good':ndvi>=0.15?'moderate':'stressed';
-  const vegLabel = T.veg_labels[vegClass];
-  const vegDesc  = T.veg_descs[vegClass];
-
-  // Water
-  const waterClass = mndwi>=0.05?'good':mndwi>=-0.05?'moderate':'stressed';
-  const waterLabel = T.water_labels[waterClass];
-
-  // Trend bars
-  const entries=Object.entries(trend);
-  const maxV=Math.max(...entries.map(([,v])=>v));
-  const minV=Math.min(...entries.map(([,v])=>v));
-  const trendHTML=entries.map(([yr,v])=>{
-    const h=Math.max(4,(v/maxV)*50);
-    const color=v===minV?'#dc2626':v===maxV?'#16a34a':'#86efac';
-    return `<div class="t-bar-w">
-      <div class="t-val">${v.toFixed(2)}</div>
-      <div class="t-bar" style="height:${h}px;background:${color}"></div>
-      <div class="t-yr">${yr}</div>
-    </div>`;
-  }).join('');
-
-  // Actions
-  const actions=[];
-  if(mndwi<-0.05){
-    const a=T.actions.irrigate(aJ);
-    actions.push({type:'urgent',cat:T.action_types.urgent,title:a.title,detail:a.detail,
-      cost:T.cost_label.replace('{0}',Math.round(aJ*400).toLocaleString())});
-  }
-  if(ndvi<0.25){
-    const a=T.actions.fertilize(aJ);
-    actions.push({type:'urgent',cat:T.action_types.urgent,title:a.title,detail:a.detail,
-      cost:T.cost_label.replace('{0}',Math.round(aJ*1200).toLocaleString())});
-  }
-  if(rain<250){
-    const a=T.actions.switch_crop(rain);
-    actions.push({type:'important',cat:T.action_types.important,title:a.title,detail:a.detail,cost:''});
-  }
-  {
-    const a=T.actions.compost(aJ);
-    actions.push({type:'good',cat:T.action_types.good,title:a.title,detail:a.detail,
-      cost:T.cost_label.replace('{0}',Math.round(aJ*600).toLocaleString())});
-  }
-
-  const actionHTML=actions.map(a=>`
-    <div class="action ${a.type}">
-      <div class="action-priority">${a.cat}</div>
-      <div class="action-title">${a.title}</div>
-      <div class="action-detail">${a.detail}</div>
-      ${a.cost?`<div class="action-cost">${a.cost}</div>`:''}
-    </div>`).join('');
-
-  // Crops
-  const cropSet = rain<200||mndwi<-0.1?T.crops.low:rain<400?T.crops.mid:T.crops.high;
-  const profitClass=p=>['Very High','High','خیلی بالا','بالا','خورا لوړ','لوړ'].includes(p)?'tag-hi':'tag-md';
-  const cropsHTML=cropSet.map(c=>`
-    <div class="crop">
-      <div class="crop-name">${c.n}</div>
-      <div class="crop-why">${c.w}</div>
-      <span class="crop-tag ${profitClass(c.t)}">${c.t}</span>
-    </div>`).join('');
-
-  // Income
-  const yldKg=Math.round(aHa*(rain<200?80:rain<400?300:1000));
-  const price=rain<200?3000:rain<400?14:10;
-  const income=yldKg*price;
-  const costs={seeds:Math.round(aJ*400),fert:Math.round(aJ*1800),irr:Math.round(aJ*400),lab:Math.round(aJ*600)};
-  const totalCost=Object.values(costs).reduce((s,v)=>s+v,0);
-  const profit=income-totalCost;
-  const afn = T.cost_label.includes('افغان') ? (T.cost_label.includes('افغاني')?'افغاني':'افغانی') : 'AFN';
-
-  const incomeRows=[
-    [T.labels.seeds,   `−${costs.seeds.toLocaleString()} ${afn}`,'neg'],
-    [T.labels.fert,    `−${costs.fert.toLocaleString()} ${afn}`,'neg'],
-    [T.labels.irr,     `−${costs.irr.toLocaleString()} ${afn}`,'neg'],
-    [T.labels.lab,     `−${costs.lab.toLocaleString()} ${afn}`,'neg'],
-    [T.labels.yield_est,`${yldKg.toLocaleString()} kg`,'neutral'],
-    [T.labels.gross,   `${income.toLocaleString()} ${afn}`,'neutral'],
-    [T.labels.profit,  `${profit>=0?'+':''}${profit.toLocaleString()} ${afn}`,profit>=0?'pos':'neg'],
-  ].map(([l,v,c])=>`<div class="income-row"><span class="label">${l}</span><span class="val ${c}">${v}</span></div>`).join('');
-
-  document.getElementById('reportBody').innerHTML=`
-    <div class="save-badge" id="saveBadge"><span class="spin" style="border-color:rgba(22,163,74,0.3);border-top-color:var(--g)"></span> ${T.saving}</div>
-
-    <div class="rep-section">
-      <div class="rep-title">${T.what_satellite}</div>
-      <div class="rep-status ${vegClass}">
-        <div class="status-top">
-          <div class="status-main">${vegLabel}</div>
-          <div class="status-num" style="color:${ndvi>=0.3?'var(--g)':'var(--r)'}">${ndvi}</div>
+    <!-- FIELDS LIST -->
+    <div id="fields-panel">
+      <div class="fields-header">📋 <span data-t="your_fields">Your Fields</span></div>
+      <div id="fields-list">
+        <div class="report-placeholder">
+          <div class="ph-icon">✏️</div>
+          <div data-t="draw_hint">Draw fields on the map to start analysis</div>
         </div>
-        <div class="status-sub">${vegDesc}</div>
       </div>
     </div>
 
-    <div class="rep-section">
-      <div class="rep-title">${T.field_metrics}</div>
-      <div class="metrics">
-        <div class="metric"><div class="metric-v">${aJ}</div><div class="metric-l">${T.jereb}</div></div>
-        <div class="metric"><div class="metric-v">${aHa}</div><div class="metric-l">${T.hectares}</div></div>
-        <div class="metric"><div class="metric-v" style="color:${mndwi>0?'var(--b)':'var(--r)'}">${mndwi}</div><div class="metric-l">MNDWI</div></div>
-        <div class="metric"><div class="metric-v" style="color:var(--b)">${rain}</div><div class="metric-l">mm</div></div>
-        <div class="metric"><div class="metric-v">${year}</div><div class="metric-l">Year</div></div>
-        <div class="metric"><div class="metric-v" style="font-size:12px">${waterLabel}</div><div class="metric-l">.</div></div>
+    <!-- REPORT -->
+    <div id="report-panel">
+      <div id="report-content">
+        <div class="report-placeholder">
+          <div class="ph-icon">🛰️</div>
+          <div data-t="report_hint">Select a field to see its satellite report</div>
+        </div>
       </div>
     </div>
 
-    <div class="rep-section">
-      <div class="rep-title">${T.ndvi_trend}</div>
-      <div class="trend">${trendHTML}</div>
-      <div style="font-size:11px;color:var(--m2);margin-top:6px">${T.trend_note}</div>
+    <!-- COMPARISON TABLE (shown when >1 field) -->
+    <div id="compare-panel">
+      <div class="compare-header">📊 <span data-t="compare">Field Comparison</span></div>
+      <table class="compare-table">
+        <thead><tr>
+          <th data-t="field">Field</th>
+          <th>NDVI</th>
+          <th data-t="water">Water</th>
+          <th data-t="area">Area</th>
+          <th data-t="status">Status</th>
+        </tr></thead>
+        <tbody id="compare-body"></tbody>
+      </table>
     </div>
 
-    <div class="rep-section">
-      <div class="rep-title">${T.what_todo}</div>
-      ${actionHTML}
+    <!-- AI CHAT -->
+    <div id="ai-panel">
+      <div class="ai-header">🤖 <span data-t="ai_title">Ask AI Assistant</span>
+        <span id="ai-status" style="font-size:.72rem;color:#6b7280;font-weight:400"></span>
+      </div>
+      <div class="quick-btns" id="quick-btns"></div>
+      <div id="ai-messages">
+        <div class="msg msg-sys" data-t="ai_welcome">Draw a field and ask me anything about water, crops, or soil.</div>
+      </div>
+      <div id="ai-input-row">
+        <button id="mic-btn" onclick="toggleVoice()">🎤</button>
+        <input id="ai-input" type="text" placeholder="Ask in any language…" onkeydown="if(event.key==='Enter')sendQuestion()">
+        <button id="send-btn" onclick="sendQuestion()">→</button>
+      </div>
     </div>
 
-    <div class="rep-section">
-      <div class="rep-title">${T.best_crops}</div>
-      <div class="crops">${cropsHTML}</div>
-    </div>
+  </div><!-- /sidebar -->
+</div><!-- /main -->
 
-    <div class="rep-section">
-      <div class="rep-title">${T.income_estimate} — ${cropSet[0].n}</div>
-      ${incomeRows}
-    </div>
+<script>
+// ════════════════════════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════════════════════════
+const API = "https://zaminai.onrender.com";   // ← your Render URL
 
-    <div class="rep-section">
-      <button onclick="openAI()" style="width:100%;padding:12px;background:var(--gd);color:#4ade80;border:none;border-radius:8px;font-family:var(--M);font-size:13px;cursor:pointer;letter-spacing:0.04em">
-        ${T.ask_ai_btn}
-      </button>
-    </div>
-  `;
-}
-
-function closeReport(){
-  document.getElementById('reportPanel').classList.remove('open');
-}
-
-// ─── DATABASE SAVE ────────────────────────────────────────────────────────────
-function saveField(data){
-  // Always save to localStorage
-  const records=JSON.parse(localStorage.getItem('zaminai_fields')||'[]');
-  records.push({...data,saved_at:new Date().toISOString()});
-  localStorage.setItem('zaminai_fields',JSON.stringify(records));
-
-  setTimeout(()=>{
-    const b=document.getElementById('saveBadge');
-    if(b){b.innerHTML='✓ Saved to database';b.style.background='var(--gb)';}
-    notify('✓ Field saved to database');
-  },2000);
-}
-
-// ─── AI CHAT ─────────────────────────────────────────────────────────────────
-function openAI(){document.getElementById('aiPanel').classList.add('open');}
-function closeAI(){document.getElementById('aiPanel').classList.remove('open');}
-
-function updateAIContext(r){
-  document.getElementById('welcomeMsg').textContent=
-    `I have analysed your ${r.area_jereb} jereb field. NDVI ${r.ndvi} — ${r.ndvi>=0.3?'good vegetation':'stressed'}. Water index ${r.mndwi} — ${r.mndwi<-0.05?'irrigate soon':'moderate'}. Rainfall ${r.rain_mm}mm. Ask me anything or speak your question. 🎤`;
-
-  const qr=document.getElementById('quickReplies');
-  qr.innerHTML=[
-    r.mndwi<-0.05?`<button class="qr" onclick="askAI('How urgent is irrigation for my field?')">💧 Irrigation?</button>`:'',
-    `<button class="qr" onclick="askAI('What is the best crop for ${r.rain_mm}mm rainfall?')">Best crop?</button>`,
-    `<button class="qr" onclick="askAI('Profit estimate for ${r.area_jereb} jereb?')">Profit?</button>`,
-    `<button class="qr" onclick="askAI('What fertilizer for NDVI of ${r.ndvi}?')">Fertilizer?</button>`,
-    `<button class="qr" onclick="askAI('NDVI was ${r.ndvi_trend[2022]} in 2022 and now ${r.ndvi}. Is it recovering?')">Recovery?</button>`,
-  ].join('');
-}
-
-async function sendChat(){
-  const inp=document.getElementById('chatInp');
-  const text=inp.value.trim();
-  if(!text) return;
-  inp.value='';
-  askAI(text);
-}
-
-async function askAI(text){
-  openAI();
-  const msgs=document.getElementById('chatMsgs');
-
-  msgs.innerHTML+=`<div class="cmsg user"><div class="cavatar">👤</div><div class="cbubble">${text}</div></div>`;
-
-  const typId='t'+Date.now();
-  msgs.innerHTML+=`<div class="cmsg ai" id="${typId}"><div class="cavatar">🌱</div><div class="cbubble"><div class="typing-dots"><span></span><span></span><span></span></div></div></div>`;
-  msgs.scrollTop=msgs.scrollHeight;
-
-  chatHistory.push({role:'user',content:text});
-
-  let ctx='No field analysed yet. Give general farming advice for Afghanistan.';
-  if(fieldData){
-    ctx=`Farmer field data:
-- Area: ${fieldData.area_jereb} jereb (${fieldData.area_ha} ha)
-- NDVI: ${fieldData.ndvi} (${fieldData.ndvi>=0.35?'healthy':fieldData.ndvi>=0.15?'moderate stress':'severe stress'})
-- Water (MNDWI): ${fieldData.mndwi} (${fieldData.mndwi>0?'good':'low — needs irrigation'})
-- Rainfall: ${fieldData.rain_mm}mm/year
-- Location: ${fieldData.lat}, ${fieldData.lon}
-- Year: ${fieldData.year}
-- NDVI trend: worst ${Math.min(...Object.values(fieldData.ndvi_trend)).toFixed(3)} (2022), current ${fieldData.ndvi}
-- Farmer: ${fieldData.farmer}
-Language: ${lang==='fa'?'Dari — respond in Dari':lang==='ps'?'Pashto — respond in Pashto':'English'}`;
-  }
-
-  try{
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-5',
-        max_tokens:600,
-        system:`You are ZaminAI, an expert agricultural AI for Afghan smallholder farmers.
-${ctx}
-Give specific, practical advice based on their real satellite data.
-Use simple language. Give exact amounts (kg/jereb, AFN costs, dates).
-${lang!=='en'?'Respond in '+(lang==='fa'?'Dari':'Pashto')+'.':''}
-Keep responses under 150 words. Use bullet points for action steps.`,
-        messages:chatHistory
-      })
-    });
-
-    const data=await resp.json();
-    const reply=(data.content&&data.content[0]?.text)||
-      (data.error?`Error: ${data.error.message}`:'No response');
-
-    chatHistory.push({role:'assistant',content:reply});
-
-    document.getElementById(typId)?.remove();
-    msgs.innerHTML+=`<div class="cmsg ai"><div class="cavatar">🌱</div><div class="cbubble" dir="${lang!=='en'?'auto':'ltr'}">${reply.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')}</div></div>`;
-    msgs.scrollTop=msgs.scrollHeight;
-
-    // Speak the reply
-    speakText(reply);
-
-    // Save conversation
-    const saved=JSON.parse(localStorage.getItem('zaminai_chats')||'[]');
-    saved.push({date:new Date().toISOString(),farmer:fieldData?.farmer||'anon',q:text,a:reply,lang});
-    localStorage.setItem('zaminai_chats',JSON.stringify(saved));
-
-  }catch(err){
-    document.getElementById(typId)?.remove();
-    msgs.innerHTML+=`<div class="cmsg ai"><div class="cavatar">🌱</div><div class="cbubble" style="border-left:3px solid var(--r)">
-      ${lang==='fa'?'خطا در اتصال. لطفاً اعتبار API Anthropic را اضافه کنید.':
-        lang==='ps'?'د اتصال خطا. مهرباني وکړئ Anthropic API اعتبار اضافه کړئ.':
-        'Connection error. Please add Anthropic API credits at console.anthropic.com'}
-    </div></div>`;
-    msgs.scrollTop=msgs.scrollHeight;
-  }
-}
-
-// ─── VOICE INPUT ─────────────────────────────────────────────────────────────
-function toggleVoice(){
-  if(isListening){stopListening();}else{startListening();}
-}
-
-function startListening(){
-  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)){
-    notify('Voice not supported in this browser. Use Chrome.');
-    return;
-  }
-  const SR = window.SpeechRecognition||window.webkitSpeechRecognition;
-  recognition = new SR();
-  recognition.lang = lang==='fa'?'fa-IR':lang==='ps'?'ps-AF':'en-US';
-  recognition.continuous = false;
-  recognition.interimResults = true;
-
-  recognition.onstart=()=>{
-    isListening=true;
-    const btn=document.getElementById('voiceBtn');
-    btn.className='voice-btn listening';
-    btn.innerHTML='🔴';
-    document.getElementById('voiceWave').style.display='flex';
-    document.getElementById('chatInp').placeholder=
-      lang==='fa'?'در حال گوش دادن...':lang==='ps'?'غوږ نیول...':'Listening...';
-    notify(lang==='fa'?'در حال گوش دادن...':lang==='ps'?'غوږ نیول...':'🎤 Listening...');
-  };
-
-  recognition.onresult=e=>{
-    const transcript=Array.from(e.results).map(r=>r[0].transcript).join('');
-    document.getElementById('chatInp').value=transcript;
-    if(e.results[e.results.length-1].isFinal){
-      stopListening();
-      setTimeout(()=>sendChat(),300);
-    }
-  };
-
-  recognition.onerror=()=>stopListening();
-  recognition.onend=()=>stopListening();
-  recognition.start();
-}
-
-function stopListening(){
-  isListening=false;
-  if(recognition) recognition.stop();
-  const btn=document.getElementById('voiceBtn');
-  btn.className='voice-btn idle';
-  btn.innerHTML='🎤';
-  document.getElementById('voiceWave').style.display='none';
-  document.getElementById('chatInp').placeholder=
-    lang==='fa'?'سوال بپرسید...':lang==='ps'?'پوښتنه وکړئ...':'Ask about your field...';
-}
-
-// ─── VOICE OUTPUT ─────────────────────────────────────────────────────────────
-function speakText(text){
-  if(!synth||!text) return;
-  synth.cancel();
-
-  // Clean text
-  const clean=text.replace(/<[^>]*>/g,'').replace(/\*\*/g,'').substring(0,500);
-  const utt=new SpeechSynthesisUtterance(clean);
-  utt.lang=lang==='fa'?'fa-IR':lang==='ps'?'ps-AF':'en-US';
-  utt.rate=0.9;
-  utt.pitch=1;
-
-  const btn=document.getElementById('voiceBtn');
-  utt.onstart=()=>{
-    isSpeaking=true;
-    btn.className='voice-btn speaking';
-    btn.innerHTML='🔊';
-  };
-  utt.onend=()=>{
-    isSpeaking=false;
-    btn.className='voice-btn idle';
-    btn.innerHTML='🎤';
-  };
-  utt.onerror=()=>{
-    btn.className='voice-btn idle';
-    btn.innerHTML='🎤';
-  };
-
-  synth.speak(utt);
-}
-
-function stopSpeaking(){
-  synth?.cancel();
-  isSpeaking=false;
-  const btn=document.getElementById('voiceBtn');
-  btn.className='voice-btn idle';
-  btn.innerHTML='🎤';
-}
-
-// ─── LANGUAGE ─────────────────────────────────────────────────────────────────
-
-// ── FULL APP TRANSLATION ──────────────────────────────────────────────────────
-const APP_TRANS = {
-  en:{
-    draw_field:"✏️ Draw field",
-    gps_auto:"📍 GPS auto-draw",
-    clear:"🗑️ Clear",
-    analyse_first:"🛰️ Analyse",
-    reanalyse:"🛰️ Re-analyse",
-    auto_draw:"Auto-draw field",
-    gps_tip:"📱 Open Google Maps → long press your field → copy the numbers",
-    gps_coords:"GPS Coordinates",
-    field_size:"Field size",
-    farmer_name:"Farmer name (optional)",
-    main_crop:"Main crop",
-    draw_on_map:"📍 Draw on map →",
-    draw_tip:"Click map to draw field corners · Double-click to finish",
-    report_title:"🌱 ZaminAI Report",
-    ai_title:"ZaminAI Assistant",
-    ask_placeholder:"Ask about your field...",
-    sat_ready:"Satellite ready",
-    app_loaded:"🌱 ZaminAI ready — draw your field to begin",
-    welcome_no_field:"Hello! I am ZaminAI. Analyse your field first, then ask me anything — what to plant, when to irrigate, how much you can earn.",
-    welcome_with_field:(r)=>`I analysed your ${r.area_jereb} jereb field. NDVI ${r.ndvi} — ${r.ndvi>=0.3?'good vegetation':'stressed'}. Water ${r.mndwi<-0.05?'low — irrigate soon':'moderate'}. Rainfall ${r.rain_mm}mm. Ask me anything.`,
-    quick_replies:[
-      {q:"What should I plant?",label:"What to plant?"},
-      {q:"When should I irrigate?",label:"When to irrigate?"},
-      {q:"How much profit can I make?",label:"Profit?"},
-      {q:"My wheat leaves are yellow — what is wrong?",label:"Yellow leaves?"},
-      {q:"What fertilizer do I need?",label:"Fertilizer?"},
-    ],
-    veg_labels:{excellent:"🟢 Excellent",good:"🟢 Good",moderate:"🟡 Moderate stress",stressed:"🔴 Severe stress"},
-    veg_descs:{
-      excellent:"Dense healthy vegetation. Field in great condition.",
-      good:"Good vegetation. Some areas may need monitoring.",
-      moderate:"Vegetation stressed. Take action within 2 weeks.",
-      stressed:"Critical stress. Immediate action needed today."
-    },
-    water_labels:{good:"💧 Good water access",moderate:"💧 Moderate water",stressed:"🔴 Low — irrigate now"},
-    what_satellite:"What the satellite sees",
-    field_metrics:"Field metrics",
-    ndvi_trend:"NDVI trend 2019–2024",
-    what_todo:"What you should do",
-    best_crops:"Best crops for your field",
-    income_estimate:"Income estimate",
-    ask_ai_btn:"🤖 Ask AI about your field →",
-    saving:"Saving to database...",
-    saved:"✓ Saved to database",
-    jereb:"jereb", hectares:"ha",
-    labels:{seeds:"Seeds",fert:"Fertilizer",irr:"Irrigation",lab:"Labour",
-            yield_est:"Yield estimate",gross:"Gross income",profit:"NET PROFIT"},
-    action_types:{urgent:"URGENT",important:"IMPORTANT",good:"RECOMMENDED"},
-    actions:{
-      irrigate:(aJ)=>({
-        title:`Irrigate your ${aJ} jereb field within 3-5 days`,
-        detail:"Apply 50-70mm water. Use drip or furrow. Start early morning.",
-      }),
-      fertilize:(aJ)=>({
-        title:"Apply nitrogen fertilizer immediately",
-        detail:`Urea at 30-40 kg/jereb = ${Math.round(aJ*35)} kg total. Mix in irrigation water if possible.`,
-      }),
-      switch_crop:(rain)=>({
-        title:"Consider drought-tolerant crops",
-        detail:`${rain}mm/yr is low. Saffron earns 50x more than wheat per mm of water.`,
-      }),
-      compost:(aJ)=>({
-        title:"Add compost before next season",
-        detail:`2-3 tonnes/jereb improves water retention and reduces fertilizer costs 30%.`,
-      }),
-    },
-    crops:{
-      low:[{n:"Saffron",w:"Low water needed. Highest income.",t:"Very High"},
-           {n:"Flax",w:"Drought tolerant. Good market price.",t:"High"},
-           {n:"Chickpeas",w:"Very low water. Improves soil.",t:"Medium"}],
-      mid:[{n:"Wheat",w:"Reliable for moderate water.",t:"Medium"},
-           {n:"Flax",w:"Less water than wheat. Better income.",t:"High"},
-           {n:"Vegetables",w:"High value. Needs irrigation.",t:"High"}],
-      high:[{n:"Vegetables",w:"Best income with good water.",t:"Very High"},
-            {n:"Wheat",w:"Reliable staple. Good yield.",t:"Medium"},
-            {n:"Cotton",w:"Good water available. Export market.",t:"High"}],
-    },
-    cost_label:"~{0} AFN",
-    trend_note:"🔴 worst year · 🟢 best year",
+// ════════════════════════════════════════════════════════════
+// TRANSLATIONS
+// ════════════════════════════════════════════════════════════
+const TRANS = {
+  en: {
+    draw:"Draw Field", gps:"GPS Locate", map_toggle:"Satellite",
+    clear_last:"Remove Last", clear_all:"Clear All", analyse:"Analyse All",
+    fields:"fields", your_fields:"Your Fields",
+    draw_hint:"Draw fields on the map to start analysis",
+    report_hint:"Select a field to see its satellite report",
+    compare:"Field Comparison", field:"Field", water:"Water",
+    area:"Area (ha)", status:"Status",
+    ai_title:"Ask AI Assistant", ai_welcome:"Draw a field and ask me anything.",
+    loading:"Analysing satellite data…",
+    quick: ["💧 Irrigation?","🌾 Best crop?","💰 Profit?","🌱 Fertilizer?","📈 Recovery?"],
+    vegetation:"Vegetation", water_idx:"Water Index", rainfall:"Rainfall",
+    actions:"What to Do", best_crops:"Best Crops", income:"Income Est.",
+    ndvi_trend:"NDVI Trend", data_date:"Data Date",
+    field_size:"Field Size", province:"Province",
+    urgent:"URGENT", important:"IMPORTANT", recommended:"RECOMMENDED",
+    source_live:"Live satellite data", source_reg:"Regional estimate"
   },
-
-  fa:{
-    draw_field:"✏️ رسم زمین",
-    gps_auto:"📍 رسم خودکار GPS",
-    clear:"🗑️ پاک کردن",
-    analyse_first:"🛰️ تحلیل",
-    reanalyse:"🛰️ تحلیل دوباره",
-    auto_draw:"رسم خودکار زمین",
-    gps_tip:"📱 Google Maps را خلاص کنید ← روی زمین خود فشار دهید ← اعداد را کاپی کنید",
-    gps_coords:"مختصات GPS",
-    field_size:"اندازه زمین",
-    farmer_name:"نام دهقان (اختیاری)",
-    main_crop:"محصول اصلی",
-    draw_on_map:"📍 رسم روی نقشه ←",
-    draw_tip:"برای رسم زمین روی نقشه کلیک کنید · دوبار کلیک برای پایان",
-    report_title:"🌱 گزارش ZaminAI",
-    ai_title:"دستیار ZaminAI",
-    ask_placeholder:"درباره زمین خود بپرسید...",
-    sat_ready:"ماهواره آماده است",
-    app_loaded:"🌱 ZaminAI آماده است — زمین خود را رسم کنید",
-    welcome_no_field:"سلام! من ZaminAI هستم. اول زمین خود را تحلیل کنید، بعد هر سوالی بپرسید — چه بکارید، کی آبیاری کنید، چقدر فایده می‌کنید.",
-    welcome_with_field:(r)=>`زمین ${r.area_jereb} جریب شما را تحلیل کردم. NDVI ${r.ndvi} — ${r.ndvi>=0.3?'نباتات خوب':'تحت فشار'}. آب ${r.mndwi<-0.05?'کم است — زود آبیاری کنید':'متوسط'}. بارندگی ${r.rain_mm} ملیمتر. هر چیزی بپرسید.`,
-    quick_replies:[
-      {q:"چه محصولی بکارم؟",label:"چه بکارم؟"},
-      {q:"کی باید آبیاری کنم؟",label:"آبیاری؟"},
-      {q:"چقدر فایده می‌کنم؟",label:"فایده؟"},
-      {q:"برگ‌های گندمم زرد شده — مشکل چیست؟",label:"برگ زرد؟"},
-      {q:"چه کودی ضرورت دارم؟",label:"کود؟"},
-    ],
-    veg_labels:{excellent:"🟢 عالی",good:"🟢 خوب",moderate:"🟡 فشار متوسط",stressed:"🔴 فشار شدید"},
-    veg_descs:{
-      excellent:"نباتات متراکم و سالم. زمین در وضعیت عالی است.",
-      good:"نباتات خوب. برخی مناطق ممکن است نیاز به مراقبت داشته باشند.",
-      moderate:"نباتات تحت فشار. در ۲ هفته اقدام کنید.",
-      stressed:"فشار شدید. امروز اقدام فوری لازم است."
-    },
-    water_labels:{good:"💧 دسترسی خوب به آب",moderate:"💧 آب متوسط",stressed:"🔴 کم — الان آبیاری کنید"},
-    what_satellite:"ماهواره چه می‌بیند",
-    field_metrics:"مشخصات زمین",
-    ndvi_trend:"روند NDVI ۲۰۱۹–۲۰۲۴",
-    what_todo:"چه باید بکنید",
-    best_crops:"بهترین محصولات برای زمین شما",
-    income_estimate:"برآورد فایده",
-    ask_ai_btn:"🤖 از هوش مصنوعی بپرسید ←",
-    saving:"در حال ذخیره در دیتابیس...",
-    saved:"✓ در دیتابیس ذخیره شد",
-    jereb:"جریب", hectares:"هکتار",
-    labels:{seeds:"تخم",fert:"کود",irr:"آبیاری",lab:"کارگر",
-            yield_est:"برآورد حاصل",gross:"عاید مجموعی",profit:"فایده خالص"},
-    action_types:{urgent:"فوری",important:"مهم",good:"توصیه شده"},
-    actions:{
-      irrigate:(aJ)=>({
-        title:`زمین ${aJ} جریب خود را در ۳-۵ روز آبیاری کنید`,
-        detail:"۵۰-۷۰ ملیمتر آب بدهید. از آبیاری قطره‌ای یا جوی استفاده کنید. صبح زود شروع کنید.",
-      }),
-      fertilize:(aJ)=>({
-        title:"فوری کود نایتروجن بزنید",
-        detail:`یوریا ۳۰-۴۰ کیلوگرام در جریب = مجموع ${Math.round(aJ*35)} کیلوگرام. در آب آبیاری حل کنید.`,
-      }),
-      switch_crop:(rain)=>({
-        title:"محصولات مقاوم به خشکسالی را در نظر بگیرید",
-        detail:`${rain} ملیمتر در سال کم است. زعفران ۵۰ برابر بیشتر از گندم در هر ملیمتر آب فایده دارد.`,
-      }),
-      compost:(aJ)=>({
-        title:"قبل از فصل بعد کمپوست اضافه کنید",
-        detail:`۲-۳ تن در جریب نگهداری آب را بهبود می‌دهد و مصرف کود را ۳۰٪ کاهش می‌دهد.`,
-      }),
-    },
-    crops:{
-      low:[{n:"زعفران",w:"آب کم ضرورت دارد. بیشترین فایده.",t:"خیلی بالا"},
-           {n:"کتان",w:"مقاوم به خشکسالی. قیمت خوب.",t:"بالا"},
-           {n:"نخود",w:"آب بسیار کم. خاک را بهبود می‌دهد.",t:"متوسط"}],
-      mid:[{n:"گندم",w:"قابل اعتماد برای آب متوسط.",t:"متوسط"},
-           {n:"کتان",w:"آب کمتر از گندم. فایده بیشتر.",t:"بالا"},
-           {n:"سبزیجات",w:"ارزش بالا. آبیاری منظم لازم.",t:"بالا"}],
-      high:[{n:"سبزیجات",w:"بهترین فایده با آب خوب.",t:"خیلی بالا"},
-            {n:"گندم",w:"محصول اصلی قابل اعتماد.",t:"متوسط"},
-            {n:"پنبه",w:"آب خوب موجود. بازار صادراتی.",t:"بالا"}],
-    },
-    cost_label:"~{0} افغانی",
-    trend_note:"🔴 بدترین سال · 🟢 بهترین سال",
+  fa: {
+    draw:"رسم زمین", gps:"موقعیت GPS", map_toggle:"ماهواره",
+    clear_last:"حذف آخری", clear_all:"پاک کردن همه", analyse:"تحلیل همه",
+    fields:"زمین", your_fields:"زمین‌های شما",
+    draw_hint:"زمین را روی نقشه رسم کنید تا تحلیل شروع شود",
+    report_hint:"یک زمین را انتخاب کنید تا گزارش ماهواره‌ای آن را ببینید",
+    compare:"مقایسه زمین‌ها", field:"زمین", water:"آب",
+    area:"مساحت (هکتار)", status:"وضعیت",
+    ai_title:"دستیار هوش مصنوعی", ai_welcome:"زمین رسم کنید و هر سوالی بپرسید.",
+    loading:"در حال تحلیل داده‌های ماهواره…",
+    quick: ["💧 آبیاری؟","🌾 بهترین محصول؟","💰 فایده؟","🌱 کود؟","📈 بهبود؟"],
+    vegetation:"پوشش گیاهی", water_idx:"شاخص آب", rainfall:"بارندگی",
+    actions:"چه باید کرد", best_crops:"بهترین محصولات", income:"برآورد درآمد",
+    ndvi_trend:"روند NDVI", data_date:"تاریخ داده",
+    field_size:"اندازه زمین", province:"ولایت",
+    urgent:"فوری", important:"مهم", recommended:"توصیه شده",
+    source_live:"داده‌های ماهواره‌ای زنده", source_reg:"تخمین منطقه‌ای"
   },
-
-  ps:{
-    draw_field:"✏️ ځمکه رسم کول",
-    gps_auto:"📍 GPS خودکار رسم",
-    clear:"🗑️ پاکول",
-    analyse_first:"🛰️ تحلیل",
-    reanalyse:"🛰️ بیا تحلیل",
-    auto_draw:"د ځمکې خودکار رسم",
-    gps_tip:"📱 Google Maps خلاص کړئ ← خپله ځمکه فشار ورکړئ ← شمیرې کاپي کړئ",
-    gps_coords:"GPS مختصات",
-    field_size:"د ځمکې اندازه",
-    farmer_name:"د دهقان نوم (اختیاري)",
-    main_crop:"اصلي محصول",
-    draw_on_map:"📍 نقشه کې رسم کړئ ←",
-    draw_tip:"د ځمکې کونجونو لپاره نقشه کلیک کړئ · پای ته دوه ځله کلیک کړئ",
-    report_title:"🌱 ZaminAI راپور",
-    ai_title:"ZaminAI مرستیال",
-    ask_placeholder:"د خپلې ځمکې بارې پوښتنه وکړئ...",
-    sat_ready:"ماهواره چمتو ده",
-    app_loaded:"🌱 ZaminAI چمتو دی — د پیل لپاره خپله ځمکه رسم کړئ",
-    welcome_no_field:"سلام! زه ZaminAI یم. لومړی خپله ځمکه تحلیل کړئ، بیا هر پوښتنه وکړئ — چه وکرئ، کله اوبه ورکړئ، څومره ګټه کولی شئ.",
-    welcome_with_field:(r)=>`ستاسو ${r.area_jereb} جریب ځمکه مې تحلیل کړه. NDVI ${r.ndvi} — ${r.ndvi>=0.3?'ښه نباتات':'تحت فشار'}. اوبه ${r.mndwi<-0.05?'لږ دي — ژر اوبه ورکړئ':'متوسط'}. باران ${r.rain_mm} ملیمتر. هر پوښتنه وکړئ.`,
-    quick_replies:[
-      {q:"کوم محصول وکرم؟",label:"کوم محصول؟"},
-      {q:"کله باید اوبه ورکړم؟",label:"اوبه ورکول؟"},
-      {q:"څومره ګټه کولی شم؟",label:"ګټه؟"},
-      {q:"د گندم پاڼي زیړ شوي — ستونزه څه ده؟",label:"زیړ پاڼي؟"},
-      {q:"کوم سره ته اړتیا لرم؟",label:"سره؟"},
-    ],
-    veg_labels:{excellent:"🟢 عالي",good:"🟢 ښه",moderate:"🟡 متوسط فشار",stressed:"🔴 سخت فشار"},
-    veg_descs:{
-      excellent:"ډبله او روغه نباتي پوښنه. ځمکه عالي حالت کې ده.",
-      good:"ښه نباتات. ځینې سیمې ممکن د پاملرنې اړتیا ولري.",
-      moderate:"نباتات تحت فشار دي. د ۲ اونیو دننه اقدام وکړئ.",
-      stressed:"سخت فشار. نن سمدلاسه اقدام اړین دی."
-    },
-    water_labels:{good:"💧 ښه د اوبو لاسرسی",moderate:"💧 متوسط اوبه",stressed:"🔴 لږ — اوس اوبه ورکړئ"},
-    what_satellite:"ماهواره څه ویني",
-    field_metrics:"د ځمکې مشخصات",
-    ndvi_trend:"NDVI روند ۲۰۱۹–۲۰۲۴",
-    what_todo:"تاسو باید څه وکړئ",
-    best_crops:"ستاسو ځمکې لپاره غوره محصولات",
-    income_estimate:"د ګټې اټکل",
-    ask_ai_btn:"🤖 له AI نه پوښتنه وکړئ ←",
-    saving:"دیتابیس ته ذخیره کیږي...",
-    saved:"✓ دیتابیس ته ذخیره شو",
-    jereb:"جریب", hectares:"هکتار",
-    labels:{seeds:"تخم",fert:"سره",irr:"اوبه ورکول",lab:"کارګر",
-            yield_est:"د حاصل اټکل",gross:"مجموعي عاید",profit:"خالص ګټه"},
-    action_types:{urgent:"بیړي",important:"مهم",good:"سپارښتنه"},
-    actions:{
-      irrigate:(aJ)=>({
-        title:`خپله ${aJ} جریب ځمکه د ۳-۵ ورځو دننه اوبه ورکړئ`,
-        detail:"۵۰-۷۰ ملیمتر اوبه ورکړئ. قطروي یا جوي اوبه ورکول وکاروئ. سهار وختي پیل کړئ.",
-      }),
-      fertilize:(aJ)=>({
-        title:"سمدلاسه د نایتروجن سره وکاروئ",
-        detail:`یوریا ۳۰-۴۰ کیلوګرام/جریب = مجموع ${Math.round(aJ*35)} کیلوګرام. که ممکنه وي د اوبو کې یې حل کړئ.`,
-      }),
-      switch_crop:(rain)=>({
-        title:"د خشکسالۍ مقاوم محصولاتو ته پام وکړئ",
-        detail:`${rain} ملیمتر/کال لږ دی. زعفران د هر ملیمتر اوبو لپاره د گندم نه ۵۰ ځله زیاته ګټه ورکوي.`,
-      }),
-      compost:(aJ)=>({
-        title:"د راتلونکي فصل دمخه کمپوست اضافه کړئ",
-        detail:`۲-۳ تن/جریب د اوبو ساتل ښه کوي او د سرې لګښت ۳۰٪ کموي.`,
-      }),
-    },
-    crops:{
-      low:[{n:"زعفران",w:"لږ اوبه اړوي. تر ټولو زیاته ګټه.",t:"خورا لوړ"},
-           {n:"کتان",w:"د خشکسالۍ مقاوم. ښه قیمت.",t:"لوړ"},
-           {n:"نخود",w:"خورا لږ اوبه. خاوره ښه کوي.",t:"متوسط"}],
-      mid:[{n:"گندم",w:"د متوسط اوبو لپاره باوري.",t:"متوسط"},
-           {n:"کتان",w:"د گندم نه لږ اوبه. زیاته ګټه.",t:"لوړ"},
-           {n:"سبزیجات",w:"لوړ ارزښت. منظم اوبه ورکول اړین.",t:"لوړ"}],
-      high:[{n:"سبزیجات",w:"د ښو اوبو سره غوره ګټه.",t:"خورا لوړ"},
-            {n:"گندم",w:"باوري اساسي محصول.",t:"متوسط"},
-            {n:"پنبه",w:"ښه اوبه شتون لري. صادراتي بازار.",t:"لوړ"}],
-    },
-    cost_label:"~{0} افغاني",
-    trend_note:"🔴 تر ټولو بد کال · 🟢 تر ټولو ښه کال",
+  ps: {
+    draw:"د ځمکې رسم", gps:"GPS موقعیت", map_toggle:"سیاره‌ای",
+    clear_last:"وروستی لرې کړه", clear_all:"ټول پاک کړه", analyse:"ټول تحلیل",
+    fields:"ځمکه", your_fields:"ستاسو ځمکې",
+    draw_hint:"د تحلیل پیل لپاره ځمکه پر نقشه رسم کړه",
+    report_hint:"د ماهواره راپور لیدلو لپاره یوه ځمکه وټاکئ",
+    compare:"د ځمکو پرتله", field:"ځمکه", water:"اوبه",
+    area:"مساحت (هکتار)", status:"حالت",
+    ai_title:"د AI مرستیال", ai_welcome:"ځمکه رسم کړه او هر پوښتنه وکړه.",
+    loading:"د ماهواره معلوماتو تحلیل…",
+    quick: ["💧 اوبه ورکول؟","🌾 غوره محصول؟","💰 ګټه؟","🌱 سره؟","📈 بهتریدل؟"],
+    vegetation:"د نباتاتو پوښ", water_idx:"د اوبو شاخص", rainfall:"باران",
+    actions:"څه وکړي", best_crops:"غوره محصولات", income:"د عاید اټکل",
+    ndvi_trend:"د NDVI رجحان", data_date:"د معلوماتو نیټه",
+    field_size:"د ځمکې اندازه", province:"ولایت",
+    urgent:"بیړني", important:"مهم", recommended:"سپارښتنه شوی",
+    source_live:"ژوندی د ماهواره معلومات", source_reg:"سیمه‌ییزه اټکل"
   }
 };
 
-function setLang(l,el){
-  lang=l;
-  document.documentElement.dir=l==='en'?'ltr':'rtl';
-  document.documentElement.lang=l;
-  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('on'));
-  el.classList.add('on');
+// ════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════
+let lang = "en";
+let fields = [];          // [{id, label, coords, layer, data, color}]
+let activeFieldId = null;
+let drawMode = false;
+let currentPoints = [];
+let tempMarkers = [];
+let tempPoly = null;
+let miniMap = null;
+let isSatellite = false;
+let isListening = false;
 
-  const T=APP_TRANS[l]||APP_TRANS.en;
+// Field colours — distinguishable on map
+const FIELD_COLORS = ["#16a34a","#0284c7","#d97706","#dc2626","#7c3aed","#0891b2","#be185d","#65a30d"];
 
-  // Toolbar buttons
-  const setText=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
-  const setHTML=(id,v)=>{const e=document.getElementById(id);if(e)e.innerHTML=v;};
-  const setPlaceholder=(id,v)=>{const e=document.getElementById(id);if(e)e.placeholder=v;};
-  const setAll=(cls,v)=>document.querySelectorAll('.'+cls).forEach(e=>e.textContent=v);
+// ════════════════════════════════════════════════════════════
+// MAP INIT
+// ════════════════════════════════════════════════════════════
+const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution:"© OpenStreetMap", maxZoom:19
+});
+const sat = L.tileLayer(
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  { attribution:"© Esri", maxZoom:19 }
+);
+const labels = L.tileLayer(
+  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  { attribution:"", maxZoom:19, opacity:0.6 }
+);
 
-  // Toolbar
-  setText('btn-draw-txt', T.draw_field);
-  setText('btn-gps-txt',  T.gps_auto);
-  setText('btn-clear-txt',T.clear);
-  setText('btn-analyse-txt', fieldData ? T.reanalyse : T.analyse_first);
+const map = L.map("map", {
+  center: [33.9, 67.7], zoom: 6, layers: [osm]
+});
 
-  // GPS Modal
-  setText('gps-modal-title', T.auto_draw);
-  setText('gps-tip-text',    T.gps_tip);
-  setText('gps-lat-label',   T.gps_coords);
-  setText('gps-size-label',  T.field_size);
-  setText('gps-name-label',  T.farmer_name);
-  setText('gps-crop-label',  T.main_crop);
-  setText('gps-draw-btn',    T.draw_on_map);
+function toggleMapType() {
+  isSatellite = !isSatellite;
+  if (isSatellite) {
+    map.removeLayer(osm);
+    map.addLayer(sat);
+    map.addLayer(labels);
+    document.querySelector("#btn-map-toggle span").textContent = T("map_toggle_back") || "Street Map";
+  } else {
+    map.removeLayer(sat);
+    map.removeLayer(labels);
+    map.addLayer(osm);
+    document.querySelector("#btn-map-toggle span").textContent = T("map_toggle") || "Satellite";
+  }
+}
 
-  // Draw tip
-  setText('drawTipText', T.draw_tip);
+// Click handler for drawing
+map.on("click", function(e) {
+  if (!drawMode) return;
+  const { lat, lng } = e.latlng;
+  currentPoints.push([lat, lng]);
+  const m = L.circleMarker([lat, lng], { radius: 5, color: "#16a34a", fillColor: "#16a34a", fillOpacity: 1 }).addTo(map);
+  tempMarkers.push(m);
+  if (tempPoly) map.removeLayer(tempPoly);
+  if (currentPoints.length >= 2) {
+    tempPoly = L.polygon(currentPoints, { color: "#16a34a", fillOpacity: 0.15, dashArray: "6,4" }).addTo(map);
+  }
+});
 
-  // Report header
-  setText('report-logo-text', T.report_title);
+// Double-click to finish field
+map.on("dblclick", function(e) {
+  if (!drawMode || currentPoints.length < 3) return;
+  finishField();
+  L.DomEvent.stop(e);
+});
 
-  // AI panel
-  setText('aiTitle', T.ai_title);
-  setPlaceholder('chatInp', T.ask_placeholder);
+// ════════════════════════════════════════════════════════════
+// DRAWING
+// ════════════════════════════════════════════════════════════
+function startDraw() {
+  drawMode = true;
+  currentPoints = [];
+  tempMarkers.forEach(m => map.removeLayer(m)); tempMarkers = [];
+  if (tempPoly) { map.removeLayer(tempPoly); tempPoly = null; }
+  map.getContainer().style.cursor = "crosshair";
+  showToast(lang === "fa" ? "روی نقشه کلیک کنید — دوبار کلیک برای پایان" :
+            lang === "ps" ? "نقشه کلیک وکړه — د پای لپاره دوه‌ ځله کلیک" :
+            "Click map to draw • Double-click to finish");
+}
 
-  // Welcome message
-  const welcome=document.getElementById('welcomeMsg');
-  if(welcome){
-    welcome.textContent = fieldData ? T.welcome_with_field(fieldData) : T.welcome_no_field;
+function finishField() {
+  drawMode = false;
+  map.getContainer().style.cursor = "";
+  if (currentPoints.length < 3) { showToast("Need at least 3 points"); return; }
+
+  tempMarkers.forEach(m => map.removeLayer(m)); tempMarkers = [];
+  if (tempPoly) { map.removeLayer(tempPoly); tempPoly = null; }
+
+  const id = Date.now();
+  const idx = fields.length;
+  const color = FIELD_COLORS[idx % FIELD_COLORS.length];
+  const label = `Field ${idx + 1}`;
+
+  const layer = L.polygon(currentPoints, {
+    color, weight: 3, fillOpacity: 0.2
+  }).addTo(map).bindTooltip(label, { permanent: true, direction: "center", className: "field-label-tooltip" });
+
+  layer.on("click", () => selectField(id));
+
+  const field = { id, label, coords: [...currentPoints], layer, color, data: null };
+  fields.push(field);
+  currentPoints = [];
+
+  updateFieldCount();
+  updateFieldsList();
+  selectField(id);
+  showToast(lang === "fa" ? `${label} اضافه شد` : lang === "ps" ? `${label} اضافه شو` : `${label} added — click Analyse All`);
+}
+
+function clearLastField() {
+  if (fields.length === 0) return;
+  const f = fields.pop();
+  if (f.layer) map.removeLayer(f.layer);
+  if (activeFieldId === f.id) activeFieldId = null;
+  updateFieldCount();
+  updateFieldsList();
+  updateReport(null);
+  updateComparison();
+}
+
+function clearAllFields() {
+  fields.forEach(f => { if (f.layer) map.removeLayer(f.layer); });
+  fields = []; activeFieldId = null;
+  updateFieldCount();
+  updateFieldsList();
+  updateReport(null);
+  updateComparison();
+  if (miniMap) { miniMap.remove(); miniMap = null; }
+}
+
+function selectField(id) {
+  activeFieldId = id;
+  // Highlight on map
+  fields.forEach(f => {
+    if (f.layer) f.layer.setStyle({ weight: f.id === id ? 4 : 2, fillOpacity: f.id === id ? 0.35 : 0.15 });
+  });
+  // Update list highlight
+  document.querySelectorAll(".field-item").forEach(el => {
+    el.classList.toggle("active", el.dataset.id == id);
+  });
+  const field = fields.find(f => f.id === id);
+  if (field && field.data) {
+    renderReport(field);
+    map.fitBounds(field.layer.getBounds(), { padding: [20, 20] });
+  } else if (field) {
+    updateReport(null);
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// GPS
+// ════════════════════════════════════════════════════════════
+function useGPS() {
+  if (!navigator.geolocation) { showToast("GPS not available"); return; }
+  showToast(lang === "fa" ? "موقعیت در حال دریافت…" : "Getting your location…");
+  navigator.geolocation.getCurrentPosition(pos => {
+    const { latitude: lat, longitude: lng } = pos.coords;
+    map.setView([lat, lng], 14);
+    showToast(lang === "fa" ? "موقعیت یافت — حالا زمین رسم کنید" :
+              lang === "ps" ? "موقعیت وموندل شو — اوس ځمکه رسم کړه" :
+              "Location found — now draw your field");
+    startDraw();
+  }, () => showToast("GPS error — please draw manually"));
+}
+
+// ════════════════════════════════════════════════════════════
+// ANALYSE ALL FIELDS
+// ════════════════════════════════════════════════════════════
+async function analyseAll() {
+  if (fields.length === 0) { showToast("Draw at least one field first"); return; }
+
+  showLoading(true);
+  const unanalysed = fields.filter(f => !f.data);
+  const toAnalyse  = unanalysed.length > 0 ? unanalysed : fields;
+
+  for (const field of toAnalyse) {
+    try {
+      const res = await fetch(`${API}/analyse`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ coords: field.coords, year: 2024, label: field.label })
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      field.data = await res.json();
+    } catch (e) {
+      console.error("Analyse error:", e);
+      field.data = buildFallback(field);
+    }
+    updateNDVIBadge(field);
   }
 
-  // Quick replies
-  const qr=document.getElementById('quickReplies');
-  if(qr){
-    qr.innerHTML = T.quick_replies.map(q=>
-      `<button class="qr" onclick="askAI('${q.q}')">${q.label}</button>`
-    ).join('');
+  showLoading(false);
+  updateFieldsList();
+  updateComparison();
+
+  // Show first/active field report
+  const target = fields.find(f => f.id === activeFieldId) || fields[0];
+  if (target) { selectField(target.id); renderReport(target); }
+}
+
+function buildFallback(field) {
+  const lats = field.coords.map(c => c[0]);
+  const lons = field.coords.map(c => c[1]);
+  const clat = lats.reduce((a,b)=>a+b,0)/lats.length;
+  const clon = lons.reduce((a,b)=>a+b,0)/lons.length;
+  // Rough area
+  let area = 0;
+  const n = field.coords.length;
+  for (let i=0; i<n; i++) {
+    const j=(i+1)%n;
+    area += field.coords[i][1]*field.coords[j][0];
+    area -= field.coords[j][1]*field.coords[i][0];
   }
-
-  // Sat status
-  setText('satStatus', T.sat_ready);
-
-  // Notification
-  notify(T.app_loaded);
-
-  // Update size option labels
-  const sizeData = {
-    en:[['0.5 ha','1 ha','2 ha','5 ha'],['0.5 ha','1 ha','2 ha','5 ha']],
-    fa:[['۲.۵ جریب','۵ جریب','۱۰ جریب','۲۵ جریب'],['۰.۵ هکتار','۱ هکتار','۲ هکتار','۵ هکتار']],
-    ps:[['۲.۵ جریب','۵ جریب','۱۰ جریب','۲۵ جریب'],['۰.۵ هکتار','۱ هکتار','۲ هکتار','۵ هکتار']]
+  const area_ha = Math.round(Math.abs(area)/2*111320**2/10000*100)/100;
+  return {
+    ndvi: 0.155, water: -0.19, rain: 240,
+    area_ha, area_jereb: Math.round(area_ha*5*10)/10,
+    province: "Afghanistan",
+    trend: {2019:0.172,2020:0.168,2021:0.162,2022:0.139,2023:0.142,2024:0.152},
+    latest_date: "2024-05-15", source: "regional_database"
   };
-  const sd = sizeData[l]||sizeData.en;
-  const jLabels = l==='en'?['0.5','1','2','5']:['۲.۵','۵','۱۰','۲۵'];
-  [1,2,3,4].forEach((n,i)=>{
-    const jEl=document.getElementById('size'+n+'-j');
-    const lEl=document.getElementById('size'+n+'-l');
-    if(jEl) jEl.textContent=jLabels[i];
-    if(lEl) lEl.textContent=l==='en'?sd[0][i]:sd[1][i];
-  });
+}
 
-  // Update crop options language
-  document.querySelectorAll('#cropType option').forEach(opt=>{
-    const val = opt.getAttribute('data-'+l) || opt.getAttribute('data-en');
-    if(val) opt.textContent = val;
-  });
+// ════════════════════════════════════════════════════════════
+// RENDER REPORT
+// ════════════════════════════════════════════════════════════
+function renderReport(field) {
+  const d = field.data;
+  if (!d) { updateReport(null); return; }
 
-  // Update draw tip with current language
-  const dtEl = document.getElementById('drawTipText');
-  if(dtEl) dtEl.textContent = T.draw_tip;
+  const ndvi = parseFloat(d.ndvi) || 0;
+  const water = parseFloat(d.water) || 0;
+  const rain = parseFloat(d.rain) || 0;
+  const areaHa = parseFloat(d.area_ha) || 0;
+  const areaJ  = parseFloat(d.area_jereb) || Math.round(areaHa*5*10)/10;
 
-  // If field already analysed, re-render report in new language
-  if(fieldData){
-    fieldData._lang = l;
-    renderReport(fieldData);
-    updateAIContext(fieldData);
+  // Status
+  let statusClass = "status-good", statusText = "🟢 GOOD", statusEn = "Good vegetation";
+  if (ndvi < 0.2)       { statusClass = "status-poor"; statusText = "🔴 STRESSED"; statusEn = "Stressed — needs attention"; }
+  else if (ndvi < 0.35) { statusClass = "status-mod";  statusText = "🟡 MODERATE"; statusEn = "Moderate vegetation"; }
+
+  // Trend bars
+  const trend = d.trend || {};
+  const trendYears = [2019,2020,2021,2022,2023,2024];
+  const trendVals = trendYears.map(y => trend[y] || 0);
+  const maxT = Math.max(...trendVals, 0.01);
+  const trendBars = trendYears.map((y,i) => {
+    const v = trendVals[i];
+    const pct = Math.round((v/maxT)*100);
+    const clr = v > 0.16 ? "#16a34a" : v > 0.13 ? "#d97706" : "#dc2626";
+    return `<div class="trend-bar-wrap">
+      <div class="trend-bar" style="height:${pct}%;background:${clr};"></div>
+      <div class="trend-year">${y}</div>
+    </div>`;
+  }).join("");
+
+  // Actions
+  const actions = [];
+  if (water < -0.15)
+    actions.push(`<div class="action-item act-urgent">🚨 <b>${T("urgent")}:</b> Irrigate within 3–5 days. Apply 50–70mm water — drip or furrow. Start early morning. Est. cost: 800–1,200 AFN/jereb.</div>`);
+  else if (water < -0.05)
+    actions.push(`<div class="action-item act-warn">⚠️ <b>${T("important")}:</b> Water level moderate. Monitor daily and irrigate within 7–10 days.</div>`);
+  if (ndvi < 0.25)
+    actions.push(`<div class="action-item act-urgent">🚨 <b>${T("urgent")}:</b> Severe stress detected. Check for pest or disease. Apply foliar spray if needed.</div>`);
+  actions.push(`<div class="action-item act-ok">✅ <b>${T("recommended")}:</b> Add 2–3 tonnes compost/jereb before next season. Reduces fertilizer cost 30%.</div>`);
+
+  // Best crops
+  const crops = water < -0.15
+    ? ["🌸 Saffron","🌾 Flax","🫘 Chickpeas"]
+    : rain < 200
+    ? ["🌾 Flax","🌿 Cumin","🫘 Lentils"]
+    : ["🌾 Wheat","🥕 Vegetables","🌸 Saffron"];
+
+  // Source badge
+  const srcBadge = d.source === "gee_live"
+    ? `<span style="color:#16a34a;font-size:.72rem">✅ ${T("source_live")}</span>`
+    : `<span style="color:#d97706;font-size:.72rem">📊 ${T("source_reg")}</span>`;
+
+  const html = `
+    <div style="font-weight:700;font-size:.95rem;color:var(--green-dark);margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+      <span style="width:12px;height:12px;border-radius:50%;background:${field.color};display:inline-block;"></span>
+      ${field.label} ${srcBadge}
+    </div>
+    <span class="status-badge ${statusClass}">${statusText}</span>
+    <div id="mini-map"></div>
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="mc-val" style="color:${ndvi>0.35?'var(--green)':ndvi>0.2?'var(--amber)':'var(--red)'}">${ndvi.toFixed(3)}</div>
+        <div class="mc-lbl">${T("vegetation")} NDVI</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-val" style="color:${water>-0.1?'var(--blue)':'var(--red)'}">${water.toFixed(3)}</div>
+        <div class="mc-lbl">${T("water_idx")}</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-val">${rain ? Math.round(rain)+'mm' : '—'}</div>
+        <div class="mc-lbl">${T("rainfall")}/year</div>
+      </div>
+      <div class="metric-card">
+        <div class="mc-val">${areaJ} J / ${areaHa}ha</div>
+        <div class="mc-lbl">${T("field_size")}</div>
+      </div>
+    </div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:4px">${T("data_date")}: ${d.latest_date||'2024'} · ${d.province||'Afghanistan'}</div>
+    <div style="font-size:.82rem;font-weight:700;color:var(--green-dark);margin:8px 0 4px">${T("ndvi_trend")}</div>
+    <div class="trend-bars">${trendBars}</div>
+    <div style="font-size:.82rem;font-weight:700;color:var(--green-dark);margin:10px 0 4px">${T("actions")}</div>
+    <div class="actions-list">${actions.join("")}</div>
+    <div style="font-size:.82rem;font-weight:700;color:var(--green-dark);margin:8px 0 4px">${T("best_crops")}</div>
+    <div class="crops-row">${crops.map(c=>`<span class="crop-chip">${c}</span>`).join("")}</div>
+  `;
+
+  document.getElementById("report-content").innerHTML = html;
+
+  // Render mini-map of the drawn field
+  if (miniMap) { miniMap.remove(); miniMap = null; }
+  setTimeout(() => {
+    const el = document.getElementById("mini-map");
+    if (!el) return;
+    miniMap = L.map("mini-map", { zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, attributionControl: false });
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}").addTo(miniMap);
+    const poly = L.polygon(field.coords, {
+      color: field.color, weight: 3, fillOpacity: 0.35
+    }).addTo(miniMap);
+    // NDVI colour overlay
+    const ndviColor = ndvi > 0.45 ? "rgba(26,154,80,.45)" : ndvi > 0.3 ? "rgba(145,207,96,.45)" : ndvi > 0.15 ? "rgba(254,224,139,.45)" : "rgba(215,48,39,.45)";
+    L.polygon(field.coords, { color:"transparent", fillColor: ndviColor, fillOpacity: 0.5 }).addTo(miniMap);
+    miniMap.fitBounds(poly.getBounds(), { padding: [10,10] });
+  }, 50);
+}
+
+function updateReport(field) {
+  document.getElementById("report-content").innerHTML = `
+    <div class="report-placeholder">
+      <div class="ph-icon">🛰️</div>
+      <div>${T("report_hint")}</div>
+    </div>`;
+  if (miniMap) { miniMap.remove(); miniMap = null; }
+}
+
+// ════════════════════════════════════════════════════════════
+// FIELDS LIST UI
+// ════════════════════════════════════════════════════════════
+function updateFieldsList() {
+  const el = document.getElementById("fields-list");
+  if (fields.length === 0) {
+    el.innerHTML = `<div class="report-placeholder"><div class="ph-icon">✏️</div><div>${T("draw_hint")}</div></div>`;
+    return;
+  }
+  el.innerHTML = fields.map(f => {
+    const ndvi = f.data ? parseFloat(f.data.ndvi) : null;
+    const ndviText = ndvi !== null ? ndvi.toFixed(3) : "…";
+    const ndviClass = ndvi === null ? "" : ndvi > 0.35 ? "ndvi-good" : ndvi > 0.2 ? "ndvi-mod" : "ndvi-poor";
+    const ha = f.data ? parseFloat(f.data.area_ha).toFixed(2) : "?";
+    const j  = f.data ? parseFloat(f.data.area_jereb).toFixed(1) : "?";
+    return `<div class="field-item${f.id===activeFieldId?' active':''}" data-id="${f.id}" onclick="selectField(${f.id})">
+      <div class="fi-name"><span style="width:10px;height:10px;border-radius:50%;background:${f.color};display:inline-block"></span>${f.label}</div>
+      <div class="fi-meta">${j}J · ${ha}ha${f.data ? ' · '+f.data.province : ''}</div>
+      ${ndvi !== null ? `<div class="fi-ndvi ${ndviClass}">${ndviText}</div>` : `<div class="fi-ndvi" style="background:#f3f4f6;color:#9ca3af">?</div>`}
+      <button class="field-del" onclick="event.stopPropagation();deleteField(${f.id})">✕</button>
+    </div>`;
+  }).join("");
+}
+
+function updateNDVIBadge(field) {
+  updateFieldsList();
+}
+
+function deleteField(id) {
+  const idx = fields.findIndex(f => f.id === id);
+  if (idx === -1) return;
+  if (fields[idx].layer) map.removeLayer(fields[idx].layer);
+  fields.splice(idx, 1);
+  if (activeFieldId === id) { activeFieldId = null; updateReport(null); }
+  updateFieldCount();
+  updateFieldsList();
+  updateComparison();
+}
+
+function updateFieldCount() {
+  document.getElementById("field-count").innerHTML = `${fields.length} <span data-t="fields">${T("fields")}</span>`;
+}
+
+// ════════════════════════════════════════════════════════════
+// COMPARISON TABLE
+// ════════════════════════════════════════════════════════════
+function updateComparison() {
+  const panel = document.getElementById("compare-panel");
+  const analysed = fields.filter(f => f.data);
+  if (analysed.length < 2) { panel.style.display = "none"; return; }
+  panel.style.display = "block";
+  const tbody = document.getElementById("compare-body");
+  tbody.innerHTML = analysed.map(f => {
+    const d = f.data;
+    const ndvi = parseFloat(d.ndvi);
+    const clr = ndvi > 0.35 ? "#16a34a" : ndvi > 0.2 ? "#d97706" : "#dc2626";
+    const sts = ndvi > 0.35 ? "🟢 Good" : ndvi > 0.2 ? "🟡 Mod." : "🔴 Stressed";
+    return `<tr>
+      <td><span style="color:${f.color}">●</span> ${f.label}</td>
+      <td style="color:${clr};font-weight:700">${ndvi.toFixed(3)}</td>
+      <td style="color:${parseFloat(d.water)>-0.1?'#0284c7':'#dc2626'}">${parseFloat(d.water).toFixed(3)}</td>
+      <td>${parseFloat(d.area_ha).toFixed(2)}</td>
+      <td>${sts}</td>
+    </tr>`;
+  }).join("");
+}
+
+// ════════════════════════════════════════════════════════════
+// AI CHAT
+// ════════════════════════════════════════════════════════════
+async function sendQuestion() {
+  const input = document.getElementById("ai-input");
+  const q = input.value.trim();
+  if (!q) return;
+  input.value = "";
+  addMsg(q, "user");
+
+  // Build field context — all analysed fields
+  const fieldData = fields.filter(f => f.data).map(f => ({
+    label: f.label, ...f.data
+  }));
+  if (fieldData.length === 0) {
+    addMsg(lang==="fa"?"لطفاً اول زمین رسم کنید و تحلیل کنید" : lang==="ps"?"لومړی ځمکه رسم کړه او تحلیل یې کړه" : "Please draw and analyse a field first.", "ai");
+    return;
+  }
+
+  addMsg("…", "ai", "thinking");
+  try {
+    const res = await fetch(`${API}/ask`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: q, language: lang, field_data: fieldData })
+    });
+    const data = await res.json();
+    const thinking = document.getElementById("thinking");
+    if (thinking) thinking.remove();
+    if (data.answer) {
+      addMsg(data.answer, "ai");
+      if (window.speechSynthesis) {
+        const u = new SpeechSynthesisUtterance(data.answer);
+        u.lang = lang === "fa" ? "fa-AF" : lang === "ps" ? "ps-AF" : "en-US";
+        speechSynthesis.speak(u);
+      }
+    } else {
+      addMsg(data.error || "AI not available", "ai");
+    }
+  } catch (e) {
+    const t = document.getElementById("thinking");
+    if (t) t.remove();
+    addMsg(lang==="fa"?"خطا در اتصال" : lang==="ps"?"د اتصال خطا" : "Connection error — check internet", "ai");
   }
 }
 
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
-function calcArea(pts){
-  let a=0;const n=pts.length;
-  for(let i=0;i<n;i++){
-    const [lat1,lon1]=pts[i],[lat2,lon2]=pts[(i+1)%n];
-    const dlat=(lat2-lat1)*111320,dlon=(lon2-lon1)*111320*Math.cos(lat1*Math.PI/180);
-    a+=lat1*111320*dlon;a-=lon1*111320*Math.cos(lat1*Math.PI/180)*dlat;
+function addMsg(text, role, id) {
+  const box = document.getElementById("ai-messages");
+  const div = document.createElement("div");
+  div.className = `msg msg-${role}`;
+  if (id) div.id = id;
+  div.textContent = text;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function askQuick(q) {
+  document.getElementById("ai-input").value = q;
+  sendQuestion();
+}
+
+// ════════════════════════════════════════════════════════════
+// VOICE
+// ════════════════════════════════════════════════════════════
+function toggleVoice() {
+  if (!("webkitSpeechRecognition" in window || "SpeechRecognition" in window)) {
+    showToast("Voice not supported in this browser"); return;
   }
-  return parseFloat(Math.abs(a/2)/10000).toFixed(2);
+  if (isListening) { recognition && recognition.stop(); return; }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const recognition = new SR();
+  recognition.lang = lang === "fa" ? "fa-AF" : lang === "ps" ? "ps-AF" : "en-US";
+  recognition.onstart = () => { isListening = true; document.getElementById("mic-btn").classList.add("listening"); };
+  recognition.onend   = () => { isListening = false; document.getElementById("mic-btn").classList.remove("listening"); };
+  recognition.onresult = e => {
+    document.getElementById("ai-input").value = e.results[0][0].transcript;
+    sendQuestion();
+  };
+  recognition.start();
 }
 
-function getCentroid(pts){
-  return [pts.reduce((s,p)=>s+p[0],0)/pts.length,pts.reduce((s,p)=>s+p[1],0)/pts.length];
+// ════════════════════════════════════════════════════════════
+// LANGUAGE
+// ════════════════════════════════════════════════════════════
+function T(key) { return (TRANS[lang] || TRANS.en)[key] || key; }
+
+function setLang(l) {
+  lang = l;
+  document.querySelectorAll(".lang-btns button").forEach(b => {
+    b.classList.toggle("active", b.textContent.trim() === (l==="en"?"EN":l==="fa"?"دری":"پښتو"));
+  });
+  document.documentElement.dir = l === "en" ? "ltr" : "rtl";
+  // Update all data-t elements
+  document.querySelectorAll("[data-t]").forEach(el => {
+    const v = T(el.dataset.t);
+    if (v) el.textContent = v;
+  });
+  // Update quick reply buttons
+  renderQuickBtns();
+  // Re-render current report if any
+  const active = fields.find(f => f.id === activeFieldId);
+  if (active && active.data) renderReport(active);
+  updateFieldsList();
 }
 
-function showTip(msg){
-  const t=document.getElementById('drawTip');t.textContent=msg;t.classList.add('show');
-}
-function hideTip(){document.getElementById('drawTip').classList.remove('show');}
-
-function notify(msg,dur=3000){
-  const n=document.getElementById('notif');n.textContent=msg;n.classList.add('show');
-  setTimeout(()=>n.classList.remove('show'),dur);
+function renderQuickBtns() {
+  const qs = T("quick");
+  document.getElementById("quick-btns").innerHTML = Array.isArray(qs)
+    ? qs.map(q => `<button class="quick-btn" onclick="askQuick('${q}')">${q}</button>`).join("")
+    : "";
 }
 
-// ─── INIT ────────────────────────────────────────────────────────────────────
-showTip('Click map to draw your field · Double-click to finish'); document.getElementById('drawTipText')&&(document.getElementById('drawTipText').id='drawTipText');
-setTimeout(()=>{document.getElementById('satStatus').textContent='Sentinel-2 live';},1500);
-notify('🌱 ZaminAI ready — draw your field to begin');
+// ════════════════════════════════════════════════════════════
+// LOADING / TOAST
+// ════════════════════════════════════════════════════════════
+function showLoading(show) {
+  document.getElementById("loading").classList.toggle("show", show);
+  if (show) document.getElementById("loading-text").textContent = T("loading");
+}
+
+function showToast(msg) {
+  const t = document.createElement("div");
+  t.style.cssText = "position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:9px 18px;border-radius:8px;z-index:9998;font-size:.85rem;box-shadow:0 4px 12px rgba(0,0,0,.3)";
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// ════════════════════════════════════════════════════════════
+// CHECK API STATUS
+// ════════════════════════════════════════════════════════════
+async function checkAPIStatus() {
+  const el = document.getElementById("ai-status");
+  try {
+    const r = await fetch(`${API}/health`, { signal: AbortSignal.timeout(8000) });
+    const d = await r.json();
+    if (d.gee && d.ai !== "none") {
+      el.textContent = `✅ GEE + ${d.ai}`;
+      el.style.color = "#16a34a";
+    } else if (d.gee) {
+      el.textContent = "✅ GEE · ⚠️ AI limited";
+      el.style.color = "#d97706";
+    } else {
+      el.textContent = "⚠️ Regional data only";
+      el.style.color = "#d97706";
+    }
+  } catch (e) {
+    el.textContent = "🔴 API offline — using estimates";
+    el.style.color = "#dc2626";
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════
+renderQuickBtns();
+checkAPIStatus();
+setInterval(checkAPIStatus, 60000);
 </script>
 </body>
 </html>
