@@ -1789,6 +1789,31 @@ function closeAppOverlay(){
   const T = TRANS[currentLang]||TRANS.en;
   document.documentElement.dir = T.dir||'ltr';
 }
+
+// ── STUB FUNCTIONS ──────────────────────────────────────────────────────────
+// These run before the app initializes. Once initZaminAIApp() runs,
+// window.X gets overwritten with the real functions.
+function _callApp(fn, args){
+  if(window[fn]) return window[fn].apply(null, args);
+  // App not ready yet - open it first then call
+  openModal(null);
+  setTimeout(()=>{ if(window[fn]) window[fn].apply(null, args); }, 500);
+}
+function setLang(l,el)    { _callApp('setLang',[l,el]); }
+function clearAll()        { _callApp('clearAll',[]); }
+function setMode(m,el)     { _callApp('setMode',[m,el]); }
+function showGPSModal()    { _callApp('showGPSModal',[]); }
+function closeGPSModal()   { _callApp('closeGPSModal',[]); }
+function selectSize(s,el)  { _callApp('selectSize',[s,el]); }
+function autoDrawFromGPS() { _callApp('autoDrawFromGPS',[]); }
+function analyseField()    { _callApp('analyseField',[]); }
+function closeReport()     { _callApp('closeReport',[]); }
+function openAI()          { _callApp('openAI',[]); }
+function closeAI()         { _callApp('closeAI',[]); }
+function sendChat()        { _callApp('sendChat',[]); }
+function toggleVoice()     { _callApp('toggleVoice',[]); }
+function toggleMapType()   { _callApp('toggleMapType',[]); }
+function askAI(q)          { _callApp('askAI',[q]); }
 // Keep old names for compatibility
 function closeModalBtn(){closeAppOverlay();}
 function closeModal(e){closeAppOverlay();}
@@ -1901,7 +1926,7 @@ function setMode(m,el){
   document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('on'));
   el.classList.add('on');
   if(m==='draw') showTip(za_lang==='fa'?'برای رسم کلیک کنید':za_lang==='ps'?'رسم کولو لپاره کلیک':
-    'Click za_map to draw field · Double-click to finish');
+    'Click map to draw field · Double-click to finish');
 }
 
 // ─── GPS AUTO-DRAW ────────────────────────────────────────────────────────────
@@ -2361,7 +2386,7 @@ const APP_TRANS = {
     farmer_name:"Farmer name (optional)",
     main_crop:"Main crop",
     draw_on_map:"📍 Draw on za_map →",
-    draw_tip:"Click za_map to draw field corners · Double-click to finish",
+    draw_tip:"Click map to draw field corners · Double-click to finish",
     report_title:"🌱 ZaminAI Report",
     ai_title:"ZaminAI Assistant",
     ask_placeholder:"Ask about your field...",
@@ -2717,8 +2742,30 @@ function notify(msg,dur=3000){
 }
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
-showTip('Click za_map to draw your field · Double-click to finish'); document.getElementById('drawTipText')&&(document.getElementById('drawTipText').id='drawTipText');
+showTip('Click map to draw your field · Double-click to finish'); document.getElementById('drawTipText')&&(document.getElementById('drawTipText').id='drawTipText');
 setTimeout(()=>{document.getElementById('satStatus').textContent='Sentinel-2 live';},1500);
+// ── MAP TYPE TOGGLE ──────────────────────────────────────────────────────────
+function toggleMapType(){
+  const btn = document.getElementById('btn-maptype');
+  const theMap = window._zaminaiMap || za_map;
+  if(!theMap){ return; }
+  const cur = window._currentBaseMap || 'street';
+  theMap.eachLayer(l=>{ if(l._url) theMap.removeLayer(l); });
+  if(cur==='street'){
+    L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+      {attribution:'Google Satellite',maxZoom:20}).addTo(theMap);
+    L.tileLayer('https://mt1.google.com/vt/lyrs=h&x={x}&y={y}&z={z}',
+      {attribution:'Google',maxZoom:20}).addTo(theMap);
+    window._currentBaseMap='satellite';
+    if(btn){btn.textContent='🗺️';btn.title='Switch to street map';}
+  } else {
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      {attribution:'© OpenStreetMap',maxZoom:19}).addTo(theMap);
+    window._currentBaseMap='street';
+    if(btn){btn.textContent='🛰️';btn.title='Switch to satellite';}
+  }
+}
+
 // Expose functions to window so HTML onclick handlers work
 window.clearAll        = clearAll;
 window.setMode         = setMode;
@@ -2734,7 +2781,12 @@ window.sendChat        = sendChat;
 window.askAI           = askAI;
 window.toggleVoice     = toggleVoice;
 window.setLang         = setLang;
-window.toggleMapType   = window.toggleMapType || function(){};
+window.toggleMapType   = toggleMapType;
+window.finishDraw      = finishDraw;
+window.notify          = notify;
+window.showTip         = showTip;
+window.hideTip         = hideTip;
+console.log('✓ ZaminAI app ready — all functions exposed');
 
 notify('🌱 ZaminAI ready — draw your field to begin');
 
