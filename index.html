@@ -523,6 +523,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:var(--B);
   <div class="tool-sep"></div>
   <button class="tool-btn" id="btn-clear" onclick="clearAll()">🗑️ <span id="btn-clear-txt">Clear</span></button>
   <div class="tool-sep"></div>
+  <button class="tool-btn" onclick="toggleMapType()" id="btn-maptype" title="Switch map type">🗺️</button>
+  <div class="tool-sep"></div>
   <button class="tool-btn primary" id="btn-analyse" onclick="analyseField()" disabled>🛰️ <span id="btn-analyse-txt">Analyse</span></button>
 </div>
 
@@ -644,8 +646,12 @@ let synth = window.speechSynthesis;
 // ─── MAP ─────────────────────────────────────────────────────────────────────
 const map = L.map('map',{center:[34.5,67.7],zoom:6,zoomControl:true});
 
+// Hybrid: satellite + city/village/road labels
 L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
-  attribution:'Google Satellite', maxZoom:20
+  attribution:'Google', maxZoom:20, opacity:1
+}).addTo(map);
+L.tileLayer('https://mt1.google.com/vt/lyrs=h&x={x}&y={y}&z={z}',{
+  attribution:'Google', maxZoom:20
 }).addTo(map);
 
 L.control.zoom({position:'bottomright'}).addTo(map);
@@ -1525,6 +1531,36 @@ function notify(msg,dur=3000){
 showTip('Click map to draw your field · Double-click to finish'); document.getElementById('drawTipText')&&(document.getElementById('drawTipText').id='drawTipText');
 setTimeout(()=>{document.getElementById('satStatus').textContent='Sentinel-2 live';},1500);
 notify('🌱 ZaminAI ready — draw your field to begin');
+
+// Map type toggle
+let _mapType = 'hybrid';
+const _satelliteTile = 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}';
+const _hybridTile    = 'https://mt1.google.com/vt/lyrs=h&x={x}&y={y}&z={z}';
+const _streetTile    = 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
+let _labelLayer = null;
+
+window.toggleMapType = function(){
+  const btn = document.getElementById('btn-maptype');
+  _mapType = _mapType==='hybrid'?'street':_mapType==='street'?'satellite':'hybrid';
+  
+  // Remove all tile layers
+  za_map.eachLayer(l=>{ if(l._url) za_map.removeLayer(l); });
+  
+  if(_mapType==='hybrid'){
+    L.tileLayer(_satelliteTile,{maxZoom:20}).addTo(za_map);
+    L.tileLayer(_hybridTile,{maxZoom:20}).addTo(za_map);
+    if(btn) btn.textContent='🛰️';
+    if(btn) btn.title='Now: Satellite + Labels. Click for Street';
+  } else if(_mapType==='street'){
+    L.tileLayer(_streetTile,{maxZoom:20}).addTo(za_map);
+    if(btn) btn.textContent='🗺️';
+    if(btn) btn.title='Now: Street Map. Click for Satellite';
+  } else {
+    L.tileLayer(_satelliteTile,{maxZoom:20}).addTo(za_map);
+    if(btn) btn.textContent='📡';
+    if(btn) btn.title='Now: Satellite only. Click for Hybrid';
+  }
+};
 </script>
 
   </div>
