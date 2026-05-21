@@ -1897,7 +1897,7 @@ za_map.on('click', e=>{
     document.getElementById('btn-analyse').disabled = false;
   }
   showTip(za_lang==='fa'?'برای پایان دوبار کلیک':za_lang==='ps'?'پای ته دوه ځله کلیک':
-    `${za_points.length} za_points · Double-click to finish`);
+    `${za_points.length} points · Double-click to finish`);
 });
 
 za_map.on('dblclick', e=>{
@@ -2110,11 +2110,11 @@ async function analyseField(){
       const bounds = miniPoly.getBounds();
       miniMap.fitBounds(bounds, {padding:[8,8]});
 
-      // Dark mask OUTSIDE field
+      // Strong dark mask OUTSIDE field - hides all other fields
       L.polygon([
         [[-90,-180],[-90,180],[90,180],[90,-180]],
         za_points.map(p=>[p[0],p[1]])
-      ], {color:'transparent',fillColor:'#000',fillOpacity:0.5,weight:0}).addTo(miniMap);
+      ], {color:'transparent',fillColor:'#000000',fillOpacity:0.82,weight:0}).addTo(miniMap);
 
       // Try to get real NDVI heatmap from API
       try {
