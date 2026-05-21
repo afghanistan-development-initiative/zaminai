@@ -1983,7 +1983,7 @@ function autoDrawFromGPS(){
 async function analyseField(){
   if(za_points.length<3){notify('Draw your field first');return;}
   const btn=document.getElementById('btn-analyse');
-  const _at=(APP_TRANS[za_lang]||APP_TRANS.en).analyse_first;btn.innerHTML='<span class="spin"></span> ';
+  btn.innerHTML='<span class="spin"></span> Analysing...';
   btn.disabled=true;
 
   // Open report panel immediately with loading state
@@ -2005,10 +2005,9 @@ async function analyseField(){
     </div>
   `;
 
-  await new Promise(r=>setTimeout(r,2200));
-
-  const areaHa  = calcArea(za_points);
-  const areaJ   = (areaHa*5).toFixed(1);
+  // No fake wait - go straight to analysis
+  const areaHa  = parseFloat(calcArea(za_points));
+  const areaJ   = parseFloat((areaHa*5).toFixed(1));
   const centroid = getCentroid(za_points);
   const farmer  = document.getElementById('farmerName')?.value||'Farmer';
   const crop    = document.getElementById('cropType')?.value||'wheat';
@@ -2072,9 +2071,18 @@ async function analyseField(){
     lat:centroid[0].toFixed(5),lon:centroid[1].toFixed(5),
     ndvi_trend:trend,year,farmer,crop};
 
-  renderReport(za_fieldData);
-  saveField(za_fieldData);
-  updateAIContext(za_fieldData);
+  try {
+    renderReport(za_fieldData);
+    saveField(za_fieldData);
+    updateAIContext(za_fieldData);
+  } catch(err) {
+    console.error('Report render error:', err);
+    document.getElementById('reportBody').innerHTML = `
+      <div style="padding:2rem;text-align:center;color:var(--r)">
+        <div style="font-size:24px">⚠️</div>
+        <div style="font-family:var(--M);font-size:12px;margin-top:1rem">Error: ${err.message}</div>
+      </div>`;
+  }
 
   btn.innerHTML='🛰️ '+(APP_TRANS[za_lang]||APP_TRANS.en).reanalyse;
   btn.disabled=false;
@@ -2084,9 +2092,17 @@ async function analyseField(){
 
 // ─── RENDER REPORT ────────────────────────────────────────────────────────────
 function renderReport(r){
+  if(!r){ console.error('renderReport: no data'); return; }
   const l = za_lang || 'en';
   const T = APP_TRANS[l] || APP_TRANS.en;
-  const {ndvi,mndwi,rain_mm:rain,area_ha:aHa,area_jereb:aJ,ndvi_trend:trend,year}=r;
+  if(!T){ console.error('renderReport: APP_TRANS missing'); return; }
+  const ndvi = r.ndvi||0;
+  const mndwi = r.mndwi||0;
+  const rain = r.rain_mm||200;
+  const aHa = parseFloat(r.area_ha)||1;
+  const aJ = parseFloat(r.area_jereb)||5;
+  const trend = r.ndvi_trend||{2019:0.35,2020:0.30,2021:0.28,2022:0.20,2023:0.25,2024:ndvi};
+  const year = r.year||2024;
 
   // Vegetation status
   const vegClass = ndvi>=0.45?'excellent':ndvi>=0.30?'good':ndvi>=0.15?'moderate':'stressed';
@@ -2099,9 +2115,9 @@ function renderReport(r){
 
   // Trend bars
   const entries=Object.entries(trend);
-  const maxV=Math.max(...entries.za_map(([,v])=>v));
-  const minV=Math.min(...entries.za_map(([,v])=>v));
-  const trendHTML=entries.za_map(([yr,v])=>{
+  const maxV=Math.max(...entries.map(([,v])=>v));
+  const minV=Math.min(...entries.map(([,v])=>v));
+  const trendHTML=entries.map(([yr,v])=>{
     const h=Math.max(4,(v/maxV)*50);
     const color=v===minV?'#dc2626':v===maxV?'#16a34a':'#86efac';
     return `<div class="t-bar-w">
@@ -2133,7 +2149,7 @@ function renderReport(r){
       cost:T.cost_label.replace('{0}',Math.round(aJ*600).toLocaleString())});
   }
 
-  const actionHTML=actions.za_map(a=>`
+  const actionHTML=actions.map(a=>`
     <div class="action ${a.type}">
       <div class="action-priority">${a.cat}</div>
       <div class="action-title">${a.title}</div>
@@ -2144,7 +2160,7 @@ function renderReport(r){
   // Crops
   const cropSet = rain<200||mndwi<-0.1?T.crops.low:rain<400?T.crops.mid:T.crops.high;
   const profitClass=p=>['Very High','High','خیلی بالا','بالا','خورا لوړ','لوړ'].includes(p)?'tag-hi':'tag-md';
-  const cropsHTML=cropSet.za_map(c=>`
+  const cropsHTML=cropSet.map(c=>`
     <div class="crop">
       <div class="crop-name">${c.n}</div>
       <div class="crop-why">${c.w}</div>
@@ -2168,7 +2184,7 @@ function renderReport(r){
     [T.labels.yield_est,`${yldKg.toLocaleString()} kg`,'neutral'],
     [T.labels.gross,   `${income.toLocaleString()} ${afn}`,'neutral'],
     [T.labels.profit,  `${profit>=0?'+':''}${profit.toLocaleString()} ${afn}`,profit>=0?'pos':'neg'],
-  ].za_map(([l,v,c])=>`<div class="income-row"><span class="label">${l}</span><span class="val ${c}">${v}</span></div>`).join('');
+  ].map(([l,v,c])=>`<div class="income-row"><span class="label">${l}</span><span class="val ${c}">${v}</span></div>`).join('');
 
   document.getElementById('reportBody').innerHTML=`
     <div class="save-badge" id="saveBadge"><span class="spin" style="border-color:rgba(22,163,74,0.3);border-top-color:var(--g)"></span> ${T.saving}</div>
@@ -2296,39 +2312,64 @@ Language: ${za_lang==='fa'?'Dari — respond in Dari':za_lang==='ps'?'Pashto —
   }
 
   try{
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-5',
-        max_tokens:600,
-        system:`You are ZaminAI, an expert agricultural AI for Afghan smallholder farmers.
-${ctx}
-Give specific, practical advice based on their real satellite data.
-Use simple language. Give exact amounts (kg/jereb, AFN costs, dates).
-${za_lang!=='en'?'Respond in '+(za_lang==='fa'?'Dari':'Pashto')+'.':''}
-Keep responses under 150 words. Use bullet za_points for action steps.`,
-        messages:za_chatHistory
-      })
-    });
+  // All AI calls go through our secure Render API - no keys in HTML
+  const AI_API = 'https://zaminai.onrender.com/ask';
+  
+  let reply = '';
 
-    const data=await resp.json();
-    const reply=(data.content&&data.content[0]?.text)||
-      (data.error?`Error: ${data.error.message}`:'No response');
+  try{
+    const aiResp = await Promise.race([
+      fetch(AI_API, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          question: text,
+          context:  ctx,
+          language: za_lang
+        })
+      }),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),15000))
+    ]);
+    const aiData = await aiResp.json();
+    if(aiData.reply) reply = aiData.reply;
+  } catch(e){
+    console.warn('AI API failed:', e.message);
+  }
 
-    za_chatHistory.push({role:'assistant',content:reply});
+  // Fallback: direct Anthropic if API not reachable
+  if(!reply){
+    try{
+      const resp = await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          model:'claude-haiku-4-5-20251001',
+          max_tokens:300,
+          system:ctx||'You are ZaminAI, an agricultural AI for Afghan farmers.',
+          messages:za_chatHistory
+        })
+      });
+      const d = await resp.json();
+      reply = d.content?.[0]?.text || '';
+    } catch(e){}
+  }
 
-    document.getElementById(typId)?.remove();
-    msgs.innerHTML+=`<div class="cmsg ai"><div class="cavatar">🌱</div><div class="cbubble" dir="${za_lang!=='en'?'auto':'ltr'}">${reply.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')}</div></div>`;
-    msgs.scrollTop=msgs.scrollHeight;
+  if(!reply){
+    reply = za_lang==='fa' ? 
+      'هوش مصنوعی متصل نیست. لطفاً GEMINI_API_KEY را به Render اضافه کنید.' :
+      za_lang==='ps' ?
+      'AI نه دی وصل. مهرباني وکړئ GEMINI_API_KEY د Render کې اضافه کړئ.' :
+      'AI not connected. Add GEMINI_API_KEY to Render environment variables.';
+  }
 
-    // Speak the reply
-    speakText(reply);
-
-    // Save conversation
-    const saved=JSON.parse(localStorage.getItem('zaminai_chats')||'[]');
-    saved.push({date:new Date().toISOString(),farmer:za_fieldData?.farmer||'anon',q:text,a:reply,za_lang});
-    localStorage.setItem('zaminai_chats',JSON.stringify(saved));
+  za_chatHistory.push({role:'assistant',content:reply});
+  document.getElementById(typId)?.remove();
+  msgs.innerHTML+=`<div class="cmsg ai"><div class="cavatar">🌱</div><div class="cbubble" dir="${za_lang!=='en'?'auto':'ltr'}">${reply.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')}</div></div>`;
+  msgs.scrollTop=msgs.scrollHeight;
+  speakText(reply);
+  const saved=JSON.parse(localStorage.getItem('zaminai_chats')||'[]');
+  saved.push({date:new Date().toISOString(),farmer:za_fieldData?.farmer||'anon',q:text,a:reply});
+  localStorage.setItem('zaminai_chats',JSON.stringify(saved));
 
   }catch(err){
     document.getElementById(typId)?.remove();
@@ -2369,7 +2410,7 @@ function startListening(){
   };
 
   za_recognition.onresult=e=>{
-    const transcript=Array.from(e.results).za_map(r=>r[0].transcript).join('');
+    const transcript=Array.from(e.results).map(r=>r[0].transcript).join('');
     document.getElementById('chatInp').value=transcript;
     if(e.results[e.results.length-1].isFinal){
       stopListening();
@@ -2735,7 +2776,7 @@ function setLang(l,el){
   // Quick replies
   const qr=document.getElementById('quickReplies');
   if(qr){
-    qr.innerHTML = T.quick_replies.za_map(q=>
+    qr.innerHTML = T.quick_replies.map(q=>
       `<button class="qr" onclick="askAI('${q.q}')">${q.label}</button>`
     ).join('');
   }
