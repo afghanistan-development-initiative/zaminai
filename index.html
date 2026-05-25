@@ -1197,15 +1197,22 @@ async function tbAnalyse(){
   fieldData={ndvi,mndwi,rain,prov,aHa,aJ,trend,
     evi:estEvi,savi:estSavi,lswi:estLswi,
     crops:estCrops,season:estSeason,
-    monthly_rain:estMonthlyRain,source:'regional',soil:null};
+    monthly_rain:estMonthlyRain,source:'regional',soil:null,
+    ndre:null,gndvi:null,vci:null,ndwi:null,ndmi:null,drought:null};
   // Try real API
-  fetch(API+'/analyse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({coords:pts.map(p=>[p[0],p[1]]),year:2024})})
+  fetch(API+'/analyse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({coords:pts.map(p=>[p[0],p[1]]),year:new Date().getFullYear(),province:fieldData.prov||'Afghanistan'})})
     .then(r=>r.json()).then(d=>{if(d.status==='success'&&d.ndvi){fieldData.ndvi=d.ndvi;fieldData.mndwi=d.mndwi||d.water;fieldData.rain=d.rain||rain;fieldData.trend=d.trend||d.ndvi_trend||trend;
       fieldData.evi=d.evi||null;fieldData.savi=d.savi||null;
       fieldData.lswi=d.lswi||null;fieldData.crops=d.crops||[];
       fieldData.season=d.season||[];fieldData.monthly_rain=d.monthly_rain||null;
-      fieldData.source=d.source||'regional';
-      fieldData.soil=d.soil||null;
+      fieldData.source  = d.source   || 'regional';
+      fieldData.soil    = d.soil     || null;
+      fieldData.ndre    = d.ndre     || null;
+      fieldData.gndvi   = d.gndvi    || null;
+      fieldData.vci     = d.vci      || null;
+      fieldData.ndwi    = d.ndwi     || null;
+      fieldData.ndmi    = d.ndmi     || null;
+      fieldData.drought = d.drought_index || null;
       renderReport();}}).catch(()=>{});
   renderReport();
   document.getElementById('rp-info').textContent=aJ+' jereb · '+aHa+' ha · 2024';
@@ -1333,29 +1340,74 @@ function renderReport(){
 
   // ── Satellite indices ─────────────────────────────────────────────────────
   // Each index gets: label, value, bar, description, what it means
+  const ndre  = fieldData.ndre  || null;
+  const gndvi = fieldData.gndvi || null;
+  const vci   = fieldData.vci   || null;
+  const ndwi  = fieldData.ndwi  || null;
+  const ndmi  = fieldData.ndmi  || null;
+
   const indices = [
-    {l:'NDVI', raw:ndvi,  disp:ndvi,              max:0.70, col:ndviCol,
-     tip:'Vegetation health',
-     meaning: ndvi>=.30?'Healthy crops':'Stressed — needs attention'},
-    {l:'EVI',  raw:evi,   disp:evi,               max:0.60, col:'#22c55e',
-     tip:'Enhanced vegetation (less soil/atmosphere noise)',
+    {l:'NDVI',  raw:ndvi,  max:0.70, col:ndviCol,  tip:'Vegetation health',
+     meaning: ndvi>=.30?'Healthy crops for this region':'Stressed — needs attention'},
+    {l:'EVI',   raw:evi,   max:0.60, col:'#22c55e', tip:'Enhanced (no soil/atmosphere noise)',
      meaning: evi>=.25?'Good biomass':'Low biomass'},
-    {l:'SAVI', raw:savi,  disp:savi,              max:0.60, col:'#4ade80',
-     tip:'Soil adjusted (L=0.5 for Afghan arid soils)',
+    {l:'SAVI',  raw:savi,  max:0.60, col:'#4ade80', tip:'Soil adjusted (arid conditions)',
      meaning: 'Corrects for bare soil background'},
-    {l:'MNDWI',raw:mndwi, disp:mndwi,             max:0.50, col:'#0284c7',
-     tip:'Water availability index',
-     meaning: mndwi>0?'Good water':mndwi>-0.10?'Moderate':'Low — irrigate soon'},
-    {l:'LSWI', raw:lswi,  disp:lswi,              max:0.50, col:'#38bdf8',
-     tip:'Land surface water content',
-     meaning: lswi>-0.05?'Good canopy water':'Dry canopy'},
-  ];
+    {l:'MNDWI', raw:mndwi, max:0.50, col:'#0284c7', tip:'Water availability',
+     meaning: mndwi>0?'Good water present':mndwi>-0.10?'Moderate water':'Low — irrigate soon'},
+    {l:'LSWI',  raw:lswi,  max:0.50, col:'#38bdf8', tip:'Land surface water content',
+     meaning: lswi>-0.05?'Good canopy water':'Dry canopy — water stress'},
+  ].concat(
+    ndre  ? [{l:'NDRE',  raw:ndre,  max:0.50, col:'#a78bfa',
+              tip:'Red Edge — detects stress 2-3 weeks earlier than NDVI',
+              meaning: ndre>=.20?'Good chlorophyll content':'Early stress signal'}] : []
+  ).concat(
+    gndvi ? [{l:'GNDVI', raw:gndvi, max:0.70, col:'#34d399',
+              tip:'Green NDVI — sensitive to chlorophyll',
+              meaning: gndvi>=.30?'Good chlorophyll':'Low chlorophyll content'}] : []
+  ).concat(
+    ndmi  ? [{l:'NDMI',  raw:ndmi,  max:0.50, col:'#60a5fa',
+              tip:'Plant moisture content',
+              meaning: ndmi>=.10?'Good plant moisture':'Plant water stress'}] : []
+  ).concat(
+    ndwi  ? [{l:'NDWI',  raw:ndwi,  max:0.50, col:'#2dd4bf',
+              tip:'Open water — rivers/canals/irrigation',
+              meaning: ndwi>0.0?'Water body nearby':'No open water detected'}] : []
+  );
+
+  // VCI — Vegetation Condition Index (only when GEE provides it)
+  const vciHTML = vci!=null ? (() => {
+    const vciCol   = vci>=60?'#16a34a':vci>=40?'#d97706':'#dc2626';
+    const vciLabel = vci>=60?'Good condition':vci>=40?'Moderate':'Below historical average';
+    return '<div style="background:var(--bg);border:1px solid var(--gbr);border-radius:8px;'+
+      'padding:.75rem;margin-bottom:8px">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center">'+
+        '<div>'+
+          '<div style="font-family:var(--M);font-size:11px;font-weight:600;color:var(--t)">'+
+            'VCI — Vegetation Condition Index</div>'+
+          '<div style="font-size:11px;color:var(--m);margin-top:2px">'+
+            'How today compares to 10-year history (0=worst ever, 100=best ever)</div>'+
+        '</div>'+
+        '<div style="text-align:right">'+
+          '<div style="font-family:var(--D);font-size:28px;color:'+vciCol+'">'+Math.round(vci)+'%</div>'+
+          '<div style="font-family:var(--M);font-size:9px;color:'+vciCol+'">'+vciLabel+'</div>'+
+        '</div>'+
+      '</div>'+
+      '<div style="background:var(--gbr);border-radius:4px;height:8px;margin-top:8px;overflow:hidden">'+
+        '<div style="width:'+Math.min(100,Math.round(vci))+'%;height:100%;background:'+
+          vciCol+';border-radius:4px;transition:width 1s ease"></div>'+
+      '</div>'+
+    '</div>';
+  })() : '';
+
   const idxRows = indices.map(ix=>{
+    if(ix.raw===null||ix.raw===undefined) return '';
+    const isWater = ['MNDWI','LSWI','NDWI','NDMI'].includes(ix.l);
     const pct = Math.min(100,Math.max(0,
-      ix.l==='MNDWI'||ix.l==='LSWI'
+      isWater
         ? Math.round((ix.raw+0.5)/ix.max*100)
         : Math.round(ix.raw/ix.max*100)));
-    const valCol = (ix.l==='MNDWI'||ix.l==='LSWI')
+    const valCol = isWater
       ? (ix.raw>-0.05?'#16a34a':ix.raw>-0.15?'#d97706':'#dc2626')
       : (ix.raw>=.30?'#16a34a':ix.raw>=.18?'#d97706':'#dc2626');
     return `
@@ -1566,6 +1618,7 @@ function renderReport(){
     // 2. Satellite indices — CLEAR labels
     '<div class="rep-sec">'+
       '<div class="rep-title">📊 What the satellite measured</div>'+
+      vciHTML+
       idxRows+
       '<div style="font-size:10px;color:var(--m2);padding:4px 0">Source: '+src+'</div>'+
     '</div>'+
