@@ -956,6 +956,16 @@ def analyse():
                 result["monthly_rain"] = get_monthly_rain(
                     result["rain"] or reg["rain"], reg["province"])
                 result["soil"] = get_soil_data(clat, clon, reg["province"])
+                # Compute VCI from 10-year trend if available
+                if result.get("trend"):
+                    tv = [v for v in result["trend"].values() if v]
+                    if tv:
+                        h_min = min(tv)
+                        h_max = max(tv)
+                        cur   = result["ndvi"] or 0
+                        result["vci"] = round(
+                            (cur - h_min) / (h_max - h_min + 0.001) * 100, 1
+                        ) if h_max > h_min else None
                 return jsonify(result)
             except Exception as e:
                 log.error(f"GEE analysis failed: {e}")
@@ -981,6 +991,13 @@ def analyse():
                 reg["province"], reg["ndvi"], reg["mndwi"]),
             "monthly_rain": get_monthly_rain(reg["rain"], reg["province"]),
         "soil": get_soil_data(clat, clon, reg["province"]),
+        # Additional indices — estimated from NDVI when GEE unavailable
+        "ndre":          round(reg["ndvi"] * 0.75, 4),
+        "gndvi":         round(reg["ndvi"] * 0.88, 4),
+        "ndmi":          round(reg["mndwi"] + 0.08, 4),
+        "ndwi":          round(reg["mndwi"] + 0.05, 4),
+        "vci":           None,  # VCI needs historical data — not available in regional DB
+        "drought_index": round(reg["mndwi"] - reg["ndvi"], 4),
         }
         return jsonify(result)
 
