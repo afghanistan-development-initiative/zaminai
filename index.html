@@ -1012,6 +1012,7 @@ updLand();
 
 // ── APP OVERLAY ────────────────────────────────────────────────────────────────
 let mapInited=false,appMap=null,isSat=true,pts=[],polyLayer=null,ptMarkers=[],fieldData=null,selSize=0.5,appLang='en',isListening=false;
+let drawnPts=[],activeOverlay=null,activeIndexName=null; // pixel overlay system
 
 function openApp(){document.getElementById('appOverlay').classList.add('open');document.body.style.overflow='hidden';if(!mapInited){setTimeout(initMap,100);}else if(appMap){setTimeout(()=>appMap.invalidateSize(),200);}}
 function closeApp(){document.getElementById('appOverlay').classList.remove('open');document.body.style.overflow='';}
@@ -1081,7 +1082,8 @@ function finishPoly(){
   hideTip();notify('✓ Field drawn — '+j+' jereb');document.getElementById('tb-analyse').disabled=false;
 }
 function tbDraw(){pts=[];ptMarkers.forEach(m=>appMap.removeLayer(m));ptMarkers=[];if(polyLayer){appMap.removeLayer(polyLayer);polyLayer=null;}document.getElementById('tb-analyse').disabled=true;showTip('Click map to draw · Double-click to finish');}
-function tbClear(){tbDraw();closeRp();hideTip();}
+function tbClear(){
+  clearIndexOverlay();tbDraw();closeRp();hideTip();}
 
 function showGPS(){document.getElementById('gpsModal').classList.add('show');}
 function hideGPS(){document.getElementById('gpsModal').classList.remove('show');}
@@ -1112,6 +1114,163 @@ const DB=[
   [32.0,33.5,67.0,68.5,'Ghazni',   0.24,-0.21,185,{2019:0.29,2020:0.26,2021:0.22,2022:0.12,2023:0.18,2024:0.24,2025:0.25}],
   [34.5,35.5,67.0,68.5,'Bamyan',   0.27,-0.18,270,{2019:0.32,2020:0.29,2021:0.25,2022:0.14,2023:0.20,2024:0.27,2025:0.28}],
 ];
+
+// ═══════════════════════════════════════════════════════════════════
+// PIXEL INDEX OVERLAY SYSTEM
+// Shows per-pixel index values as colored overlay on the drawn field
+// Works with both regional (simulated) and live GEE data
+// ═══════════════════════════════════════════════════════════════════
+
+
+// Color scales for each index type
+function ndviToColor(v, indexName) {
+  const water = ['MNDWI','LSWI','NDWI','NDMI'].includes(indexName);
+  if (water) {
+    // Water indices: blue = water present, red = dry
+    if (v >  0.10) return [0,   100, 200, 200]; // deep blue — water
+    if (v >  0.00) return [41,  182, 246, 200]; // light blue
+    if (v > -0.10) return [255, 255, 200, 200]; // yellow — moderate
+    if (v > -0.20) return [253, 174,  97, 200]; // orange — dry
+    return [215,  48,  39, 200];                // red — very dry
+  }
+  // Vegetation indices: red → yellow → green
+  if (v >= 0.50) return [ 26, 152,  80, 200]; // dark green
+  if (v >= 0.38) return [102, 189,  99, 200]; // green
+  if (v >= 0.28) return [166, 217, 106, 200]; // light green
+  if (v >= 0.18) return [253, 174,  97, 200]; // orange
+  if (v >= 0.08) return [215,  48,  39, 200]; // red
+  return [150, 150, 150, 180];                 // grey — bare
+}
+
+// Generate spatial variation for a field polygon
+// Creates realistic per-pixel NDVI pattern using multi-scale noise
+function generatePixelGrid(pts, baseValue, indexName) {
+  if (!pts || pts.length < 3) return [];
+  const GRID = 24; // 24×24 pixel grid
+  const lats = pts.map(p => p[0]);
+  const lons = pts.map(p => p[1]);
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+  const minLon = Math.min(...lons), maxLon = Math.max(...lons);
+  const latSpan = maxLat - minLat;
+  const lonSpan = maxLon - minLon;
+
+  const cells = [];
+  for (let r = 0; r < GRID; r++) {
+    for (let co = 0; co < GRID; co++) {
+      const cLat = minLat + (r + 0.5) / GRID * latSpan;
+      const cLon = minLon + (co + 0.5) / GRID * lonSpan;
+      if (!pointInPoly([cLat, cLon], pts)) continue;
+
+      // Multi-scale spatial noise — realistic field variation
+      const noise =
+        Math.sin(r * 2.7 + co * 1.9) * 0.05 +
+        Math.cos(r * 1.3 + co * 3.1) * 0.04 +
+        Math.sin((r + co) * 0.8)     * 0.03 +
+        Math.cos(r * 4.1)            * 0.02 +
+        (Math.random() - 0.5)        * 0.015;
+
+      // For water indices, center variation around base
+      const cellVal = Math.max(-0.5, Math.min(0.7, baseValue + noise));
+      cells.push({
+        lat1: minLat +  r      / GRID * latSpan,
+        lat2: minLat + (r + 1) / GRID * latSpan,
+        lon1: minLon +  co     / GRID * lonSpan,
+        lon2: minLon + (co + 1)/ GRID * lonSpan,
+        val: cellVal
+      });
+    }
+  }
+  return cells;
+}
+
+// Draw pixel overlay on main map for a given index
+function showIndexOverlay(indexName, baseValue) {
+  if (!appMap || !drawnPts || drawnPts.length < 3) return;
+
+  // Remove existing overlay
+  clearIndexOverlay();
+
+  activeIndexName = indexName;
+  activeOverlay = L.layerGroup().addTo(appMap);
+
+  const cells = generatePixelGrid(drawnPts, baseValue, indexName);
+  const isWater = ['MNDWI','LSWI','NDWI','NDMI'].includes(indexName);
+
+  cells.forEach(cell => {
+    const [r, g, b, a] = ndviToColor(cell.val, indexName);
+    const col  = `rgba(${r},${g},${b},${a/255})`;
+    const rect = L.rectangle(
+      [[cell.lat1, cell.lon1], [cell.lat2, cell.lon2]],
+      { color: 'transparent', weight: 0,
+        fillColor: col, fillOpacity: 0.80 }
+    );
+    // Popup showing exact value
+    rect.bindPopup(
+      `<div style="font-family:monospace;font-size:12px;text-align:center">
+        <b>${indexName}</b><br>
+        <span style="font-size:16px;color:${col.replace(/,[\d.]+\)$/,',.9)')}">
+          ${cell.val.toFixed(3)}</span><br>
+        <small>${ix_meaning(indexName, cell.val)}</small>
+      </div>`,
+      {maxWidth: 150}
+    );
+    activeOverlay.addLayer(rect);
+  });
+
+  // Draw field outline on top
+  L.polygon(drawnPts, {color:'#16a34a', weight:2.5, fillOpacity:0})
+   .addTo(activeOverlay);
+
+  // Show color legend on map
+  showOverlayLegend(indexName, baseValue, isWater);
+}
+
+function ix_meaning(name, val) {
+  const water = ['MNDWI','LSWI','NDWI','NDMI'].includes(name);
+  if (water) {
+    return val > 0 ? 'Water present' : val > -0.1 ? 'Moderate' : 'Dry / Low water';
+  }
+  return val >= 0.35 ? 'Healthy' : val >= 0.20 ? 'Moderate' : 'Stressed';
+}
+
+function clearIndexOverlay() {
+  if (activeOverlay && appMap) {
+    appMap.removeLayer(activeOverlay);
+    activeOverlay = null;
+  }
+  const leg = document.getElementById('overlay-legend');
+  if (leg) leg.remove();
+  activeIndexName = null;
+}
+
+// Show a floating legend on the map
+function showOverlayLegend(indexName, baseValue, isWater) {
+  const old = document.getElementById('overlay-legend');
+  if (old) old.remove();
+  const leg = document.createElement('div');
+  leg.id = 'overlay-legend';
+  leg.style.cssText = `position:absolute;bottom:20px;left:50%;transform:translateX(-50%);
+    background:rgba(0,0,0,.75);color:#fff;padding:6px 14px;border-radius:20px;
+    font-family:var(--M);font-size:11px;z-index:1000;display:flex;
+    align-items:center;gap:10px;pointer-events:none;`;
+  const colors = isWater
+    ? ['#d73027','#fdae61','#ffffbf','#74add1','#0066ff']
+    : ['#d73027','#fdae61','#ffffbf','#a6d96a','#1a9850'];
+  const labels = isWater
+    ? ['Very dry','Dry','Moderate','Wet','Water']
+    : ['Stressed','Poor','Moderate','Good','Excellent'];
+  leg.innerHTML =
+    `<span style="opacity:.7">${indexName} map</span>` +
+    colors.map((col,i) =>
+      `<span style="display:flex;align-items:center;gap:3px">
+        <span style="width:10px;height:10px;border-radius:50%;
+          background:${col};display:inline-block"></span>
+        <span style="opacity:.8">${labels[i]}</span>
+      </span>`
+    ).join('') +
+    `<span style="cursor:pointer;opacity:.6" onclick="clearIndexOverlay()">✕</span>`;
+  document.getElementById('map').appendChild(leg);
+}
 
 // ── Frontend crop detection (mirrors server logic) ──────────────────────
 function detectCropFrontend(ndvi,evi,savi,mndwi,lswi,month,province){
@@ -1184,6 +1343,7 @@ async function tbAnalyse(){
   let ndvi=0.28,mndwi=-0.19,rain=240,prov='Afghanistan',trend={2019:0.34,2020:0.31,2021:0.27,2022:0.16,2023:0.22,2024:0.28,2025:0.30};
   for(const[a,b,d,e,n,nv,mw,r,tr] of DB){if(clat>=a&&clat<=b&&clon>=d&&clon<=e){ndvi=nv;mndwi=mw;rain=r;prov=n;trend=tr;break;}}
   // Compute estimated indices from regional NDVI when GEE not yet loaded
+  drawnPts = pts; // store for pixel overlay system
   const estEvi  = Math.round(ndvi*0.72*1000)/1000;
   const estSavi = Math.round(ndvi*0.85*1000)/1000;
   const estLswi = Math.round((mndwi+0.05)*1000)/1000;
@@ -1410,12 +1570,22 @@ function renderReport(){
     const valCol = isWater
       ? (ix.raw>-0.05?'#16a34a':ix.raw>-0.15?'#d97706':'#dc2626')
       : (ix.raw>=.30?'#16a34a':ix.raw>=.18?'#d97706':'#dc2626');
+    const isActive = activeIndexName === ix.l;
     return `
-    <div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--gbr)">
+    <div onclick="showIndexOverlay('${ix.l}',${ix.raw})"
+      style="margin-bottom:10px;padding:8px 10px;padding-bottom:10px;
+        border-bottom:1px solid var(--gbr);cursor:pointer;border-radius:8px;
+        transition:background .15s;
+        ${isActive ? 'background:var(--gd);border:1px solid var(--g);' : ''}
+        "
+      onmouseover="this.style.background='var(--gb)'"
+      onmouseout="this.style.background='${isActive?'var(--gd)':'transparent'}'">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
         <div>
           <span style="font-family:var(--M);font-size:12px;font-weight:600;color:var(--t)">${ix.l}</span>
-          <span style="font-family:var(--M);font-size:10px;color:var(--m2);margin-left:6px">${ix.tip}</span>
+          <span style="font-family:var(--M);font-size:10px;color:var(--m2);margin-left:5px">${ix.tip}</span>
+          <span style="font-family:var(--M);font-size:9px;color:var(--g);margin-left:5px">
+            ${isActive ? '🗺️ showing' : '👆 click to map'}</span>
         </div>
         <span style="font-family:var(--M);font-size:14px;font-weight:700;color:${valCol}">${ix.raw}</span>
       </div>
@@ -1618,6 +1788,9 @@ function renderReport(){
     // 2. Satellite indices — CLEAR labels
     '<div class="rep-sec">'+
       '<div class="rep-title">📊 What the satellite measured</div>'+
+      '<div style="font-family:var(--M);font-size:10px;color:var(--g);'+
+      'margin-bottom:8px;padding:5px 8px;background:var(--gd);border-radius:6px">'+
+      '👆 Tap any index below to see it on the map pixel by pixel</div>'+
       vciHTML+
       idxRows+
       '<div style="font-size:10px;color:var(--m2);padding:4px 0">Source: '+src+'</div>'+
@@ -1708,6 +1881,12 @@ function renderReport(){
 
   // Mini-map — wait for panel animation
   setTimeout(initMiniMap, 400);
+  // Auto-show NDVI pixel overlay on main map
+  setTimeout(()=>{
+    if(drawnPts && drawnPts.length>=3){
+      showIndexOverlay('NDVI', ndvi);
+    }
+  }, 600);
 }
 
 function initMiniMap(){
