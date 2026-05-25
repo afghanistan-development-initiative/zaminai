@@ -176,6 +176,170 @@ def get_regional_data(lat, lon):
         "source": "interpolated"
     }
 
+# ════════════════════════════════════════════════════════════════════════════════
+# SOILGRIDS API — ISRIC World Soil Information
+# Free REST API — no key needed
+# Resolution: 250m — good for field-level in Afghanistan
+# Source: https://soilgrids.org / https://www.isric.org
+#
+# Properties returned:
+#   phh2o — soil pH in water (returned as pH×10, divide by 10)
+#   clay  — clay content g/kg (divide by 10 for %)
+#   sand  — sand content g/kg (divide by 10 for %)
+#   silt  — silt content g/kg (divide by 10 for %)
+#   soc   — soil organic carbon dg/kg (divide by 100 for %)
+#   bdod  — bulk density cg/cm³ (divide by 100 for g/cm³)
+#
+# Soil texture classification (USDA triangle):
+#   Sandy:      sand >70%
+#   Sandy loam: sand 50-70%, clay <20%
+#   Loam:       sand 25-50%, clay 10-27%, silt 28-50%
+#   Clay loam:  clay 27-40%
+#   Clay:       clay >40%
+#   Silty loam: silt >50%, clay <27%
+# ════════════════════════════════════════════════════════════════════════════════
+
+# Afghan provincial soil database (fallback when SoilGrids API unavailable)
+# Values from: FAO soil map of Afghanistan + ISRIC regional estimates
+AFGHAN_SOILS = {
+    "Kunduz":     {"ph":7.4,"clay":22,"sand":38,"silt":40,"soc":0.9,"texture":"Silty loam","color":"dark_brown"},
+    "Balkh":      {"ph":7.6,"clay":18,"sand":52,"silt":30,"soc":0.7,"texture":"Sandy loam","color":"light_brown"},
+    "Herat":      {"ph":7.8,"clay":15,"sand":58,"silt":27,"soc":0.5,"texture":"Sandy loam","color":"light"},
+    "Nangarhar":  {"ph":7.2,"clay":28,"sand":32,"silt":40,"soc":1.2,"texture":"Loam","color":"dark_brown"},
+    "Kabul":      {"ph":7.5,"clay":20,"sand":42,"silt":38,"soc":0.8,"texture":"Loam","color":"brown"},
+    "Kandahar":   {"ph":8.0,"clay":12,"sand":65,"silt":23,"soc":0.3,"texture":"Sandy","color":"light_red"},
+    "Helmand":    {"ph":7.9,"clay":14,"sand":60,"silt":26,"soc":0.4,"texture":"Sandy loam","color":"light"},
+    "Badakhshan": {"ph":6.8,"clay":30,"sand":28,"silt":42,"soc":1.8,"texture":"Clay loam","color":"dark"},
+    "Takhar":     {"ph":7.3,"clay":24,"sand":35,"silt":41,"soc":1.1,"texture":"Silty loam","color":"brown"},
+    "Baghlan":    {"ph":7.4,"clay":22,"sand":38,"silt":40,"soc":1.0,"texture":"Silty loam","color":"brown"},
+    "Faryab":     {"ph":7.7,"clay":16,"sand":55,"silt":29,"soc":0.6,"texture":"Sandy loam","color":"light_brown"},
+    "Jawzjan":    {"ph":7.6,"clay":17,"sand":53,"silt":30,"soc":0.6,"texture":"Sandy loam","color":"light_brown"},
+    "Ghazni":     {"ph":7.5,"clay":20,"sand":44,"silt":36,"soc":0.7,"texture":"Loam","color":"brown"},
+    "Bamyan":     {"ph":7.1,"clay":26,"sand":32,"silt":42,"soc":1.4,"texture":"Clay loam","color":"dark_brown"},
+    "Logar":      {"ph":7.4,"clay":23,"sand":36,"silt":41,"soc":1.0,"texture":"Silty loam","color":"brown"},
+    "Paktia":     {"ph":7.2,"clay":25,"sand":34,"silt":41,"soc":1.2,"texture":"Loam","color":"dark_brown"},
+}
+
+def classify_soil_texture(clay, sand, silt):
+    """
+    Classify soil texture using USDA soil texture triangle.
+    Input: clay%, sand%, silt% (should sum to ~100)
+    Returns: texture class name
+    """
+    if sand >= 70:                              return "Sandy"
+    if sand >= 50 and clay < 20:               return "Sandy loam"
+    if clay >= 40:                             return "Clay"
+    if clay >= 27 and clay < 40:               return "Clay loam"
+    if silt >= 50 and clay < 27:               return "Silty loam"
+    if silt >= 80:                             return "Silt"
+    return "Loam"
+
+def soil_recommendations(texture, ph, soc, province):
+    """
+    Generate crop and management recommendations based on soil properties.
+    Returns list of recommendation strings in English.
+    """
+    recs = []
+
+    # pH recommendations
+    if ph < 6.5:
+        recs.append(f"Acidic soil (pH {ph}) — apply lime 200-300 kg/jereb to raise pH")
+    elif ph > 8.0:
+        recs.append(f"Alkaline soil (pH {ph}) — add organic matter, avoid urea fertilizer")
+    elif ph > 7.5:
+        recs.append(f"Slightly alkaline (pH {ph}) — normal for {province}. Use ammonium sulfate over urea")
+    else:
+        recs.append(f"Good pH {ph} — suitable for wheat, vegetables, most crops")
+
+    # Organic carbon
+    if soc < 0.5:
+        recs.append("Very low organic carbon — add 3-4 tonnes compost/jereb before planting")
+    elif soc < 1.0:
+        recs.append("Low organic carbon — add 2 tonnes compost/jereb annually")
+    else:
+        recs.append(f"Organic carbon {soc}% — reasonable. Maintain with annual compost")
+
+    # Texture recommendations
+    if "Sandy" in texture:
+        recs.append("Sandy soil — water drains fast. Use drip irrigation, split fertilizer doses")
+        recs.append("Best crops: saffron, flax, chickpeas — drought tolerant crops preferred")
+    elif "Clay" in texture:
+        recs.append("Clay soil — holds water well but can waterlog. Avoid overwatering")
+        recs.append("Best crops: wheat, rice, vegetables — clay retains nutrients well")
+    elif "Loam" in texture:
+        recs.append("Loam soil — best for most crops. Good water and nutrient retention")
+        recs.append("All crops suitable: wheat, vegetables, cotton, saffron")
+    elif "Silty" in texture:
+        recs.append("Silty soil — fertile but prone to crusting. Add compost to improve structure")
+
+    return recs
+
+def get_soil_data(lat, lon, province="Afghanistan"):
+    """
+    Fetch soil properties from SoilGrids REST API.
+    Falls back to provincial database if API unavailable.
+
+    Returns dict with:
+        ph, clay, sand, silt, soc, bulk_density,
+        texture, recommendations, source
+    """
+    # Try SoilGrids API first
+    try:
+        props = ["phh2o","clay","sand","silt","soc","bdod"]
+        prop_str = "&".join(f"property={p}" for p in props)
+        url = (f"https://rest.soilgrids.org/soilgrids/v2.0/properties/query"
+               f"?lon={lon}&lat={lat}&{prop_str}&depth=0-30cm&value=mean")
+        resp = requests.get(url, timeout=12,
+                            headers={"User-Agent":"ZaminAI/6.0 (zaminai.org)"})
+        if resp.status_code == 200:
+            layers = resp.json().get("properties",{}).get("layers",[])
+            vals   = {}
+            for layer in layers:
+                name = layer.get("name","")
+                v    = layer.get("depths",[{}])[0].get("values",{}).get("mean")
+                if v is not None:
+                    vals[name] = v
+            if vals:
+                # Apply unit conversions
+                ph   = round(vals.get("phh2o", 75) / 10, 1)
+                clay = round(vals.get("clay",  200) / 10, 1)
+                sand = round(vals.get("sand",  400) / 10, 1)
+                silt = round(vals.get("silt",  300) / 10, 1)
+                soc  = round(vals.get("soc",   80)  / 100, 2)
+                bd   = round(vals.get("bdod",  130) / 100, 2)
+                texture = classify_soil_texture(clay, sand, silt)
+                return {
+                    "ph": ph, "clay": clay, "sand": sand,
+                    "silt": silt, "soc": soc, "bulk_density": bd,
+                    "texture": texture,
+                    "recommendations": soil_recommendations(texture, ph, soc, province),
+                    "source": "soilgrids_api",
+                    "resolution": "250m"
+                }
+    except Exception as e:
+        log.warning(f"SoilGrids API failed: {e} — using provincial database")
+
+    # Provincial database fallback
+    soil = AFGHAN_SOILS.get(province, {
+        "ph":7.5,"clay":20,"sand":45,"silt":35,
+        "soc":0.8,"texture":"Loam","color":"brown"
+    })
+    return {
+        "ph":          soil["ph"],
+        "clay":        soil["clay"],
+        "sand":        soil["sand"],
+        "silt":        soil["silt"],
+        "soc":         soil["soc"],
+        "bulk_density": 1.35,
+        "texture":     soil["texture"],
+        "recommendations": soil_recommendations(
+            soil["texture"], soil["ph"], soil["soc"], province),
+        "source":      "provincial_db",
+        "resolution":  "province-level"
+    }
+
+
+
 
 # ════════════════════════════════════════════════════════════════════════════════
 # CROP CALENDAR
@@ -744,7 +908,7 @@ def health():
         "gee":     gee_ok,
         "ai":      "gemini" if GEMINI_KEY else ("anthropic" if ANTHROPIC_KEY else "smart_only"),
         "indices": ["ndvi","evi","savi","mndwi","lswi","ndre","bsi"],
-        "endpoints": ["/health","/analyse","/ask","/ndvi_tile","/crop_detect","/monthly_rain"]
+        "endpoints": ["/health","/analyse","/ask","/ndvi_tile","/crop_detect","/monthly_rain","/soil"]
     })
 
 
@@ -791,6 +955,7 @@ def analyse():
                     reg["province"], result["ndvi"], result["mndwi"])
                 result["monthly_rain"] = get_monthly_rain(
                     result["rain"] or reg["rain"], reg["province"])
+                result["soil"] = get_soil_data(clat, clon, reg["province"])
                 return jsonify(result)
             except Exception as e:
                 log.error(f"GEE analysis failed: {e}")
@@ -815,6 +980,7 @@ def analyse():
             "season": get_current_season_advice(
                 reg["province"], reg["ndvi"], reg["mndwi"]),
             "monthly_rain": get_monthly_rain(reg["rain"], reg["province"]),
+        "soil": get_soil_data(clat, clon, reg["province"]),
         }
         return jsonify(result)
 
@@ -979,6 +1145,32 @@ def ndvi_tile():
     except Exception as e:
         return jsonify({"status": "error", "error": str(e)}), 500
 
+
+
+
+@app.route("/soil", methods=["POST","OPTIONS"])
+def soil():
+    """
+    Dedicated soil analysis endpoint.
+    Input:  {lat: float, lon: float, province: str (optional)}
+    Output: {ph, clay, sand, silt, soc, bulk_density,
+             texture, recommendations, source, resolution}
+    Calls SoilGrids API — free, no key needed.
+    Falls back to Afghan provincial database if API unavailable.
+    """
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    try:
+        d        = request.get_json(force=True)
+        lat      = float(d.get("lat", 34.5))
+        lon      = float(d.get("lon", 67.7))
+        province = d.get("province", "Afghanistan")
+        soil     = get_soil_data(lat, lon, province)
+        soil["status"] = "ok"
+        return jsonify(soil)
+    except Exception as e:
+        log.error(f"/soil error: {e}")
+        return jsonify({"error": str(e)}), 500
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
