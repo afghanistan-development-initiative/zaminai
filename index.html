@@ -1197,7 +1197,7 @@ async function tbAnalyse(){
   fieldData={ndvi,mndwi,rain,prov,aHa,aJ,trend,
     evi:estEvi,savi:estSavi,lswi:estLswi,
     crops:estCrops,season:estSeason,
-    monthly_rain:estMonthlyRain,source:'regional'};
+    monthly_rain:estMonthlyRain,source:'regional',soil:null};
   // Try real API
   fetch(API+'/analyse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({coords:pts.map(p=>[p[0],p[1]]),year:2024})})
     .then(r=>r.json()).then(d=>{if(d.status==='success'&&d.ndvi){fieldData.ndvi=d.ndvi;fieldData.mndwi=d.mndwi||d.water;fieldData.rain=d.rain||rain;fieldData.trend=d.trend||d.ndvi_trend||trend;
@@ -1205,11 +1205,20 @@ async function tbAnalyse(){
       fieldData.lswi=d.lswi||null;fieldData.crops=d.crops||[];
       fieldData.season=d.season||[];fieldData.monthly_rain=d.monthly_rain||null;
       fieldData.source=d.source||'regional';
+      fieldData.soil=d.soil||null;
       renderReport();}}).catch(()=>{});
   renderReport();
   document.getElementById('rp-info').textContent=aJ+' jereb · '+aHa+' ha · 2024';
   btn.innerHTML='🛰️ Re-analyse';btn.disabled=false;
   updateAICtx();
+  // Fetch soil data in background (SoilGrids API)
+  const clat2=pts.reduce((s,p)=>s+p[0],0)/pts.length;
+  const clon2=pts.reduce((s,p)=>s+p[1],0)/pts.length;
+  fetch(API+'/soil',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({lat:clat2,lon:clon2,province:fieldData.prov||'Afghanistan'})})
+  .then(r=>r.json()).then(d=>{
+    if(d.ph){fieldData.soil=d;renderReport();}
+  }).catch(()=>{});
 }
 
 function renderReport(){
@@ -1378,17 +1387,121 @@ function renderReport(){
         '</div>';
     }
 
+    // ── 5. Soil analysis section ──────────────────────────────────────
+    let soilSection = '';
+    const soil = fieldData.soil;
+    if(soil && soil.ph){
+      // Texture triangle visual
+      const clay=soil.clay||20, sand=soil.sand||40, silt=soil.silt||40;
+      const srcLabel=soil.source==='soilgrids_api'
+        ? '🌐 SoilGrids API (ISRIC) — 250m resolution'
+        : '📊 Provincial database';
+
+      // pH color
+      const phCol=soil.ph<6.5?'var(--r)':soil.ph>8.0?'var(--a)':'var(--g)';
+      const phLabel=soil.ph<6.5?'Acidic':soil.ph<=7.3?'Neutral':soil.ph<=7.8?'Slightly alkaline':'Alkaline';
+
+      // Texture composition bars
+      const texBars=[
+        {label:'Clay',  val:clay,  col:'#dc2626'},
+        {label:'Sand',  val:sand,  col:'#d97706'},
+        {label:'Silt',  val:silt,  col:'#16a34a'},
+      ].map(t=>
+        '<div style="margin-bottom:5px">'+
+          '<div style="display:flex;justify-content:space-between;'+
+            'font-family:var(--M);font-size:10px;color:var(--m);margin-bottom:2px">'+
+            '<span>'+t.label+'</span><span>'+t.val+'%</span>'+
+          '</div>'+
+          '<div style="background:var(--gbr);border-radius:2px;height:6px">'+
+            '<div style="width:'+Math.min(100,t.val)+'%;height:100%;'+
+              'background:'+t.col+';border-radius:2px"></div>'+
+          '</div>'+
+        '</div>'
+      ).join('');
+
+      // Recommendations
+      const recsHTML=(soil.recommendations||[]).slice(0,3).map(r=>
+        '<div style="display:flex;gap:6px;padding:5px 0;border-bottom:1px solid var(--gbr);'+
+          'font-size:12px"><span>→</span><span style="color:var(--m)">'+r+'</span></div>'
+      ).join('');
+
+      soilSection =
+        '<div class="rep-sec">'+
+        '<div class="rep-title">🌍 Soil analysis</div>'+
+
+        // Main soil card
+        '<div style="background:var(--bg);border:1px solid var(--gbr);'+
+          'border-radius:8px;padding:.85rem;margin-bottom:8px">'+
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'+
+            '<div>'+
+              '<div style="font-family:var(--D);font-size:20px">'+soil.texture+'</div>'+
+              '<div style="font-family:var(--M);font-size:10px;color:var(--m2);margin-top:2px">'+
+                'Soil texture class'+
+              '</div>'+
+            '</div>'+
+            '<div style="text-align:right">'+
+              '<div style="font-family:var(--D);font-size:24px;color:'+phCol+'">'+soil.ph+'</div>'+
+              '<div style="font-family:var(--M);font-size:10px;color:'+phCol+'">'+phLabel+'</div>'+
+            '</div>'+
+          '</div>'+
+          texBars+
+        '</div>'+
+
+        // Key metrics row
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:8px">'+
+          '<div style="background:var(--bg);border:1px solid var(--gbr);border-radius:7px;'+
+            'padding:.6rem;text-align:center">'+
+            '<div style="font-family:var(--D);font-size:20px;color:var(--g)">'+soil.soc+'%</div>'+
+            '<div style="font-family:var(--M);font-size:9px;color:var(--m2)">Organic carbon</div>'+
+          '</div>'+
+          '<div style="background:var(--bg);border:1px solid var(--gbr);border-radius:7px;'+
+            'padding:.6rem;text-align:center">'+
+            '<div style="font-family:var(--D);font-size:20px;color:var(--b)">'+
+              (soil.bulk_density||1.35)+
+            '</div>'+
+            '<div style="font-family:var(--M);font-size:9px;color:var(--m2)">Bulk density</div>'+
+          '</div>'+
+          '<div style="background:var(--bg);border:1px solid var(--gbr);border-radius:7px;'+
+            'padding:.6rem;text-align:center">'+
+            '<div style="font-family:var(--D);font-size:20px;color:var(--m)">'+soil.resolution+'</div>'+
+            '<div style="font-family:var(--M);font-size:9px;color:var(--m2)">Resolution</div>'+
+          '</div>'+
+        '</div>'+
+
+        // Recommendations
+        '<div style="font-family:var(--M);font-size:9px;color:var(--m2);'+
+          'letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px">'+
+          'Soil management advice'+
+        '</div>'+
+        recsHTML+
+
+        // Source badge
+        '<div style="font-size:11px;color:var(--m2);margin-top:6px">'+srcLabel+'</div>'+
+        '</div>';
+    } else {
+      // Loading state
+      soilSection =
+        '<div class="rep-sec">'+
+        '<div class="rep-title">🌍 Soil analysis</div>'+
+        '<div style="background:var(--bg);border:1px solid var(--gbr);border-radius:8px;'+
+          'padding:1rem;text-align:center;color:var(--m2);font-family:var(--M);font-size:11px">'+
+          '<span class="spin" style="border-color:rgba(22,163,74,.3);border-top-color:var(--g)"></span>'+
+          ' Loading SoilGrids data…'+
+        '</div>'+
+        '</div>';
+    }
+
     // ── Insert all new sections before the Ask AI button ───────────────
     const askBtn = body.querySelector('button[onclick="openAIPanel()"]');
     if(askBtn && askBtn.parentElement){
       const insertBefore = askBtn.parentElement;
       // Create wrapper div and insert
       const wrapper = document.createElement('div');
-      wrapper.innerHTML = idxSection + cropSection + rainSection + seasonSection;
+      wrapper.innerHTML = idxSection + cropSection + rainSection + soilSection + seasonSection;
       body.insertBefore(wrapper, insertBefore);
     } else {
       // Fallback — just append
-      body.insertAdjacentHTML('beforeend', idxSection + cropSection + rainSection + seasonSection);
+      body.insertAdjacentHTML('beforeend', idxSection + cropSection + rainSection + soilSection + seasonSection);
     }
   }, 100);
   setTimeout(()=>{const b=document.getElementById('sbdg');if(b){b.innerHTML='✓ Saved to database';b.style.background='var(--gb)';}},2000);
@@ -1537,7 +1650,9 @@ async function sendQ(q){
   msgs.scrollTop=msgs.scrollHeight;
   let reply='';
   try{
-    const ctx=fieldData?`NDVI=${fieldData.ndvi}, Water=${fieldData.mndwi}, Rain=${fieldData.rain}mm, Area=${fieldData.aJ} jereb, Province=${fieldData.prov||'Afghanistan'}`:'No field data.';
+    const soilCtx=fieldData&&fieldData.soil&&fieldData.soil.ph
+    ?`, Soil=${fieldData.soil.texture} pH=${fieldData.soil.ph} OC=${fieldData.soil.soc}%`:'';
+  const ctx=fieldData?`NDVI=${fieldData.ndvi}, Water=${fieldData.mndwi}, Rain=${fieldData.rain}mm, Area=${fieldData.aJ} jereb, Province=${fieldData.prov||'Afghanistan'}${soilCtx}`:'No field data.';
     const res=await Promise.race([
       fetch(API+'/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q,context:ctx,language:appLang,field_data:fieldData?{ndvi:fieldData.ndvi,mndwi:fieldData.mndwi,water:fieldData.mndwi,rain:fieldData.rain,area_jereb:fieldData.aJ,area_ha:fieldData.aHa,province:fieldData.prov}:{}})}),
       new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),12000))
