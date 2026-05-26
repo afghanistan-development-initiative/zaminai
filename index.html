@@ -1372,6 +1372,23 @@ function interpolateColor(value, stops) {
   return [150, 150, 150];
 }
 
+// ── POINT IN POLYGON — Ray casting algorithm ───────────────────────────────
+// Determines if a [lat,lon] point is inside a polygon
+// Used by generatePixelGrid to clip pixels to field boundary
+function pointInPoly(point, poly) {
+  let inside = false;
+  const [py, px] = point;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [iy, ix] = poly[i];
+    const [jy, jx] = poly[j];
+    if (((iy > py) !== (jy > py)) &&
+        (px < (jx - ix) * (py - iy) / (jy - iy) + ix)) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
 // ── SPATIAL NOISE GENERATOR ──────────────────────────────────────────────
 // Generates realistic per-pixel variation using multi-scale noise
 // Simulates the spatial heterogeneity seen in real satellite imagery
