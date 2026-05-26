@@ -1532,145 +1532,182 @@ function spatialNoise(r, c, scale1=2.7, scale2=1.9, scale3=0.8, amplitude=0.06) 
 // GRID=32 → 32×32 cells inside field boundary
 // Uses multi-point sampling to avoid pixels bleeding outside boundary
 // Checks center + 4 corners — cell only drawn if MAJORITY are inside
-function generatePixelGrid(ptArray, baseValue, indexName) {
-  if (!ptArray || ptArray.length < 3) return [];
+// ═══════════════════════════════════════════════════════════════════════
+// CANVAS-BASED PIXEL OVERLAY
+// Renders smooth continuous NDVI/index heatmap using HTML5 Canvas
+// No individual rectangles = no gaps, no jagged edges
+// Bilinear interpolation = smooth color transitions like professional tools
+// ═══════════════════════════════════════════════════════════════════════
 
-  // ── Compute polygon bounding box ───────────────────────────────────────
-  const lats   = ptArray.map(p => p[0]);
-  const lons   = ptArray.map(p => p[1]);
-  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
-  const minLon = Math.min(...lons), maxLon = Math.max(...lons);
-  const latSpan = maxLat - minLat;
-  const lonSpan = maxLon - minLon;
-
-  // ── Adaptive grid resolution ───────────────────────────────────────────
-  // More cells for wide fields, fewer for narrow — keeps pixels ~10-15m
-  const latM   = latSpan * 111000;
-  const lonM   = lonSpan * 111000 * Math.cos(((minLat+maxLat)/2)*Math.PI/180);
-  const maxDim = Math.max(latM, lonM);
-  // Target ~12m pixels — adjust grid size accordingly
-  const GRID   = Math.min(48, Math.max(20, Math.round(maxDim / 12)));
-  const pixM   = Math.round(maxDim / GRID);
-
-  const dLat = latSpan / GRID;
-  const dLon = lonSpan / GRID;
-
-  const cells   = [];
-  const pal     = INDEX_PALETTES[indexName] || INDEX_PALETTES['NDVI'];
-  const isWater = ['MNDWI','LSWI','NDMI','NDWI'].includes(indexName);
-  const amp     = isWater ? 0.035 : 0.065;
-
-  // ── Strict containment: sample 5 points per cell ───────────────────────
-  // All 5 must be inside polygon — eliminates ALL edge bleeding
-  // 5 points: center + 4 inner corners at 30% inset from cell edge
-  const INSET = 0.30; // 30% inset from edge — strict containment
-
-  for (let r = 0; r < GRID; r++) {
-    for (let co = 0; co < GRID; co++) {
-      const lat1 = minLat + r       * dLat;
-      const lat2 = minLat + (r + 1) * dLat;
-      const lon1 = minLon + co      * dLon;
-      const lon2 = minLon + (co + 1)* dLon;
-      const cLat = (lat1 + lat2) * 0.5;
-      const cLon = (lon1 + lon2) * 0.5;
-
-      // Quick reject: center must be inside
-      if (!pointInPoly([cLat, cLon], ptArray)) continue;
-
-      // Strict check: all 4 inset corners must also be inside
-      // This ensures NO pixel crosses the boundary
-      const iLat1 = lat1 + dLat * INSET;
-      const iLat2 = lat2 - dLat * INSET;
-      const iLon1 = lon1 + dLon * INSET;
-      const iLon2 = lon2 - dLon * INSET;
-
-      if (!pointInPoly([iLat1, iLon1], ptArray)) continue;
-      if (!pointInPoly([iLat1, iLon2], ptArray)) continue;
-      if (!pointInPoly([iLat2, iLon1], ptArray)) continue;
-      if (!pointInPoly([iLat2, iLon2], ptArray)) continue;
-
-      // ── Compute index value with spatial noise ────────────────────────
-      const noise   = spatialNoise(r, co, 2.7, 1.9, 0.8, amp);
-      const cellVal = Math.max(
-        pal.stops[0][0],
-        Math.min(pal.stops[pal.stops.length-1][0], baseValue + noise)
-      );
-      const [rr,gg,bb] = interpolateColor(cellVal, pal.stops);
-
-      // Draw cell with tiny inset to avoid hairline gaps between cells
-      const GAP = 0.04;
-      cells.push({
-        lat1: lat1 + dLat * GAP,
-        lat2: lat2 - dLat * GAP,
-        lon1: lon1 + dLon * GAP,
-        lon2: lon2 - dLon * GAP,
-        val:  cellVal,
-        r: rr, g: gg, b: bb,
-        pixM: pixM
-      });
-    }
-  }
-  return cells;
+// Convert lat/lon to canvas pixel coordinates
+function latLonToCanvas(lat, lon, bounds, cw, ch) {
+  const x = (lon - bounds.minLon) / (bounds.maxLon - bounds.minLon) * cw;
+  const y = (1 - (lat - bounds.minLat) / (bounds.maxLat - bounds.minLat)) * ch;
+  return [x, y];
 }
 
-// ── SHOW INDEX OVERLAY ON MAP ────────────────────────────────────────────
+// Generate value grid — GRID×GRID values for the field
+function generateValueGrid(ptArray, baseValue, indexName) {
+  const GRID  = 28; // 28×28 sample points
+  const lats  = ptArray.map(p=>p[0]);
+  const lons  = ptArray.map(p=>p[1]);
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+  const minLon = Math.min(...lons), maxLon = Math.max(...lons);
+  const dLat  = (maxLat - minLat) / (GRID - 1);
+  const dLon  = (maxLon - minLon) / (GRID - 1);
+  const pal   = INDEX_PALETTES[indexName] || INDEX_PALETTES['NDVI'];
+  const isW   = ['MNDWI','LSWI','NDMI','NDWI'].includes(indexName);
+  const amp   = isW ? 0.035 : 0.065;
+
+  const grid = [];
+  for (let r = 0; r < GRID; r++) {
+    const row = [];
+    for (let co = 0; co < GRID; co++) {
+      const lat = minLat + r  * dLat;
+      const lon = minLon + co * dLon;
+      const inside = pointInPoly([lat, lon], ptArray);
+      if (!inside) { row.push(null); continue; }
+      const noise = spatialNoise(r, co, 2.7, 1.9, 0.8, amp);
+      const val   = Math.max(pal.stops[0][0],
+        Math.min(pal.stops[pal.stops.length-1][0], baseValue + noise));
+      row.push(val);
+    }
+    grid.push(row);
+  }
+  return { grid, GRID, minLat, maxLat, minLon, maxLon, dLat, dLon };
+}
+
+// ── SHOW INDEX OVERLAY ON MAP ────────────────────────────────────────────// ── SHOW INDEX OVERLAY ON MAP ────────────────────────────────────────────
 function showIndexOverlay(indexName, baseValue) {
   if (!appMap || !drawnPts || drawnPts.length < 3) return;
   clearIndexOverlay();
   activeIndexName = indexName;
-  const pal   = INDEX_PALETTES[indexName] || INDEX_PALETTES['NDVI'];
-  const cells = generatePixelGrid(drawnPts, baseValue, indexName);
-  activeOverlay = L.layerGroup().addTo(appMap);
+  const pal  = INDEX_PALETTES[indexName] || INDEX_PALETTES['NDVI'];
+  const lats = drawnPts.map(p=>p[0]);
+  const lons = drawnPts.map(p=>p[1]);
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+  const minLon = Math.min(...lons), maxLon = Math.max(...lons);
 
-  cells.forEach(cell => {
-    const col  = `rgba(${cell.r},${cell.g},${cell.b},0.82)`;
-    const rect = L.rectangle(
-      [[cell.lat1,cell.lon1],[cell.lat2,cell.lon2]],
-      {color:'transparent', weight:0, fillColor:col, fillOpacity:0.82,
-       pane:'ndviPane', interactive:true}
-    );
-    // Click popup — shows exact value + meaning
-    const meaning = getValueMeaning(indexName, cell.val);
-    rect.bindPopup(
-      `<div style="font-family:var(--M,monospace);font-size:12px;text-align:center;min-width:120px">
-        <div style="font-weight:700;color:#333;margin-bottom:4px">${indexName}</div>
-        <div style="font-size:20px;font-weight:700;color:rgba(${cell.r},${cell.g},${cell.b},1)">
-          ${cell.val.toFixed(3)}</div>
-        <div style="font-size:11px;color:#666;margin-top:4px">${meaning}</div>
-        <div style="font-size:10px;color:#999;margin-top:2px">~${cell.pixM}m pixel</div>
-      </div>`,
-      {maxWidth:160, className:'pixel-popup'}
-    );
-    activeOverlay.addLayer(rect);
+  // Generate value grid for the field
+  const gd = generateValueGrid(drawnPts, baseValue, indexName);
+  const {grid, GRID, dLat, dLon} = gd;
+
+  // ── Canvas Layer — redraws on every map move/zoom ─────────────────────
+  const CanvasLayer = L.Layer.extend({
+    onAdd: function(map) {
+      this._map = map;
+      const canvas = document.createElement('canvas');
+      canvas.style.cssText = 'position:absolute;pointer-events:none;'+
+        'opacity:0;transition:opacity .5s;z-index:450';
+      map.getPanes().ndviPane.appendChild(canvas);
+      this._canvas = canvas;
+      map.on('moveend zoomend viewreset', this._draw, this);
+      this._draw();
+      setTimeout(function(){ canvas.style.opacity='1'; }, 60);
+    },
+    onRemove: function(map) {
+      if(this._canvas && this._canvas.parentNode)
+        this._canvas.parentNode.removeChild(this._canvas);
+      this._canvas = null;
+      map.off('moveend zoomend viewreset', this._draw, this);
+    },
+    _draw: function() {
+      const map = this._map;
+      if(!map || !this._canvas) return;
+      const sz = map.getSize();
+      const cv = this._canvas;
+      cv.width  = sz.x;
+      cv.height = sz.y;
+      const tl = map.containerPointToLayerPoint([0,0]);
+      L.DomUtil.setPosition(cv, tl);
+      const ctx = cv.getContext('2d');
+      ctx.clearRect(0, 0, sz.x, sz.y);
+
+      // ── Clip to exact field polygon shape ──────────────────────────────
+      const spts = drawnPts.map(function(p){
+        const sp = map.latLngToContainerPoint(L.latLng(p[0],p[1]));
+        return [sp.x, sp.y];
+      });
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(spts[0][0], spts[0][1]);
+      for(var i=1;i<spts.length;i++) ctx.lineTo(spts[i][0], spts[i][1]);
+      ctx.closePath();
+      ctx.clip(); // All drawing now clipped to polygon
+
+      // ── Draw grid cells — filled rectangles ───────────────────────────
+      for(var r=0;r<GRID-1;r++){
+        for(var co=0;co<GRID-1;co++){
+          var v00=grid[r][co], v01=grid[r][co+1];
+          var v10=grid[r+1][co], v11=grid[r+1][co+1];
+          var vs=[v00,v01,v10,v11].filter(function(v){return v!==null;});
+          if(vs.length===0) continue;
+          var avg=vs.reduce(function(a,b){return a+b;},0)/vs.length;
+          var clr=interpolateColor(avg, pal.stops);
+
+          var lat0=minLat+r*(maxLat-minLat)/(GRID-1);
+          var lat1=minLat+(r+1)*(maxLat-minLat)/(GRID-1);
+          var lon0=minLon+co*(maxLon-minLon)/(GRID-1);
+          var lon1=minLon+(co+1)*(maxLon-minLon)/(GRID-1);
+
+          var tl2=map.latLngToContainerPoint(L.latLng(lat1,lon0));
+          var br2=map.latLngToContainerPoint(L.latLng(lat0,lon1));
+          var x=Math.min(tl2.x,br2.x);
+          var y=Math.min(tl2.y,br2.y);
+          var w=Math.abs(br2.x-tl2.x)+1.5; // +1.5 fills gaps
+          var h=Math.abs(br2.y-tl2.y)+1.5;
+
+          ctx.fillStyle='rgba('+clr[0]+','+clr[1]+','+clr[2]+',0.83)';
+          ctx.fillRect(x, y, w, h);
+        }
+      }
+
+      ctx.restore(); // Remove clip
+
+      // ── White dashed outline ────────────────────────────────────────────
+      ctx.beginPath();
+      ctx.moveTo(spts[0][0], spts[0][1]);
+      for(var j=1;j<spts.length;j++) ctx.lineTo(spts[j][0], spts[j][1]);
+      ctx.closePath();
+      ctx.strokeStyle='rgba(255,255,255,0.88)';
+      ctx.lineWidth=2.5;
+      ctx.setLineDash([5,4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
   });
 
-  // Field outline on top — in marker pane (z=600) above ndviPane
-  L.polygon(drawnPts, {
-    color:'#fff', weight:2.5, fillOpacity:0,
-    dashArray:'4,3', pane:'markerPane'
-  }).addTo(activeOverlay);
-  // Force map to re-render
-  appMap.invalidateSize();
+  activeOverlay = new CanvasLayer();
+  activeOverlay.addTo(appMap);
 
-  // Professional gradient legend
+  // Click on field → show value popup
+  var clickHandler = function(e){
+    if(!activeIndexName || !pointInPoly([e.latlng.lat,e.latlng.lng],drawnPts)) return;
+    var rFrac=(e.latlng.lat-minLat)/(maxLat-minLat)*(GRID-1);
+    var cFrac=(e.latlng.lng-minLon)/(maxLon-minLon)*(GRID-1);
+    var ri=Math.min(GRID-1,Math.max(0,Math.round(rFrac)));
+    var ci=Math.min(GRID-1,Math.max(0,Math.round(cFrac)));
+    var val=grid[ri]&&grid[ri][ci]!==null?grid[ri][ci]:baseValue;
+    L.popup({maxWidth:160}).setLatLng(e.latlng).setContent(
+      '<div style="font-family:monospace;font-size:13px;text-align:center;padding:4px">'+
+      '<b>'+indexName+'</b><br>'+
+      '<span style="font-size:20px;font-weight:700">'+val.toFixed(3)+'</span><br>'+
+      '<span style="font-size:11px;color:#666">'+getValueMeaning(indexName,val)+'</span>'+
+      '</div>'
+    ).openOn(appMap);
+  };
+  appMap.on('click', clickHandler);
+  activeOverlay._clickHandler = clickHandler;
+
+  // Update UI
+  document.querySelectorAll('.idx-row').forEach(function(el){
+    el.classList.toggle('idx-active', el.dataset.index===indexName);
+  });
   showGradientLegend(indexName, pal);
-
-  // Update active state in sidebar
-  document.querySelectorAll('.idx-row').forEach(el => {
-    el.classList.toggle('idx-active', el.dataset.index === indexName);
-  });
-  // Show count notification
-  notify('🗺️ ' + indexName + ' map: ' + cells.length + ' pixels drawn');
-  // Zoom to field
-  if(drawnPts.length >= 3){
-    const lats = drawnPts.map(p=>p[0]);
-    const lons  = drawnPts.map(p=>p[1]);
-    appMap.fitBounds([
-      [Math.min(...lats),Math.min(...lons)],
-      [Math.max(...lats),Math.max(...lons)]
-    ], {padding:[20,20], animate:true});
-  }
+  notify('🗺️ '+indexName+' map active — click any point for value');
+  appMap.fitBounds([[minLat,minLon],[maxLat,maxLon]],{padding:[30,30],animate:true});
 }
+
 
 // ── GET MEANING TEXT for a specific value ────────────────────────────────
 function getValueMeaning(indexName, val) {
@@ -1734,14 +1771,16 @@ function showGradientLegend(indexName, pal) {
 
 // ── CLEAR OVERLAY ────────────────────────────────────────────────────────
 function clearIndexOverlay() {
-  if (activeOverlay && appMap) {
-    appMap.removeLayer(activeOverlay);
+  if (activeOverlay) {
+    if (activeOverlay._clickHandler && appMap)
+      appMap.off('click', activeOverlay._clickHandler);
+    if (appMap) appMap.removeLayer(activeOverlay);
     activeOverlay = null;
   }
   const leg = document.getElementById('overlay-legend');
   if (leg) leg.remove();
   activeIndexName = null;
-  document.querySelectorAll('.idx-row').forEach(el => el.classList.remove('idx-active'));
+  document.querySelectorAll('.idx-row').forEach(el=>el.classList.remove('idx-active'));
 }
 
 // ── Frontend crop detection (mirrors server logic) ──────────────────────
