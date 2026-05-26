@@ -1025,9 +1025,75 @@ updLand();
 
 // ── APP OVERLAY ────────────────────────────────────────────────────────────────
 let mapInited=false,appMap=null,isSat=true,pts=[],polyLayer=null,ptMarkers=[],fieldData=null,selSize=0.5,appLang='en',isListening=false;
+let farmerId=null,farmerPhone=null,savedFields=[];
 let drawnPts=[],activeOverlay=null,activeIndexName=null; // pixel overlay system
 
-function openApp(){document.getElementById('appOverlay').classList.add('open');document.body.style.overflow='hidden';if(!mapInited){setTimeout(initMap,100);}else if(appMap){setTimeout(()=>appMap.invalidateSize(),200);}}
+// ── FARMER LOGIN & SAVED FIELDS ───────────────────────────────────────────
+
+function openApp(){
+  // Show login modal first if not logged in
+  const modal = document.getElementById('loginModal');
+  if(!farmerId && modal){
+    modal.style.display='flex';
+    setTimeout(()=>document.getElementById('phoneInput').focus(), 100);
+    return;
+  }
+  _doOpenApp();
+}
+
+async function loginFarmer(){
+  const phone = document.getElementById('phoneInput').value.trim();
+  const errEl = document.getElementById('loginError');
+  if(phone.length < 7){
+    errEl.textContent='Please enter a valid phone number';
+    errEl.style.display='block';
+    return;
+  }
+  errEl.style.display='none';
+  const btn = document.querySelector('#loginModal button');
+  btn.textContent='Loading...';btn.disabled=true;
+
+  try{
+    const resp = await fetch(API+'/farmer',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({phone, province:'Afghanistan', language:appLang})
+    });
+    const d = await resp.json();
+    if(d.farmer_id){
+      farmerId    = d.farmer_id;
+      farmerPhone = phone;
+      savedFields = d.fields || [];
+      document.getElementById('loginModal').style.display='none';
+      _doOpenApp();
+      // Load saved fields on map
+      if(savedFields.length > 0){
+        notify('Welcome back! Loading your '+savedFields.length+' saved field(s)');
+        setTimeout(loadSavedFields, 800);
+      } else {
+        notify('Welcome! Draw your first field to get started');
+      }
+    } else {
+      errEl.textContent = d.error || 'Could not connect. Try again.';
+      errEl.style.display='block';
+      btn.textContent='Continue →'; btn.disabled=false;
+    }
+  } catch(e){
+    // If API fails, skip login gracefully
+    skipLogin();
+  }
+}
+
+function skipLogin(){
+  document.getElementById('loginModal').style.display='none';
+  _doOpenApp();
+  notify('Using without account — fields will not be saved between visits');
+}
+
+function _doOpenApp(){
+document.getElementById('appOverlay').classList.add('open');document.body.style.overflow='hidden';if(!mapInited){setTimeout(initMap,100);}else if(appMap){setTimeout(()=>appMap.invalidateSize(),200);}}
+}
+
 function closeApp(){document.getElementById('appOverlay').classList.remove('open');document.body.style.overflow='';}
 
 function initMap(){
@@ -1099,6 +1165,64 @@ function finishPoly(){
   hideTip();notify('✓ Field drawn — '+j+' jereb');document.getElementById('tb-analyse').disabled=false;
 }
 function tbDraw(){pts=[];ptMarkers.forEach(m=>appMap.removeLayer(m));ptMarkers=[];if(polyLayer){appMap.removeLayer(polyLayer);polyLayer=null;}document.getElementById('tb-analyse').disabled=true;showTip('Click map to draw · Double-click to finish');}
+function loadSavedFields(){
+  if(!savedFields || savedFields.length === 0 || !appMap) return;
+  savedFields.forEach(field => {
+    if(!field.coords || field.coords.length < 3) return;
+    const coords = field.coords;
+    // Get last NDVI from analyses if available
+    const lastAnalysis = field.analyses && field.analyses.length > 0
+      ? field.analyses[0] : null;
+    const lastNdvi = lastAnalysis ? lastAnalysis.ndvi : null;
+    const col = lastNdvi >= 0.30 ? '#16a34a'
+              : lastNdvi >= 0.18 ? '#d97706' : '#dc2626';
+
+    // Draw saved field on map
+    const poly = L.polygon(coords, {
+      color: col, weight: 2, fillColor: col,
+      fillOpacity: 0.15, dashArray: '5,4'
+    }).addTo(appMap);
+
+    // Popup with field info
+    const ndviText = lastNdvi ? 'NDVI ' + lastNdvi.toFixed(2) : 'Not yet analysed';
+    const dateText = lastAnalysis
+      ? new Date(lastAnalysis.analysed_at).toLocaleDateString() : '';
+    poly.bindPopup(
+      '<div style="font-family:monospace;font-size:12px;min-width:140px">'+
+      '<b style="color:'+col+'">'+( field.name||'Field')+'</b><br>'+
+      field.area_jereb+'j · '+field.area_ha+'ha<br>'+
+      ndviText + (dateText?' · '+dateText:'')+'<br>'+
+      '<button onclick="reloadField(''+field.id+'')" '+
+      'style="margin-top:4px;padding:3px 8px;background:#16a34a;'+
+      'color:#fff;border:none;border-radius:4px;cursor:pointer;'+
+      'font-size:11px">Re-analyse</button>'+
+      '</div>'
+    );
+  });
+  // Fit map to show all saved fields
+  if(savedFields.length > 0 && savedFields[0].coords){
+    const allCoords = savedFields.flatMap(f => f.coords||[]);
+    if(allCoords.length > 0){
+      const lats = allCoords.map(c=>c[0]);
+      const lons = allCoords.map(c=>c[1]);
+      appMap.fitBounds([
+        [Math.min(...lats),Math.min(...lons)],
+        [Math.max(...lats),Math.max(...lons)]
+      ], {padding:[40,40]});
+    }
+  }
+}
+
+function reloadField(fieldId){
+  const field = savedFields.find(f => f.id === fieldId);
+  if(!field || !field.coords) return;
+  // Set pts to saved field coords
+  pts.length = 0;
+  field.coords.forEach(c => pts.push(c));
+  // Trigger re-analysis
+  tbAnalyse();
+}
+
 function tbClear(){
   clearIndexOverlay();tbDraw();closeRp();hideTip();}
 
@@ -1408,52 +1532,62 @@ function spatialNoise(r, c, scale1=2.7, scale2=1.9, scale3=0.8, amplitude=0.06) 
 // Checks center + 4 corners — cell only drawn if MAJORITY are inside
 function generatePixelGrid(ptArray, baseValue, indexName) {
   if (!ptArray || ptArray.length < 3) return [];
-  const GRID = 36; // slightly higher resolution
-  const lats = ptArray.map(p => p[0]);
-  const lons  = ptArray.map(p => p[1]);
+
+  // ── Compute polygon bounding box ───────────────────────────────────────
+  const lats   = ptArray.map(p => p[0]);
+  const lons   = ptArray.map(p => p[1]);
   const minLat = Math.min(...lats), maxLat = Math.max(...lats);
   const minLon = Math.min(...lons), maxLon = Math.max(...lons);
   const latSpan = maxLat - minLat;
   const lonSpan = maxLon - minLon;
-  const latM  = latSpan * 111000;
-  const lonM  = lonSpan * 111000 * Math.cos(((minLat+maxLat)/2) * Math.PI/180);
-  const pixM  = Math.round(Math.max(latM, lonM) / GRID);
 
-  const cells = [];
-  const pal   = INDEX_PALETTES[indexName] || INDEX_PALETTES['NDVI'];
-  const isWater = ['MNDWI','LSWI','NDMI','NDWI'].includes(indexName);
-  const amp = isWater ? 0.04 : 0.07;
+  // ── Adaptive grid resolution ───────────────────────────────────────────
+  // More cells for wide fields, fewer for narrow — keeps pixels ~10-15m
+  const latM   = latSpan * 111000;
+  const lonM   = lonSpan * 111000 * Math.cos(((minLat+maxLat)/2)*Math.PI/180);
+  const maxDim = Math.max(latM, lonM);
+  // Target ~12m pixels — adjust grid size accordingly
+  const GRID   = Math.min(48, Math.max(20, Math.round(maxDim / 12)));
+  const pixM   = Math.round(maxDim / GRID);
 
-  // Cell size
   const dLat = latSpan / GRID;
   const dLon = lonSpan / GRID;
 
+  const cells   = [];
+  const pal     = INDEX_PALETTES[indexName] || INDEX_PALETTES['NDVI'];
+  const isWater = ['MNDWI','LSWI','NDMI','NDWI'].includes(indexName);
+  const amp     = isWater ? 0.035 : 0.065;
+
+  // ── Strict containment: sample 5 points per cell ───────────────────────
+  // All 5 must be inside polygon — eliminates ALL edge bleeding
+  // 5 points: center + 4 inner corners at 30% inset from cell edge
+  const INSET = 0.30; // 30% inset from edge — strict containment
+
   for (let r = 0; r < GRID; r++) {
     for (let co = 0; co < GRID; co++) {
-      // Cell boundaries
-      const lat1 = minLat + r * dLat;
-      const lat2 = lat1 + dLat;
-      const lon1 = minLon + co * dLon;
-      const lon2 = lon1 + dLon;
-      const cLat = (lat1 + lat2) / 2;
-      const cLon = (lon1 + lon2) / 2;
+      const lat1 = minLat + r       * dLat;
+      const lat2 = minLat + (r + 1) * dLat;
+      const lon1 = minLon + co      * dLon;
+      const lon2 = minLon + (co + 1)* dLon;
+      const cLat = (lat1 + lat2) * 0.5;
+      const cLon = (lon1 + lon2) * 0.5;
 
-      // Check center + 4 corners + 4 edge midpoints = 9 sample points
-      // Cell drawn only if CENTER is inside (strict boundary adherence)
+      // Quick reject: center must be inside
       if (!pointInPoly([cLat, cLon], ptArray)) continue;
 
-      // Additionally verify at least 3 of 4 corners are inside
-      // This eliminates cells that only barely clip the boundary
-      const corners = [
-        [lat1 + dLat*0.15, lon1 + dLon*0.15],  // inner bottom-left
-        [lat1 + dLat*0.15, lon2 - dLon*0.15],  // inner bottom-right
-        [lat2 - dLat*0.15, lon1 + dLon*0.15],  // inner top-left
-        [lat2 - dLat*0.15, lon2 - dLon*0.15],  // inner top-right
-      ];
-      const insideCount = corners.filter(pt => pointInPoly(pt, ptArray)).length;
-      // Require at least 2 of 4 inner corners inside — removes edge artifacts
-      if (insideCount < 2) continue;
+      // Strict check: all 4 inset corners must also be inside
+      // This ensures NO pixel crosses the boundary
+      const iLat1 = lat1 + dLat * INSET;
+      const iLat2 = lat2 - dLat * INSET;
+      const iLon1 = lon1 + dLon * INSET;
+      const iLon2 = lon2 - dLon * INSET;
 
+      if (!pointInPoly([iLat1, iLon1], ptArray)) continue;
+      if (!pointInPoly([iLat1, iLon2], ptArray)) continue;
+      if (!pointInPoly([iLat2, iLon1], ptArray)) continue;
+      if (!pointInPoly([iLat2, iLon2], ptArray)) continue;
+
+      // ── Compute index value with spatial noise ────────────────────────
       const noise   = spatialNoise(r, co, 2.7, 1.9, 0.8, amp);
       const cellVal = Math.max(
         pal.stops[0][0],
@@ -1461,13 +1595,13 @@ function generatePixelGrid(ptArray, baseValue, indexName) {
       );
       const [rr,gg,bb] = interpolateColor(cellVal, pal.stops);
 
-      // Inset each cell slightly (2% margin) — removes hairline gaps
-      const inset = 0.02;
+      // Draw cell with tiny inset to avoid hairline gaps between cells
+      const GAP = 0.04;
       cells.push({
-        lat1: lat1 + dLat*inset,
-        lat2: lat2 - dLat*inset,
-        lon1: lon1 + dLon*inset,
-        lon2: lon2 - dLon*inset,
+        lat1: lat1 + dLat * GAP,
+        lat2: lat2 - dLat * GAP,
+        lon1: lon1 + dLon * GAP,
+        lon2: lon2 - dLon * GAP,
         val:  cellVal,
         r: rr, g: gg, b: bb,
         pixM: pixM
@@ -1696,7 +1830,7 @@ async function tbAnalyse(){
     monthly_rain:estMonthlyRain,source:'regional',soil:null,
     ndre:null,gndvi:null,vci:null,ndwi:null,ndmi:null,drought:null};
   // Try real API
-  fetch(API+'/analyse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({coords:pts.map(p=>[p[0],p[1]]),year:new Date().getFullYear(),province:fieldData.prov||'Afghanistan'})})
+  fetch(API+'/analyse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({coords:pts.map(p=>[p[0],p[1]]),year:new Date().getFullYear(),province:fieldData.prov||'Afghanistan',farmer_id:farmerId,label:fieldData.prov||'Field'})})
     .then(r=>r.json()).then(d=>{if(d.status==='success'&&d.ndvi){fieldData.ndvi=d.ndvi;fieldData.mndwi=d.mndwi||d.water;fieldData.rain=d.rain||rain;fieldData.trend=d.trend||d.ndvi_trend||trend;
       fieldData.evi=d.evi||null;fieldData.savi=d.savi||null;
       fieldData.lswi=d.lswi||null;fieldData.crops=d.crops||[];
@@ -2109,7 +2243,7 @@ function renderReport(){
   // ── Write full report ─────────────────────────────────────────────────────
   document.getElementById('rp-body').innerHTML =
     // Save badge
-    '<div class="save-badge" id="sbdg"><span class="spin"></span> Saving…</div>'+
+    '<div class="save-badge" id="sbdg">'+(farmerId?'<span class="spin"></span> Saving…':'⚠️ Login to save')+'</div>'+
 
     // 1. Mini-map
     '<div class="rep-sec">'+
