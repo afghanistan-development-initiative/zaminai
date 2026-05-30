@@ -1306,7 +1306,7 @@ async function tbAnalyse(){
   drawnPts=[...pts];
   const btn=document.getElementById('tb-analyse');
   btn.innerHTML='<span class="spin"></span> Analysing...';btn.disabled=true;
-  showRp();
+  document.getElementById('reportPanel').classList.add('open');
   document.getElementById('rp-body').innerHTML=`<div style="text-align:center;padding:2.5rem 1rem"><div style="font-size:44px;animation:spinA 1s linear infinite;display:inline-block">🛰️</div><div style="font-family:var(--D);font-size:22px;color:var(--g);margin:1rem 0">Analysing satellite data…</div><div style="font-family:var(--M);font-size:11px;color:var(--m2);line-height:1.8">Loading Sentinel-2<br>Calculating NDVI · Water · Rainfall</div></div>`;
   const lats=pts.map(p=>p[0]),lons=pts.map(p=>p[1]);
   const clat=lats.reduce((a,b)=>a+b,0)/lats.length,clon=lons.reduce((a,b)=>a+b,0)/lons.length;
