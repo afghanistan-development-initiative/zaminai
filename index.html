@@ -1350,13 +1350,18 @@ function renderReport(){
 if(pts.length>0){
   const cLat=pts.reduce((s,p)=>s+p[0],0)/pts.length;
   const cLon=pts.reduce((s,p)=>s+p[1],0)/pts.length;
+
   loadWeather(cLat,cLon,appLang).then(html=>{
     if(html){
       const body=document.getElementById('rp-body');
       const firstSec=body.querySelector('.rep-sec');
+
+      // Remove old weather widgets first
+      document.querySelectorAll('.weather-section').forEach(el=>el.remove());
+
       if(firstSec){
         const wDiv=document.createElement('div');
-        wDiv.className='rep-sec';
+        wDiv.className='rep-sec weather-section';
         wDiv.innerHTML='<div class="rep-title">🌤️ Weather forecast</div>'+html;
         firstSec.parentNode.insertBefore(wDiv,firstSec.nextSibling);
       }
