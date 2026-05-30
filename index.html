@@ -308,6 +308,18 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
 @keyframes vpulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.4);}50%{box-shadow:0 0 0 9px rgba(220,38,38,0);}}
 @keyframes spinA{to{transform:rotate(360deg);}}
 @keyframes yblink{0%,100%{opacity:.55;}50%{opacity:1;}}
+/* WEATHER WIDGET */
+.weather-card{background:linear-gradient(135deg,#0ea5e9 0%,#0284c7 100%);border-radius:12px;padding:14px;color:#fff;margin-bottom:1.1rem;box-shadow:0 4px 12px rgba(2,132,199,.2);}
+.weather-current{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.weather-current .temp-big{font-family:var(--D);font-size:36px;line-height:1;}
+.weather-days{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;}
+.weather-day{background:rgba(255,255,255,.15);border-radius:8px;padding:7px 3px;text-align:center;font-size:10px;}
+.weather-day .day-name{font-weight:600;opacity:.9;margin-bottom:3px;}
+.weather-day .icon{font-size:18px;margin:3px 0;}
+.weather-day .tmax{font-weight:700;font-size:12px;}
+.weather-day .tmin{opacity:.7;font-size:10px;}
+.weather-day .rain{font-size:9px;color:#bae6fd;margin-top:2px;}
+.weather-alert{background:rgba(220,38,38,.9);border-radius:6px;padding:6px 10px;margin-top:8px;font-size:11px;font-family:var(--M);}
 @media(max-width:1024px){nav{padding:1rem 2rem;}.nav-links{display:none;}section{padding:5rem 2rem;}.hero{padding:7rem 2rem 4rem;}.cta{padding:6rem 2rem;}footer{padding:2rem;}.pa,.feat-grid,.roadmap-grid,.yolo-grid,.global-grid,.calc-wrap{grid-template-columns:1fr;}.steps{grid-template-columns:1fr 1fr;}.sdg-grid{grid-template-columns:repeat(3,1fr);}.lang-cards,.stat-row,.gstats{grid-template-columns:1fr 1fr;}}
 @media(max-width:600px){.steps,.sdg-grid,.lang-cards,.stat-row,.gstats{grid-template-columns:1fr;}.rp{width:100%;}.toolbar{padding:4px 6px;gap:3px;}.tb{padding:6px 9px;font-size:10px;}}
 </style>
@@ -1332,7 +1344,25 @@ function renderReport(){
     rainHTML+soilHTML+seasonHTML+
     '<div class="rep-sec"><button onclick="openAIPanel()" style="width:100%;padding:13px;background:var(--gd);color:#4ade80;border:none;border-radius:8px;font-family:var(--M);font-size:13px;cursor:pointer;letter-spacing:.04em">🤖 Ask AI about your field →</button></div>';
 
+  
   setTimeout(()=>{const b=document.getElementById('sbdg');if(b){b.innerHTML='✓ Analysis complete';b.style.background='var(--gb)';}},2000);
+  // Load weather for this field
+if(pts.length>0){
+  const cLat=pts.reduce((s,p)=>s+p[0],0)/pts.length;
+  const cLon=pts.reduce((s,p)=>s+p[1],0)/pts.length;
+  loadWeather(cLat,cLon,appLang).then(html=>{
+    if(html){
+      const body=document.getElementById('rp-body');
+      const firstSec=body.querySelector('.rep-sec');
+      if(firstSec){
+        const wDiv=document.createElement('div');
+        wDiv.className='rep-sec';
+        wDiv.innerHTML='<div class="rep-title">🌤️ Weather forecast</div>'+html;
+        firstSec.parentNode.insertBefore(wDiv,firstSec.nextSibling);
+      }
+    }
+  });
+}
   setTimeout(initMiniMap,400);
   setTimeout(()=>{if(drawnPts&&drawnPts.length>=3&&appMap){if(!appMap.getPane('ndviPane')){appMap.createPane('ndviPane');appMap.getPane('ndviPane').style.zIndex=450;appMap.getPane('ndviPane').style.pointerEvents='auto';}showIndexOverlay('NDVI',ndvi);}},800);
 }
@@ -1374,6 +1404,22 @@ function initMiniMap(){
 }
 
 function showRp(){document.getElementById('rp').classList.add('open');}
+// ── WEATHER FORECAST ──────────────────────────────────────────────────────────
+async function loadWeather(lat,lon,lang){
+  try{
+    const r=await fetch(API+'/weather',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lat,lon,lang:lang||'en'})});
+    const d=await r.json();
+    if(!d.ok||!d.forecast)return'';
+    const L={en:{title:'7-Day Weather',now:'Now',wind:'km/h'},fa:{title:'هواشناسی ۷ روزه',now:'حالا',wind:'کیلومتر/ساعت'},ps:{title:'د ۷ ورځو هوا',now:'اوس',wind:'کیلومتر/ساعت'}}[lang]||{title:'7-Day Weather',now:'Now',wind:'km/h'};
+    const AT={en:{heavy_rain:'🌧️ Heavy rain',frost:'❄️ Frost warning',extreme_heat:'🔥 Extreme heat',high_wind:'💨 Strong wind'},fa:{heavy_rain:'🌧️ باران شدید',frost:'❄️ هشدار یخبندان',extreme_heat:'🔥 گرمای شدید',high_wind:'💨 باد شدید'},ps:{heavy_rain:'🌧️ سخت باران',frost:'❄️ د کنګل خبرتیا',extreme_heat:'🔥 سخته ګرمي',high_wind:'💨 سخت باد'}}[lang]||{heavy_rain:'Heavy rain',frost:'Frost',extreme_heat:'Heat',high_wind:'Wind'};
+    let html=`<div class="weather-card"><div class="weather-current"><div><div style="font-size:12px;opacity:.9">${L.title}</div><div class="temp-big">${d.current.temp}°C</div><div style="font-size:11px;opacity:.85">${L.now} · 💨 ${d.current.wind} ${L.wind}</div></div></div><div class="weather-days">`;
+    d.forecast.forEach(day=>{html+=`<div class="weather-day"><div class="day-name">${day.day_name}</div><div class="icon">${day.icon}</div><div class="tmax">${day.temp_max}°</div><div class="tmin">${day.temp_min}°</div>${day.rain_mm>0?`<div class="rain">💧${day.rain_mm}</div>`:''}</div>`;});
+    html+='</div>';
+    if(d.alerts&&d.alerts.length){const seen=new Set();d.alerts.forEach(a=>{if(!seen.has(a.type)){html+=`<div class="weather-alert">${AT[a.type]||a.type}</div>`;seen.add(a.type);}});}
+    html+='</div>';
+    return html;
+  }catch(e){return'';}
+}
 function closeRp(){document.getElementById('rp').classList.remove('open');}
 
 // ── AI ────────────────────────────────────────────────────────────────────────
