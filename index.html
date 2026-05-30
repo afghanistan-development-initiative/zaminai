@@ -1407,7 +1407,10 @@ function renderReport(){
     '<div class="rep-sec"><button onclick="openAIPanel()" style="width:100%;padding:13px;background:var(--gd);color:#4ade80;border:none;border-radius:8px;font-family:var(--M);font-size:13px;cursor:pointer;letter-spacing:.04em">🤖 Ask AI about your field →</button></div>';
 
   
-  setTimeout(()=>{const b=document.getElementById('sbdg');if(b){b.innerHTML='✓ Analysis complete';b.style.background='var(--gb)';}},2000);
+setTimeout(initMiniMap, 1000);
+
+setTimeout(()=>{const b=document.getElementById('sbdg');if(b){b.innerHTML='✓ Analysis complete';b.style.background='var(--gb)';}},2000);
+// Load weather for this field
   // Load weather for this field
 if(pts.length>0){
   const cLat=pts.reduce((s,p)=>s+p[0],0)/pts.length;
@@ -1683,7 +1686,7 @@ async function loadWeather(lat,lon,lang){
     return html;
   }catch(e){return'';}
 }
-function closeRp(){document.getElementById('rp').classList.remove('open');}
+function closeRp(){document.getElementById('reportPanel').classList.remove('open');}
 
 // ── AI ────────────────────────────────────────────────────────────────────────
 function openAIPanel(){document.getElementById('aiPanel').classList.add('open');}
