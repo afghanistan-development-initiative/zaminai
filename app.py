@@ -805,6 +805,140 @@ def soil():
         s["status"]="ok"; return jsonify(s)
     except Exception as e: return jsonify({"error":str(e)}),500
 
+# ============================================================
+# ZaminAI WEATHER FORECAST ENDPOINT
+# Add this to your app.py
+# Free Open-Meteo API — no key needed
+# ============================================================
+
+import requests
+from functools import lru_cache
+from datetime import datetime, timedelta
+
+# Simple in-memory cache (1 hour) to reduce API calls
+_weather_cache = {}
+
+WEATHER_CODE_MAP = {
+    0:  {"icon": "☀️", "en": "Clear sky",          "dr": "آسمان صاف",     "ps": "روښانه آسمان"},
+    1:  {"icon": "🌤️", "en": "Mainly clear",        "dr": "اکثرا صاف",     "ps": "اکثرا روښانه"},
+    2:  {"icon": "⛅",  "en": "Partly cloudy",      "dr": "نیمه ابری",     "ps": "نیمه وریځو"},
+    3:  {"icon": "☁️", "en": "Cloudy",              "dr": "ابری",         "ps": "وریځو"},
+    45: {"icon": "🌫️", "en": "Foggy",               "dr": "مه",           "ps": "لړه"},
+    48: {"icon": "🌫️", "en": "Foggy",               "dr": "مه",           "ps": "لړه"},
+    51: {"icon": "🌦️", "en": "Light drizzle",       "dr": "باران سبک",    "ps": "سپک باران"},
+    53: {"icon": "🌦️", "en": "Drizzle",             "dr": "باران",        "ps": "باران"},
+    55: {"icon": "🌧️", "en": "Heavy drizzle",       "dr": "باران شدید",   "ps": "سخت باران"},
+    61: {"icon": "🌧️", "en": "Light rain",          "dr": "باران سبک",    "ps": "سپک باران"},
+    63: {"icon": "🌧️", "en": "Rain",                "dr": "باران",        "ps": "باران"},
+    65: {"icon": "⛈️", "en": "Heavy rain",          "dr": "باران شدید",   "ps": "سخت باران"},
+    71: {"icon": "🌨️", "en": "Light snow",          "dr": "برف سبک",     "ps": "سپک واوره"},
+    73: {"icon": "🌨️", "en": "Snow",                "dr": "برف",         "ps": "واوره"},
+    75: {"icon": "❄️", "en": "Heavy snow",          "dr": "برف شدید",    "ps": "سخت واوره"},
+    80: {"icon": "🌧️", "en": "Rain showers",        "dr": "رگبار",       "ps": "بارانونه"},
+    81: {"icon": "🌧️", "en": "Heavy showers",       "dr": "رگبار شدید",  "ps": "سخت بارانونه"},
+    95: {"icon": "⛈️", "en": "Thunderstorm",        "dr": "طوفان رعد",    "ps": "د تندر طوفان"},
+    96: {"icon": "⛈️", "en": "Thunderstorm + hail", "dr": "طوفان + ژاله", "ps": "طوفان + ږلۍ"},
+}
+
+DAY_NAMES = {
+    "en": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    "dr": ["دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه", "شنبه", "یکشنبه"],
+    "ps": ["دوشنبه", "درېشنبه", "چهارشنبه", "پنجشنبه", "جمعه", "شنبه", "یکشنبه"]
+}
+
+
+@app.route("/weather", methods=["POST"])
+def weather_forecast():
+    """7-day weather forecast for any field location.
+    Uses free Open-Meteo API — no key, no rate limit issues.
+    """
+    try:
+        data = request.get_json()
+        lat = float(data.get("lat"))
+        lon = float(data.get("lon"))
+        lang = data.get("lang", "en")  # en, dr, ps
+
+        # Cache key — round to 0.1° (~11km) so nearby fields share cache
+        cache_key = f"{round(lat, 1)},{round(lon, 1)}"
+
+        # Check cache (valid for 1 hour)
+        if cache_key in _weather_cache:
+            cached_time, cached_data = _weather_cache[cache_key]
+            if datetime.now() - cached_time < timedelta(hours=1):
+                return jsonify({**cached_data, "cached": True})
+
+        # Call Open-Meteo (free, no API key needed)
+        url = "https://api.open-meteo.com/v1/forecast"
+        params = {
+            "latitude": lat,
+            "longitude": lon,
+            "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode,windspeed_10m_max",
+            "current_weather": "true",
+            "timezone": "Asia/Kabul",
+            "forecast_days": 7
+        }
+
+        r = requests.get(url, params=params, timeout=10)
+        r.raise_for_status()
+        raw = r.json()
+
+        # Build clean response
+        daily = raw.get("daily", {})
+        current = raw.get("current_weather", {})
+
+        forecast = []
+        for i in range(len(daily.get("time", []))):
+            date_str = daily["time"][i]
+            dt = datetime.strptime(date_str, "%Y-%m-%d")
+            day_idx = dt.weekday()  # 0=Mon
+
+            code = daily["weathercode"][i]
+            code_info = WEATHER_CODE_MAP.get(code, WEATHER_CODE_MAP[3])
+
+            forecast.append({
+                "date": date_str,
+                "day_name": DAY_NAMES[lang][day_idx] if lang in DAY_NAMES else DAY_NAMES["en"][day_idx],
+                "temp_max": round(daily["temperature_2m_max"][i]),
+                "temp_min": round(daily["temperature_2m_min"][i]),
+                "rain_mm": round(daily["precipitation_sum"][i], 1),
+                "wind_kmh": round(daily["windspeed_10m_max"][i]),
+                "weather_code": code,
+                "icon": code_info["icon"],
+                "description": code_info[lang] if lang in code_info else code_info["en"]
+            })
+
+        # Detect alerts for the agent system later
+        alerts = []
+        for day in forecast:
+            if day["rain_mm"] >= 20:
+                alerts.append({"day": day["day_name"], "type": "heavy_rain", "value": day["rain_mm"]})
+            if day["temp_min"] <= 0:
+                alerts.append({"day": day["day_name"], "type": "frost", "value": day["temp_min"]})
+            if day["temp_max"] >= 40:
+                alerts.append({"day": day["day_name"], "type": "extreme_heat", "value": day["temp_max"]})
+            if day["wind_kmh"] >= 50:
+                alerts.append({"day": day["day_name"], "type": "high_wind", "value": day["wind_kmh"]})
+
+        result = {
+            "ok": True,
+            "current": {
+                "temp": round(current.get("temperature", 0)),
+                "wind": round(current.get("windspeed", 0))
+            },
+            "forecast": forecast,
+            "alerts": alerts,
+            "location": {"lat": lat, "lon": lon},
+            "cached": False
+        }
+
+        # Save to cache
+        _weather_cache[cache_key] = (datetime.now(), result)
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
 
 if __name__=="__main__":
     port=int(os.environ.get("PORT",5000))
