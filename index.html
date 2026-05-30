@@ -772,7 +772,7 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
       <button class="gm-btn" id="gmb" onclick="gpsAutoDraw()">📍 Draw on map →</button>
     </div>
     <div class="draw-tip" id="drawTip">Click map to draw · Double-click to finish</div>
-    <div class="rp" id="rp">
+    <div class="rp" id="reportPanel">
       <div class="rp-head"><div class="rp-logo">🌱 ZaminAI Report</div><div class="rp-info" id="rp-info">Field analysis</div><button class="rp-close" onclick="closeRp()">✕</button></div>
       <div class="rp-body" id="rp-body"><div style="text-align:center;padding:3rem 1rem;color:var(--m2)"><div style="font-size:40px">🛰️</div><div style="font-family:var(--M);font-size:12px;margin-top:.75rem">Draw a field and click Analyse</div></div></div>
     </div>
@@ -1306,7 +1306,9 @@ async function tbAnalyse(){
   drawnPts=[...pts];
   const btn=document.getElementById('tb-analyse');
   btn.innerHTML='<span class="spin"></span> Analysing...';btn.disabled=true;
-  document.getElementById('reportPanel').classList.add('open');
+  const panel = document.getElementById('reportPanel') || document.querySelector('.rp');
+if (panel) panel.classList.add('open');
+else console.error('Report panel not found');
   document.getElementById('rp-body').innerHTML=`<div style="text-align:center;padding:2.5rem 1rem"><div style="font-size:44px;animation:spinA 1s linear infinite;display:inline-block">🛰️</div><div style="font-family:var(--D);font-size:22px;color:var(--g);margin:1rem 0">Analysing satellite data…</div><div style="font-family:var(--M);font-size:11px;color:var(--m2);line-height:1.8">Loading Sentinel-2<br>Calculating NDVI · Water · Rainfall</div></div>`;
   const lats=pts.map(p=>p[0]),lons=pts.map(p=>p[1]);
   const clat=lats.reduce((a,b)=>a+b,0)/lats.length,clon=lons.reduce((a,b)=>a+b,0)/lons.length;
