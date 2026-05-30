@@ -308,6 +308,51 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
 @keyframes vpulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.4);}50%{box-shadow:0 0 0 9px rgba(220,38,38,0);}}
 @keyframes spinA{to{transform:rotate(360deg);}}
 @keyframes yblink{0%,100%{opacity:.55;}50%{opacity:1;}}
+/* MULTIPLE FIELDS PANEL */
+.fields-panel{position:absolute;top:0;left:-360px;bottom:0;width:340px;z-index:400;background:var(--w);border-right:1px solid var(--gbr);box-shadow:6px 0 32px rgba(0,0,0,.1);overflow-y:auto;transition:left .4s cubic-bezier(.4,0,.2,1);}
+.fields-panel.open{left:0;}
+.fp-head{background:var(--gd);padding:1rem 1.1rem;position:sticky;top:0;z-index:10;}
+.fp-title{font-family:var(--D);font-size:20px;color:#4ade80;letter-spacing:.05em;}
+.fp-sub{font-family:var(--M);font-size:11px;color:rgba(255,255,255,.55);margin-top:2px;}
+.fp-close{position:absolute;top:10px;right:12px;background:rgba(255,255,255,.1);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;color:#fff;}
+.fp-body{padding:.9rem;}
+.fp-empty{text-align:center;padding:2.5rem 1rem;color:var(--m2);}
+.fp-empty .ic{font-size:42px;margin-bottom:.5rem;}
+.fp-empty .tx{font-family:var(--M);font-size:12px;line-height:1.6;}
+.field-card{background:var(--w);border:1px solid var(--gbr);border-left:4px solid var(--g);border-radius:10px;padding:.85rem;margin-bottom:.65rem;cursor:pointer;transition:all .2s;}
+.field-card:hover{box-shadow:0 4px 12px rgba(22,163,74,.1);transform:translateX(2px);}
+.field-card.green{border-left-color:#16a34a;}
+.field-card.yellow{border-left-color:#d97706;}
+.field-card.red{border-left-color:#dc2626;}
+.field-card.gray{border-left-color:#9ca3af;}
+.fc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;}
+.fc-label{font-family:var(--D);font-size:17px;color:var(--t);line-height:1.2;}
+.fc-area{font-family:var(--M);font-size:10px;color:var(--m2);margin-top:1px;}
+.fc-status{font-family:var(--M);font-size:10px;padding:3px 8px;border-radius:12px;font-weight:600;}
+.fc-status.green{background:#dcfce7;color:#16a34a;}
+.fc-status.yellow{background:#fef3c7;color:#d97706;}
+.fc-status.red{background:#fee2e2;color:#dc2626;}
+.fc-status.gray{background:#f3f4f6;color:#6b7280;}
+.fc-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:7px 0;}
+.fc-met{background:var(--bg);border-radius:6px;padding:5px;text-align:center;}
+.fc-met-v{font-family:var(--D);font-size:15px;line-height:1;color:var(--t);}
+.fc-met-l{font-family:var(--M);font-size:8px;color:var(--m2);margin-top:2px;text-transform:uppercase;}
+.fc-actions{display:flex;gap:4px;margin-top:7px;}
+.fc-btn{flex:1;font-family:var(--M);font-size:10px;padding:6px 5px;border:1px solid var(--gbr);background:var(--w);border-radius:5px;cursor:pointer;color:var(--m);transition:all .2s;}
+.fc-btn:hover{border-color:var(--g);color:var(--g);background:var(--gb);}
+.fc-btn.primary{background:var(--g);color:#fff;border-color:var(--g);}
+.fc-btn.primary:hover{background:var(--gd);color:#fff;}
+.fc-btn.danger{border-color:#fecaca;color:#dc2626;}
+.fc-btn.danger:hover{background:#fee2e2;border-color:#dc2626;}
+/* CROP CALENDAR WIDGET */
+.cal-card{background:linear-gradient(135deg,#16a34a 0%,#15803d 100%);border-radius:12px;padding:14px;color:#fff;margin-bottom:1.1rem;box-shadow:0 4px 12px rgba(22,163,74,.2);}
+.cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.cal-month{font-family:var(--D);font-size:22px;letter-spacing:.04em;}
+.cal-zone{font-family:var(--M);font-size:10px;background:rgba(255,255,255,.18);padding:3px 9px;border-radius:10px;}
+.cal-items{display:flex;flex-direction:column;gap:6px;}
+.cal-item{background:rgba(255,255,255,.13);border-radius:7px;padding:7px 10px;font-size:12px;line-height:1.5;display:flex;gap:8px;align-items:flex-start;}
+.cal-item .ic{flex-shrink:0;font-size:14px;}
+.cal-item .tx{flex:1;}
 /* WEATHER WIDGET */
 .weather-card{background:linear-gradient(135deg,#0ea5e9 0%,#0284c7 100%);border-radius:12px;padding:14px;color:#fff;margin-bottom:1.1rem;box-shadow:0 4px 12px rgba(2,132,199,.2);}
 .weather-current{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
@@ -682,9 +727,23 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
     <button class="ao-close" onclick="closeApp()">✕ Close</button>
   </div>
   <div class="ao-body">
-    <div id="map"></div>
+    <div class="fields-panel" id="fieldsPanel">
+      <div class="fp-head">
+        <div class="fp-title">📂 <span id="fp-title-txt">My Fields</span></div>
+        <div class="fp-sub" id="fp-count">No fields yet</div>
+        <button class="fp-close" onclick="toggleFieldsPanel()">✕</button>
+      </div>
+      <div class="fp-body" id="fp-body">
+        <div class="fp-empty">
+          <div class="ic">🌱</div>
+          <div class="tx" id="fp-empty-txt">Draw your first field on the map.<br>It will appear here.</div>
+        </div>
+      </div>
+    </div>
     <div class="toolbar">
       <button class="tb on" id="tb-draw" onclick="tbDraw()">✏️ <span id="tbd">Draw field</span></button>
+      <button class="tb" onclick="toggleFieldsPanel()">📂 <span id="tbf">My Fields</span></button>
+      <div class="tb-sep"></div>
       <button class="tb" onclick="showGPS()">📍 <span id="tbg">GPS</span></button>
       <div class="tb-sep"></div>
       <button class="tb" onclick="tbClear()">🗑️ <span id="tbc">Clear</span></button>
@@ -1368,10 +1427,23 @@ if(pts.length>0){
     }
   });
 }
-  setTimeout(initMiniMap,400);
+// Add crop calendar to report
+  try{
+    var calData=renderCropCalendar(prov);
+    var calBody=document.getElementById('rp-body');
+    document.querySelectorAll('.calendar-section').forEach(function(el){el.remove();});
+    if(calBody){
+      var calDiv=document.createElement('div');
+      calDiv.className='rep-sec calendar-section';
+      calDiv.innerHTML='<div class="rep-title">'+calData.title+'</div>'+calData.html;
+      var weatherSec=calBody.querySelector('.weather-section');
+      if(weatherSec){weatherSec.parentNode.insertBefore(calDiv,weatherSec.nextSibling);}
+      else{var firstSec=calBody.querySelector('.rep-sec');if(firstSec)firstSec.parentNode.insertBefore(calDiv,firstSec.nextSibling);}
+    }
+  }catch(e){console.log('Calendar error:',e);}
+  
   setTimeout(()=>{if(drawnPts&&drawnPts.length>=3&&appMap){if(!appMap.getPane('ndviPane')){appMap.createPane('ndviPane');appMap.getPane('ndviPane').style.zIndex=450;appMap.getPane('ndviPane').style.pointerEvents='auto';}showIndexOverlay('NDVI',ndvi);}},800);
 }
-
 function initMiniMap(){
   const el=document.getElementById('miniMap');
   if(!el||!pts.length)return;
@@ -1407,8 +1479,191 @@ function initMiniMap(){
     el.insertAdjacentHTML('beforeend',`<div style="position:absolute;top:6px;right:6px;z-index:999;background:${wCol};color:#fff;padding:3px 8px;border-radius:6px;font-family:monospace;font-size:10px;font-weight:bold;pointer-events:none">${wLabel}</div><div style="position:absolute;bottom:6px;left:6px;z-index:999;background:rgba(0,0,0,.7);color:#fff;padding:3px 8px;border-radius:6px;font-family:monospace;font-size:10px;pointer-events:none">NDVI ${ndvi} · ${ndvi>=.35?'Good':ndvi>=.18?'Moderate':'Stressed'}</div>`);
   }catch(err){if(el)el.innerHTML=`<div style="height:100%;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:28px">${fieldData&&fieldData.ndvi>=.35?'🟢':'🟡'}</div>`;}
 }
+// ── MULTIPLE FIELDS PANEL ─────────────────────────────────────────────────────
+function toggleFieldsPanel(){
+  const p=document.getElementById('fieldsPanel');
+  if(!p)return;
+  p.classList.toggle('open');
+  if(p.classList.contains('open'))refreshFieldsPanel();
+}
 
-function showRp(){document.getElementById('rp').classList.add('open');}
+function refreshFieldsPanel(){
+  const body=document.getElementById('fp-body');
+  const count=document.getElementById('fp-count');
+  if(!body||!count)return;
+  const L={en:{empty:'Draw your first field on the map.<br>It will appear here.',noFields:'No fields yet',saved:'saved',healthy:'Healthy',moderate:'Moderate',stressed:'Stressed',notAnalysed:'Not analysed',show:'📍 Show',reanalyse:'🛰️ Re-analyse',del:'🗑️',ndvi:'NDVI',water:'Water',rain:'mm/yr',loginFirst:'Login with phone to save fields'},fa:{empty:'اولین زمین خود را روی نقشه رسم کنید.<br>اینجا نمایش داده می‌شود.',noFields:'هنوز زمینی ثبت نشده',saved:'ثبت شده',healthy:'سالم',moderate:'متوسط',stressed:'تحت فشار',notAnalysed:'تحلیل نشده',show:'📍 نمایش',reanalyse:'🛰️ تحلیل دوباره',del:'🗑️',ndvi:'NDVI',water:'آب',rain:'م.م/سال',loginFirst:'برای ذخیره زمین‌ها وارد شوید'},ps:{empty:'خپله لومړۍ ځمکه په نقشه کې رسم کړئ.<br>دلته به ښکاره شي.',noFields:'تر اوسه هیڅ ځمکه نشته',saved:'ثبت شوي',healthy:'روغ',moderate:'منځنی',stressed:'تر فشار لاندې',notAnalysed:'تحلیل شوی نه دی',show:'📍 ښودل',reanalyse:'🛰️ بیا تحلیل',del:'🗑️',ndvi:'NDVI',water:'اوبه',rain:'م.م/کال',loginFirst:'د ځمکو ساتلو لپاره ننوځئ'}}[appLang]||{};
+  if(!farmerId){
+    body.innerHTML='<div class="fp-empty"><div class="ic">🔐</div><div class="tx">'+L.loginFirst+'</div></div>';
+    count.textContent='—';
+    return;
+  }
+  if(!savedFields||savedFields.length===0){
+    body.innerHTML='<div class="fp-empty"><div class="ic">🌱</div><div class="tx">'+L.empty+'</div></div>';
+    count.textContent=L.noFields;
+    return;
+  }
+  count.textContent=savedFields.length+' '+L.saved;
+  body.innerHTML=savedFields.map(function(f,idx){
+    var coords=f.coords;
+    if(typeof coords==='string'){try{coords=JSON.parse(coords);}catch(e){coords=[];}}
+    var lastA=(f.analyses&&f.analyses.length>0)?f.analyses[0]:null;
+    var ndvi=lastA?lastA.ndvi:null;
+    var water=lastA?(lastA.mndwi||lastA.water):null;
+    var rain=lastA?lastA.rain:null;
+    var status='gray',statusTxt=L.notAnalysed;
+    if(ndvi!==null&&ndvi!==undefined){
+      if(ndvi>=0.30){status='green';statusTxt=L.healthy;}
+      else if(ndvi>=0.18){status='yellow';statusTxt=L.moderate;}
+      else{status='red';statusTxt=L.stressed;}
+    }
+    var label=f.label||('Field '+(idx+1));
+    var areaJ=f.area_jereb!=null?f.area_jereb:'?';
+    var areaH=f.area_ha!=null?f.area_ha:'?';
+    return '<div class="field-card '+status+'">'+
+      '<div class="fc-top"><div><div class="fc-label">'+label+'</div>'+
+      '<div class="fc-area">'+areaJ+' jereb · '+areaH+' ha</div></div>'+
+      '<span class="fc-status '+status+'">'+statusTxt+'</span></div>'+
+      '<div class="fc-metrics">'+
+      '<div class="fc-met"><div class="fc-met-v">'+(ndvi!==null&&ndvi!==undefined?Number(ndvi).toFixed(2):'—')+'</div><div class="fc-met-l">'+L.ndvi+'</div></div>'+
+      '<div class="fc-met"><div class="fc-met-v">'+(water!==null&&water!==undefined?Number(water).toFixed(2):'—')+'</div><div class="fc-met-l">'+L.water+'</div></div>'+
+      '<div class="fc-met"><div class="fc-met-v">'+(rain!=null?rain:'—')+'</div><div class="fc-met-l">'+L.rain+'</div></div>'+
+      '</div>'+
+      '<div class="fc-actions">'+
+      '<button class="fc-btn primary" onclick="loadFieldToMap(\''+f.id+'\')">'+L.show+'</button>'+
+      '<button class="fc-btn" onclick="reAnalyseField(\''+f.id+'\')">'+L.reanalyse+'</button>'+
+      '<button class="fc-btn danger" onclick="deleteField(\''+f.id+'\')">'+L.del+'</button>'+
+      '</div></div>';
+  }).join('');
+}
+
+function loadFieldToMap(fieldId){
+  var f=savedFields.find(function(x){return String(x.id)===String(fieldId);});
+  if(!f){notify('Field not found');return;}
+  var coords=f.coords;
+  if(typeof coords==='string'){try{coords=JSON.parse(coords);}catch(e){return;}}
+  if(!coords||coords.length<3){notify('Invalid field coordinates');return;}
+  pts=[];
+  ptMarkers.forEach(function(m){appMap.removeLayer(m);});
+  ptMarkers=[];
+  if(polyLayer){appMap.removeLayer(polyLayer);polyLayer=null;}
+  clearIndexOverlay();
+  pts=coords.slice();
+  polyLayer=L.polygon(coords,{color:'#16a34a',fillColor:'#16a34a',fillOpacity:.25,weight:3}).addTo(appMap);
+  appMap.fitBounds(polyLayer.getBounds(),{padding:[40,40]});
+  document.getElementById('tb-analyse').disabled=false;
+  toggleFieldsPanel();
+  notify('📍 '+(f.label||'Field')+' loaded');
+}
+
+function reAnalyseField(fieldId){
+  var f=savedFields.find(function(x){return String(x.id)===String(fieldId);});
+  if(!f){notify('Field not found');return;}
+  var coords=f.coords;
+  if(typeof coords==='string'){try{coords=JSON.parse(coords);}catch(e){return;}}
+  if(!coords||coords.length<3){notify('Invalid field coordinates');return;}
+  pts=coords.slice();
+  if(polyLayer){appMap.removeLayer(polyLayer);polyLayer=null;}
+  polyLayer=L.polygon(coords,{color:'#16a34a',fillColor:'#16a34a',fillOpacity:.2,weight:2.5}).addTo(appMap);
+  appMap.fitBounds(polyLayer.getBounds(),{padding:[40,40]});
+  toggleFieldsPanel();
+  setTimeout(tbAnalyse,400);
+}
+
+function deleteField(fieldId){
+  var msg={en:'Delete this field? This cannot be undone.',fa:'این زمین حذف شود؟ بازگشت ممکن نیست.',ps:'دا ځمکه ړنګه کړئ؟ بیرته راګرځېدل ممکن نه دي.'}[appLang]||'Delete this field?';
+  if(!confirm(msg))return;
+  fetch(API+'/db/field/delete',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({field_id:fieldId,farmer_id:farmerId})})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d.ok){
+        savedFields=savedFields.filter(function(x){return String(x.id)!==String(fieldId);});
+        refreshFieldsPanel();
+        notify('🗑️ Field deleted');
+      }else{
+        notify('Could not delete — server error');
+      }
+    })
+    .catch(function(){
+      savedFields=savedFields.filter(function(x){return String(x.id)!==String(fieldId);});
+      refreshFieldsPanel();
+      notify('🗑️ Removed locally (server offline)');
+    });
+}
+
+// ── CROP CALENDAR ─────────────────────────────────────────────────────────────
+function getCropCalendar(province,lang){
+  var month=new Date().getMonth();
+  var monthNames={en:['January','February','March','April','May','June','July','August','September','October','November','December'],fa:['جنوری','فبروری','مارچ','اپریل','می','جون','جولای','اگست','سپتمبر','اکتوبر','نومبر','دسمبر'],ps:['جنوري','فبروري','مارچ','اپریل','مۍ','جون','جولای','اګست','سپټمبر','اکتوبر','نومبر','دسمبر']};
+  var north=['Kunduz','Balkh','Takhar','Baghlan','Faryab','Badakhshan','Jowzjan','Samangan','Sar-e Pol'];
+  var south=['Kandahar','Helmand','Zabul','Uruzgan','Nimroz'];
+  var east=['Nangarhar','Laghman','Kunar','Nuristan'];
+  var west=['Herat','Farah','Badghis','Ghor'];
+  var highland=['Bamyan','Daikundi','Ghor','Wardak','Logar','Parwan','Panjshir'];
+  var zone='central';
+  if(north.indexOf(province)>=0)zone='north';
+  else if(south.indexOf(province)>=0)zone='south';
+  else if(east.indexOf(province)>=0)zone='east';
+  else if(west.indexOf(province)>=0)zone='west';
+  else if(highland.indexOf(province)>=0)zone='highland';
+  var activities={
+    en:{
+      0:[{ic:'❄️',tx:'Winter — minimal field work. Check wheat seedlings.'},{ic:'🔧',tx:'Repair tools. Plan spring planting.'}],
+      1:[{ic:'❄️',tx:'Late winter. Prepare seeds and fertilizer.'},{ic:'🌱',tx:'Start vegetable seedlings indoors.'}],
+      2:[{ic:'🌾',tx:'Spring wheat — apply first nitrogen (Urea).'},{ic:'🌱',tx:'Plant early vegetables — onions, garlic.'},{ic:'💧',tx:'First irrigation of the season.'}],
+      3:[{ic:'🌾',tx:'Wheat tillering stage — second irrigation.'},{ic:'🌱',tx:'Plant cotton, maize, melons.'},{ic:'🐛',tx:'Watch for aphids on wheat.'}],
+      4:[{ic:'🌾',tx:'Wheat heading — critical water need.'},{ic:'🥬',tx:'Plant summer vegetables — tomato, cucumber.'},{ic:'💧',tx:'Drip irrigation saves 40% water.'}],
+      5:[{ic:'🌾',tx:zone==='north'?'Wheat harvest begins late June.':'Wheat harvest now!'},{ic:'🌱',tx:'Plant rice if water available.'}],
+      6:[{ic:'🌾',tx:'Wheat harvest peak. Store properly to avoid pests.'},{ic:'🍉',tx:'Harvest melons, early vegetables.'}],
+      7:[{ic:'☀️',tx:'Hot month — water early morning or evening.'},{ic:'🌽',tx:'Maize silking — needs water.'},{ic:'🐛',tx:'Pest pressure high — scout fields.'}],
+      8:[{ic:'🍇',tx:'Harvest grapes, pomegranates.'},{ic:'🌱',tx:'Prepare fields for autumn wheat.'},{ic:'🌸',tx:'Plant saffron corms now (Sep–Oct only).'}],
+      9:[{ic:'🌾',tx:'PLANT WINTER WHEAT NOW — best window.'},{ic:'🌸',tx:'Saffron flowering — harvest daily before sunrise.'},{ic:'🍎',tx:'Apple, almond harvest.'}],
+      10:[{ic:'🌾',tx:'Wheat planting continues. Apply DAP at sowing.'},{ic:'🌸',tx:'Last week for saffron harvest.'},{ic:'🔧',tx:'Clean and store equipment.'}],
+      11:[{ic:'❄️',tx:'Wheat in dormancy. Light irrigation if dry.'},{ic:'📚',tx:'Plan next year. Order seeds early.'}]
+    },
+    fa:{
+      0:[{ic:'❄️',tx:'زمستان — کار میدانی کم. نهال گندم را بررسی کنید.'},{ic:'🔧',tx:'ابزارها را تعمیر کنید. برای کشت بهاری برنامه‌ریزی کنید.'}],
+      1:[{ic:'❄️',tx:'اواخر زمستان. تخم و کود را آماده کنید.'},{ic:'🌱',tx:'نهال سبزیجات را در داخل خانه آغاز کنید.'}],
+      2:[{ic:'🌾',tx:'گندم بهاری — کود اوره را اولین بار بدهید.'},{ic:'🌱',tx:'سبزیجات زودرس — پیاز و سیر بکارید.'},{ic:'💧',tx:'اولین آبیاری فصل.'}],
+      3:[{ic:'🌾',tx:'مرحله پنجه‌زنی گندم — آبیاری دوم.'},{ic:'🌱',tx:'پنبه، جواری، خربوزه را بکارید.'},{ic:'🐛',tx:'مراقب شته در گندم باشید.'}],
+      4:[{ic:'🌾',tx:'مرحله خوشه‌بندی گندم — نیاز شدید به آب.'},{ic:'🥬',tx:'سبزیجات تابستانی — بادنجان، بادرنگ بکارید.'},{ic:'💧',tx:'آبیاری قطره‌ای ۴۰٪ آب صرفه‌جویی می‌کند.'}],
+      5:[{ic:'🌾',tx:zone==='north'?'برداشت گندم اواخر جون شروع می‌شود.':'برداشت گندم همین حالا!'},{ic:'🌱',tx:'در صورت موجودیت آب، شالی بکارید.'}],
+      6:[{ic:'🌾',tx:'اوج برداشت گندم. درست نگهداری کنید تا از آفات محفوظ بماند.'},{ic:'🍉',tx:'برداشت خربوزه و سبزیجات زودرس.'}],
+      7:[{ic:'☀️',tx:'ماه گرم — صبح زود یا شام آبیاری کنید.'},{ic:'🌽',tx:'مرحله گل دادن جواری — به آب نیاز دارد.'},{ic:'🐛',tx:'فشار آفات زیاد — مزرعه را بررسی کنید.'}],
+      8:[{ic:'🍇',tx:'برداشت انگور و انار.'},{ic:'🌱',tx:'زمین را برای گندم خزانی آماده کنید.'},{ic:'🌸',tx:'پیاز زعفران را حالا بکارید (فقط سپتمبر-اکتوبر).'}],
+      9:[{ic:'🌾',tx:'گندم خزانی را حالا بکارید — بهترین زمان.'},{ic:'🌸',tx:'گل زعفران — هر روز پیش از طلوع آفتاب برداشت کنید.'},{ic:'🍎',tx:'برداشت سیب و بادام.'}],
+      10:[{ic:'🌾',tx:'کشت گندم ادامه دارد. هنگام کاشت کود دی‌اِی‌پی بدهید.'},{ic:'🌸',tx:'آخرین هفته برداشت زعفران.'},{ic:'🔧',tx:'تجهیزات را پاک و نگهداری کنید.'}],
+      11:[{ic:'❄️',tx:'گندم در حالت خواب. در خشکی آبیاری سبک کنید.'},{ic:'📚',tx:'برای سال بعد برنامه‌ریزی کنید. تخم را زود سفارش دهید.'}]
+    },
+    ps:{
+      0:[{ic:'❄️',tx:'ژمی — د پټي کار لږ. د غنمو نیالګي وګورئ.'},{ic:'🔧',tx:'وسایل ترمیم کړئ. د پسرلي کښت لپاره پلان جوړ کړئ.'}],
+      1:[{ic:'❄️',tx:'د ژمي وروستۍ ورځې. تخم او سره چمتو کړئ.'},{ic:'🌱',tx:'د سبزیجاتو نیالګي په کور دننه پیل کړئ.'}],
+      2:[{ic:'🌾',tx:'د پسرلي غنم — لومړی ځل یوریا سره ورکړئ.'},{ic:'🌱',tx:'وختي سبزیجات — پیاز او اوږه وکرئ.'},{ic:'💧',tx:'د موسم لومړۍ اوبه ورکول.'}],
+      3:[{ic:'🌾',tx:'د غنمو د څانګې وتلو پړاو — دوهم ځل اوبه.'},{ic:'🌱',tx:'پنبه، جوار او خټکي وکرئ.'},{ic:'🐛',tx:'په غنمو کې د شتو څخه ځان وساتئ.'}],
+      4:[{ic:'🌾',tx:'د غنمو د وږي پړاو — د اوبو سخت اړتیا.'},{ic:'🥬',tx:'د دوبي سبزیجات — بانجن او بادرنګ وکرئ.'},{ic:'💧',tx:'د څاڅکي اوبه ۴۰٪ اوبه ساتي.'}],
+      5:[{ic:'🌾',tx:zone==='north'?'د غنمو لو د جون په وروستیو کې پیل کیږي.':'د غنمو لو همدا اوس!'},{ic:'🌱',tx:'که اوبه شته وي، وریجې وکرئ.'}],
+      6:[{ic:'🌾',tx:'د غنمو لو په اوج کې. ښه یې وساتئ ترڅو له افتونو خوندي وي.'},{ic:'🍉',tx:'د خټکیو او وختي سبزیجاتو لو.'}],
+      7:[{ic:'☀️',tx:'ګرمه میاشت — سهار وختي یا ماښام اوبه ورکړئ.'},{ic:'🌽',tx:'د جوار د ګل پړاو — اوبو ته اړتیا لري.'},{ic:'🐛',tx:'د افتونو فشار لوړ — پټي وڅیړئ.'}],
+      8:[{ic:'🍇',tx:'د انګورو او انار لو.'},{ic:'🌱',tx:'د منې غنمو لپاره پټي چمتو کړئ.'},{ic:'🌸',tx:'د زعفرانو پیاز همدا اوس وکرئ (یوازې سپټمبر-اکتوبر).'}],
+      9:[{ic:'🌾',tx:'د منې غنم همدا اوس وکرئ — غوره وخت.'},{ic:'🌸',tx:'د زعفرانو ګل — هره ورځ د لمر له راختلو وړاندې راټول کړئ.'},{ic:'🍎',tx:'د مڼو او بادامو لو.'}],
+      10:[{ic:'🌾',tx:'د غنمو کرل دوام لري. د کرلو پر مهال DAP سره ورکړئ.'},{ic:'🌸',tx:'د زعفرانو راټولولو وروستۍ اونۍ.'},{ic:'🔧',tx:'وسایل پاک او وساتئ.'}],
+      11:[{ic:'❄️',tx:'غنم په خوب کې. که وچ وي سپک اوبه ورکړئ.'},{ic:'📚',tx:'د راتلونکي کال لپاره پلان جوړ کړئ. تخم وختي امر کړئ.'}]
+    }
+  };
+  var data=activities[lang]||activities.en;
+  return{month:monthNames[lang]?monthNames[lang][month]:monthNames.en[month],zone:zone,items:data[month]||[]};
+}
+
+function renderCropCalendar(province){
+  var cal=getCropCalendar(province||'Afghanistan',appLang);
+  var zoneNames={en:{north:'North Zone',south:'South Zone',east:'East Zone',west:'West Zone',central:'Central Zone',highland:'Highland Zone'},fa:{north:'منطقه شمال',south:'منطقه جنوب',east:'منطقه شرق',west:'منطقه غرب',central:'منطقه مرکزی',highland:'منطقه کوهستانی'},ps:{north:'شمالي سیمه',south:'سویلي سیمه',east:'ختیځه سیمه',west:'لویدیځه سیمه',central:'مرکزي سیمه',highland:'غرنۍ سیمه'}};
+  var zn=(zoneNames[appLang]||zoneNames.en)[cal.zone];
+  var titles={en:'📅 Farming activities — '+cal.month,fa:'📅 فعالیت‌های زراعی — '+cal.month,ps:'📅 د کرنې فعالیتونه — '+cal.month};
+  var html='<div class="cal-card"><div class="cal-head"><div class="cal-month">'+cal.month+'</div><div class="cal-zone">'+zn+'</div></div><div class="cal-items">';
+  cal.items.forEach(function(it){html+='<div class="cal-item"><span class="ic">'+it.ic+'</span><span class="tx">'+it.tx+'</span></div>';});
+  html+='</div></div>';
+  return{title:titles[appLang]||titles.en,html:html};
+}
 // ── WEATHER FORECAST ──────────────────────────────────────────────────────────
 async function loadWeather(lat,lon,lang){
   try{
