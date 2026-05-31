@@ -144,10 +144,6 @@ def db_save_field(farmer_id, coords, label, province, area_ha, area_jereb):
 
 
 def db_get_farmer_fields(farmer_id):
-    """
-    Get all saved fields for a farmer.
-    Returns: list of field dicts
-    """
     if not sb_ok or not farmer_id:
         return []
     try:
@@ -156,7 +152,21 @@ def db_get_farmer_fields(farmer_id):
                  .eq("farmer_id", farmer_id)
                  .order("created_at", desc=True)
                  .execute())
-        return res.data or []
+        fields = res.data or []
+        # Attach latest analysis (all real index values) to each field
+        for f in fields:
+            try:
+                a = (sb.table("analyses")
+                       .select("*")
+                       .eq("field_id", f["id"])
+                       .order("analysed_at", desc=True)
+                       .limit(1)
+                       .execute())
+                f["analyses"] = a.data or []
+            except Exception as ae:
+                log.error(f"fetch analyses for field {f.get('id')}: {ae}")
+                f["analyses"] = []
+        return fields
     except Exception as e:
         log.error(f"db_get_farmer_fields: {e}")
         return []
@@ -583,7 +593,28 @@ def db_farmer():
         log.error(f"/db/farmer: {e}")
         return jsonify({"error":str(e)}),500
 
-
+@app.route("/db/field/delete", methods=["POST","OPTIONS"])
+def db_field_delete():
+    """Delete a field and its analyses for a farmer."""
+    if request.method=="OPTIONS": return jsonify({}),200
+    try:
+        d         = request.get_json(force=True)
+        field_id  = d.get("field_id")
+        farmer_id = d.get("farmer_id")
+        if not field_id or not farmer_id:
+            return jsonify({"error":"field_id and farmer_id required"}),400
+        if not sb_ok:
+            return jsonify({"error":"Database unavailable","ok":False}),503
+        try:
+            sb.table("analyses").delete().eq("field_id", field_id).execute()
+        except Exception as ae:
+            log.error(f"delete analyses: {ae}")
+        sb.table("fields").delete().eq("id", field_id).eq("farmer_id", farmer_id).execute()
+        log.info(f"✓ Field {field_id} deleted")
+        return jsonify({"ok":True,"status":"deleted"})
+    except Exception as e:
+        log.error(f"/db/field/delete: {e}")
+        return jsonify({"error":str(e),"ok":False}),500
 @app.route("/db/field/save", methods=["POST","OPTIONS"])
 def db_field_save():
     """Save a drawn field polygon for a farmer."""
