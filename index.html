@@ -940,11 +940,26 @@ let drawnPts=[],activeOverlay=null,activeIndexName=null;
 function openApp(){
   const modal=document.getElementById('loginModal');
   if(!farmerId&&modal){
+    translateLoginModal();
     modal.style.display='flex';
     setTimeout(()=>{const pi=document.getElementById('phoneInput');if(pi)pi.focus();},100);
     return;
   }
   _doOpenApp();
+}
+function translateLoginModal(){
+  var l=pgCurrentLang||'en';
+  var rtl=(l==='fa'||l==='ps');
+  var T2={en:{sub:'Save your fields between visits',phone:'📱 Phone number',note:'🔒 Your number is only used to save your fields.<br>No password. No spam. Works on any phone.',cont:'Continue →',skip:'Skip — use without saving'},fa:{sub:'زمین‌های خود را بین بازدیدها ذخیره کنید',phone:'📱 شماره تلفن',note:'🔒 شماره شما فقط برای ذخیره زمین‌ها استفاده می‌شود.<br>بدون رمز. بدون اسپم. روی هر تلفن کار می‌کند.',cont:'ادامه →',skip:'رد کردن — بدون ذخیره استفاده کنید'},ps:{sub:'خپلې ځمکې د لیدنو ترمنځ وساتئ',phone:'📱 د تلیفون شمیره',note:'🔒 ستاسو شمیره یوازې د ځمکو ساتلو لپاره کارول کیږي.<br>پټنوم نشته. سپام نشته. په هر تلیفون کار کوي.',cont:'دوام →',skip:'پرېښودل — پرته له ساتلو وکاروئ'}}[l]||{};
+  var modal=document.getElementById('loginModal');
+  if(!modal)return;
+  var box=modal.querySelector('div>div');
+  if(box)box.dir=rtl?'rtl':'ltr';
+  var subEl=modal.querySelector('div[style*="text-transform:uppercase"]'); if(subEl)subEl.textContent=T2.sub;
+  var phoneLabel=modal.querySelector('label'); if(phoneLabel)phoneLabel.textContent=T2.phone;
+  var noteEl=modal.querySelector('div[style*="background:#f0fdf4"]'); if(noteEl)noteEl.innerHTML=T2.note;
+  var contBtn=document.getElementById('loginBtn'); if(contBtn)contBtn.textContent=T2.cont;
+  var skipBtn=modal.querySelector('button[onclick="skipLogin()"]'); if(skipBtn)skipBtn.textContent=T2.skip;
 }
 
 async function loginFarmer(){
@@ -1565,7 +1580,7 @@ function renderReport(){
   if(mr.length===12){const maxR=Math.max(...mr),curMo=new Date().getMonth(),mLabels=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];const bars=mr.map((v,i)=>{const h=maxR>0?Math.max(3,Math.round(v/maxR*70)):3,isCur=i===curMo,col=isCur?'#16a34a':v===maxR?'#0284c7':'#38bdf8';const tc2=isCur?'#16a34a':'var(--m2)',fw=isCur?'700':'400';return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-family:var(--M);font-size:7px;color:${tc2};font-weight:${fw}">${Math.round(v)}</div><div style="height:${h}px;width:90%;background:${col};border-radius:3px 3px 0 0;min-height:3px"></div><div style="font-family:var(--M);font-size:7px;color:${tc2};font-weight:${fw}">${mLabels[i].slice(0,1)}</div></div>`;}).join('');rainHTML=`<div class="rep-sec"><div class="rep-title">${rt('rainTitle').replace('{rain}',rain)}</div><div style="display:flex;align-items:flex-end;gap:1px;height:90px;padding:0 2px;margin-bottom:6px">${bars}</div></div>`;}
   const soil=fieldData.soil;
   let soilHTML='';
-  if(soil&&soil.ph){const phCol=soil.ph<6.5?'#dc2626':soil.ph>8.0?'#d97706':'#16a34a',phLabel=soil.ph<6.5?rt('acidic'):soil.ph<=7.3?rt('neutral'):soil.ph<=7.8?rt('slAlkaline'):rt('alkaline');const texItems=[{l:'Clay',v:soil.clay||20,col:'#dc2626'},{l:'Sand',v:soil.sand||40,col:'#d97706'},{l:'Silt',v:soil.silt||40,col:'#16a34a'}];const texBars=texItems.map(t=>`<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-family:var(--M);font-size:10px">${t.l}</span><span style="font-family:var(--M);font-size:10px;color:var(--m2)">${t.v}%</span></div><div style="background:var(--gbr);border-radius:3px;height:8px;overflow:hidden"><div style="width:${Math.min(100,t.v)}%;height:100%;background:${t.col};border-radius:3px"></div></div></div>`).join('');const recsHTML=(soil.recommendations||[]).slice(0,3).map((r,i)=>`<div style="display:flex;gap:8px;padding:6px 0;${i<2?'border-bottom:1px solid var(--gbr)':''}"><span style="color:var(--g)">→</span><span style="font-size:12px;color:var(--m);line-height:1.5">${r}</span></div>`).join('');soilHTML=`<div class="rep-sec"><div class="rep-title">${rt('soilTitle')}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px"><div style="background:var(--bg);border:1px solid var(--gbr);border-radius:8px;padding:.85rem;text-align:center"><div style="font-family:var(--D);font-size:26px;color:${phCol}">${soil.ph}</div><div style="font-family:var(--M);font-size:10px;color:${phCol}">${phLabel}</div><div style="font-family:var(--M);font-size:9px;color:var(--m2);margin-top:2px">${rt('soilPh')}</div></div><div style="background:var(--bg);border:1px solid var(--gbr);border-radius:8px;padding:.85rem;text-align:center"><div style="font-family:var(--D);font-size:26px;color:var(--g)">${soil.soc||0.8}%</div><div style="font-family:var(--M);font-size:9px;color:var(--m2);margin-top:2px">${rt('soilCarbon')}</div></div></div><div style="font-family:var(--M);font-size:11px;font-weight:600;margin-bottom:8px">${rt('soilTexture')}: ${soil.texture||'Loam'}</div>${texBars}<div style="font-family:var(--M);font-size:10px;color:var(--m2);text-transform:uppercase;letter-spacing:.08em;margin:10px 0 4px">${rt('soilRecs')}</div>${recsHTML}</div>`;}else{soilHTML=`<div class="rep-sec"><div class="rep-title">${rt('soilTitle')}</div><div style="background:var(--bg);border:1px solid var(--gbr);border-radius:8px;padding:1rem;text-align:center;color:var(--m2)"><div style="font-size:24px">🌱</div><div style="font-family:var(--M);font-size:11px">${rt('soilLoading')}</div></div></div>`;}
+  if(soil&&soil.ph){const phCol=soil.ph<6.5?'#dc2626':soil.ph>8.0?'#d97706':'#16a34a',phLabel=soil.ph<6.5?rt('acidic'):soil.ph<=7.3?rt('neutral'):soil.ph<=7.8?rt('slAlkaline'):rt('alkaline');var soilL={en:{clay:'Clay',sand:'Sand',silt:'Silt'},fa:{clay:'رس',sand:'ریگ',silt:'لای'},ps:{clay:'خټه',sand:'شګه',silt:'لای'}}[appLang]||{clay:'Clay',sand:'Sand',silt:'Silt'};const texItems=[{l:soilL.clay,v:soil.clay||20,col:'#dc2626'},{l:soilL.sand,v:soil.sand||40,col:'#d97706'},{l:soilL.silt,v:soil.silt||40,col:'#16a34a'}];const texBars=texItems.map(t=>`<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-family:var(--M);font-size:10px">${t.l}</span><span style="font-family:var(--M);font-size:10px;color:var(--m2)">${t.v}%</span></div><div style="background:var(--gbr);border-radius:3px;height:8px;overflow:hidden"><div style="width:${Math.min(100,t.v)}%;height:100%;background:${t.col};border-radius:3px"></div></div></div>`).join('');const recsHTML=(soil.recommendations||[]).slice(0,3).map((r,i)=>`<div style="display:flex;gap:8px;padding:6px 0;${i<2?'border-bottom:1px solid var(--gbr)':''}"><span style="color:var(--g)">→</span><span style="font-size:12px;color:var(--m);line-height:1.5">${r}</span></div>`).join('');soilHTML=`<div class="rep-sec"><div class="rep-title">${rt('soilTitle')}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px"><div style="background:var(--bg);border:1px solid var(--gbr);border-radius:8px;padding:.85rem;text-align:center"><div style="font-family:var(--D);font-size:26px;color:${phCol}">${soil.ph}</div><div style="font-family:var(--M);font-size:10px;color:${phCol}">${phLabel}</div><div style="font-family:var(--M);font-size:9px;color:var(--m2);margin-top:2px">${rt('soilPh')}</div></div><div style="background:var(--bg);border:1px solid var(--gbr);border-radius:8px;padding:.85rem;text-align:center"><div style="font-family:var(--D);font-size:26px;color:var(--g)">${soil.soc||0.8}%</div><div style="font-family:var(--M);font-size:9px;color:var(--m2);margin-top:2px">${rt('soilCarbon')}</div></div></div><div style="font-family:var(--M);font-size:11px;font-weight:600;margin-bottom:8px">${rt('soilTexture')}: ${soil.texture||'Loam'}</div>${texBars}<div style="font-family:var(--M);font-size:10px;color:var(--m2);text-transform:uppercase;letter-spacing:.08em;margin:10px 0 4px">${rt('soilRecs')}</div>${recsHTML}</div>`;}else{soilHTML=`<div class="rep-sec"><div class="rep-title">${rt('soilTitle')}</div><div style="background:var(--bg);border:1px solid var(--gbr);border-radius:8px;padding:1rem;text-align:center;color:var(--m2)"><div style="font-size:24px">🌱</div><div style="font-family:var(--M);font-size:11px">${rt('soilLoading')}</div></div></div>`;}
   const season=fieldData.season||[];
   let seasonHTML='';
   if(season.length){const mo=new Date().toLocaleString('en',{month:'long',year:'numeric'});seasonHTML=`<div class="rep-sec"><div class="rep-title">${rt('actionMonth').replace('{mo}',mo)}</div>${season.map(s=>`<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--gbr);align-items:flex-start"><span style="font-size:18px;flex-shrink:0">${s.type==='urgent'?'🚨':s.type==='now'?'📅':'✅'}</span><div><div style="font-size:13px;font-weight:500">${s.action}</div></div></div>`).join('')}</div>`;}
@@ -1945,7 +1960,7 @@ const AT_UI={
     chatPlaceholder:'Ask about your field...',
     welcome:'Hello! Analyse your field first, then ask me anything about water, crops, or profit.',
     analysing:'Analysing satellite data…', loadingS2:'Loading Sentinel-2', calcNDVI:'Calculating NDVI · Water · Rainfall',
-    drawFirst:'Draw a field and click Analyse', weatherTitle:'🌤️ Weather forecast'
+    drawFirst:'Draw a field and click Analyse', weatherTitle:'🌤️ Weather forecast', tiles:'Map'
   },
   fa:{
     draw:'رسم زمین', myfields:'زمین‌های من', gps:'موقعیت', clear:'پاک کردن', analyse:'تحلیل', reanalyse:'تحلیل دوباره',
@@ -1957,7 +1972,7 @@ const AT_UI={
     chatPlaceholder:'درباره زمین خود بپرسید...',
     welcome:'سلام! اول زمین خود را تحلیل کنید، سپس درباره آب، محصول یا فایده بپرسید.',
     analysing:'در حال تحلیل داده ماهواره…', loadingS2:'بارگذاری Sentinel-2', calcNDVI:'محاسبه NDVI · آب · باران',
-    drawFirst:'زمین را رسم کنید و تحلیل را بزنید', weatherTitle:'🌤️ پیش‌بینی هوا'
+    drawFirst:'زمین را رسم کنید و تحلیل را بزنید', weatherTitle:'🌤️ پیش‌بینی هوا', tiles:'نقشه'
   },
   ps:{
     draw:'ځمکه رسم کول', myfields:'زما ځمکې', gps:'موقعیت', clear:'پاکول', analyse:'تحلیل', reanalyse:'بیا تحلیل',
@@ -1969,7 +1984,7 @@ const AT_UI={
     chatPlaceholder:'د خپلې ځمکې په اړه پوښتنه وکړئ...',
     welcome:'سلام! لومړی خپله ځمکه تحلیل کړئ، بیا د اوبو، محصول یا ګټې په اړه پوښتنه وکړئ.',
     analysing:'د ماهواره معلومات تحلیلیږي…', loadingS2:'Sentinel-2 بارېږي', calcNDVI:'NDVI · اوبه · باران محاسبه کیږي',
-    drawFirst:'ځمکه رسم کړئ او تحلیل کلیک کړئ', weatherTitle:'🌤️ د هوا وړاندوینه'
+    drawFirst:'ځمکه رسم کړئ او تحلیل کلیک کړئ', weatherTitle:'🌤️ د هوا وړاندوینه', tiles:'نقشه'
   }
 };
 function aui(k){var t=AT_UI[appLang]||AT_UI.en;return (t[k]!=null?t[k]:AT_UI.en[k]);}
@@ -1989,7 +2004,7 @@ function applyAppLang(){
   // panels & modal
   set('fp-title-txt',aui('fpTitle'));
   set('ai-title-txt',aui('assistant'));
-  set('rp-info',aui('fieldAnalysis'));
+  var rpLogo=document.querySelector('.rp-logo'); if(rpLogo)rpLogo.textContent='🌱 '+aui('report');
   var fpEmpty=document.getElementById('fp-empty-txt'); if(fpEmpty)fpEmpty.innerHTML=aui('fpEmpty');
   set('gmt',aui('gmTitle'));
   var gmtip=document.getElementById('gmtip'); if(gmtip)gmtip.textContent=aui('gmTip');
