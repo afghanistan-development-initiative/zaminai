@@ -992,6 +992,9 @@ function skipLogin(){
 function _doOpenApp(){
   document.getElementById('appOverlay').classList.add('open');
   document.body.style.overflow='hidden';
+  // carry the main-page language into the app
+  appLang=pgCurrentLang||'en';
+  applyAppLang();
   if(!mapInited){setTimeout(initMap,100);}
   else if(appMap){setTimeout(()=>appMap.invalidateSize(),200);}
 }
@@ -1351,7 +1354,7 @@ async function tbAnalyse(){
   const panel = document.getElementById('reportPanel') || document.querySelector('.rp');
 if (panel) panel.classList.add('open');
 else console.error('Report panel not found');
-  document.getElementById('rp-body').innerHTML=`<div style="text-align:center;padding:2.5rem 1rem"><div style="font-size:44px;animation:spinA 1s linear infinite;display:inline-block">🛰️</div><div style="font-family:var(--D);font-size:22px;color:var(--g);margin:1rem 0">Analysing satellite data…</div><div style="font-family:var(--M);font-size:11px;color:var(--m2);line-height:1.8">Loading Sentinel-2<br>Calculating NDVI · Water · Rainfall</div></div>`;
+  document.getElementById('rp-body').innerHTML=`<div style="text-align:center;padding:2.5rem 1rem"><div style="font-size:44px;animation:spinA 1s linear infinite;display:inline-block">🛰️</div><div style="font-family:var(--D);font-size:22px;color:var(--g);margin:1rem 0">${aui('analysing')}</div><div style="font-family:var(--M);font-size:11px;color:var(--m2);line-height:1.8">${aui('loadingS2')}<br>${aui('calcNDVI')}</div></div>`;
   const lats=pts.map(p=>p[0]),lons=pts.map(p=>p[1]);
   const clat=lats.reduce((a,b)=>a+b,0)/lats.length,clon=lons.reduce((a,b)=>a+b,0)/lons.length;
   const aHa=parseFloat(calcArea(pts)),aJ=parseFloat((aHa*5).toFixed(1));
@@ -1397,85 +1400,209 @@ else console.error('Report panel not found');
   fetch(API+'/soil',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lat:clat,lon:clon,province:fieldData.prov||'Afghanistan'})})
     .then(r=>r.json()).then(d=>{if(d.ph){fieldData.soil=d;renderReport();}}).catch(()=>{});
 }
-
+// ════════════════════════════════════════════════════════════════
+// REPORT TRANSLATIONS (en / fa / ps)
+// Paste this ABOVE function renderReport(){ ... }
+// Maiwand: polish the Dari (fa) and Pashto (ps) wording as needed.
+// ════════════════════════════════════════════════════════════════
+const RT={
+  en:{
+    field:'📍 Your field', jereb:'jereb', ha:'ha',
+    measured:'📊 What the satellite measured',
+    tapIdx:'👆 Tap any index to see it on the map pixel by pixel',
+    source:'Source', overall:'Overall field status',
+    good:'🟢 GOOD', moderate:'🟡 MODERATE', stressed:'🔴 STRESSED',
+    sdGood:'Vegetation healthy for this region.',
+    sdMod:'Some stress — consider irrigation and fertilizer.',
+    sdBad:'Critical stress — act today.',
+    metrics:'Field metrics', mJereb:'Jereb', mHa:'Hectares', mWater:'Water',
+    mRain:'mm/year', mProv:'Province', mWaterNow:'Water now', wOk:'💧 OK', wLow:'🔴 Low',
+    trend:'📈 NDVI trend 2019–2025', worst:'🔴 worst year (2022 drought)', best:'🟢 best year',
+    todo:'What you should do',
+    urgent:'🚨 URGENT', important:'⚠️ IMPORTANT', recommended:'✅ RECOMMENDED',
+    irrTitle:'Irrigate within {d}–{d2} days', irrDesc:'Apply 50–70mm · drip or furrow · early morning',
+    fertTitle:'Apply nitrogen fertilizer now', fertDesc:'Urea {kg} kg · mix into irrigation water',
+    droughtTitle:'Switch to drought-tolerant crops', droughtDesc:'{rain}mm/yr is low · Saffron earns 50× per mm vs wheat',
+    compostTitle:'Add compost before next season', compostDesc:'2–3 tonnes/jereb · improves water retention 30%',
+    bestCrops:'Best crops for your field', highProfit:'High profit', medium:'Medium',
+    income:'💰 Income estimate',
+    iSeed:'Seeds + Fertilizer', iIrr:'Irrigation + Labour', iYield:'Yield estimate',
+    iGross:'Gross income', iNet:'NET PROFIT', kg:'kg',
+    cropDet:'🌾 Crop detection', confidence:'confidence',
+    cropWarn:'⚠️ Satellite crop detection ~70–85% accuracy. Verify in field.',
+    rainTitle:'🌧️ Monthly rainfall — {rain}mm/year',
+    soilTitle:'🌍 Soil analysis', soilPh:'Soil pH', soilCarbon:'Organic carbon',
+    soilTexture:'Texture', soilRecs:'Recommendations', soilLoading:'Loading SoilGrids data…',
+    acidic:'Acidic', neutral:'Neutral', slAlkaline:'Slightly alkaline', alkaline:'Alkaline',
+    actionMonth:'📅 Action this month — {mo}',
+    askAI:'🤖 Ask AI about your field →',
+    saving:'Saving…', saveComplete:'✓ Analysis complete', loginToSave:'⚠️ Login to save fields',
+    cropSaffron:'🌸 Saffron', cropFlax:'🌿 Flax', cropChickpeas:'🫘 Chickpeas',
+    cropWheat:'🌾 Wheat', cropVeg:'🥬 Vegetables', cropCotton:'🌱 Cotton',
+    wSaffron:'300mm water · 50× wheat income', wFlaxDrought:'Drought tolerant · good market',
+    wChickpeas:'Very low water · improves soil', wWheatReliable:'Reliable staple · plant Oct–Nov',
+    wFlaxLess:'Less water than wheat · better income', wVeg3x:'3× income with irrigation',
+    wVegBest:'Best income with water', wWheatPlant:'Reliable · plant Oct–Nov', wCottonExport:'Export market',
+    healthyCrops:'Healthy crops', stressedNeeds:'Stressed — needs attention',
+    goodBiomass:'Good biomass', lowBiomass:'Low biomass', soilAdj:'Corrects for bare soil background',
+    goodWater:'Good water', modWater:'Moderate', lowWaterSoon:'Low — irrigate soon',
+    goodCanopy:'Good canopy water', dryCanopy:'Dry canopy — water stress'
+  },
+  fa:{
+    field:'📍 زمین شما', jereb:'جریب', ha:'هکتار',
+    measured:'📊 آنچه ماهواره اندازه‌گیری کرد',
+    tapIdx:'👆 روی هر شاخص بزنید تا پیکسل به پیکسل روی نقشه ببینید',
+    source:'منبع', overall:'وضعیت کلی زمین',
+    good:'🟢 خوب', moderate:'🟡 متوسط', stressed:'🔴 تحت فشار',
+    sdGood:'پوشش گیاهی برای این منطقه سالم است.',
+    sdMod:'مقداری فشار — آبیاری و کود را در نظر بگیرید.',
+    sdBad:'فشار شدید — امروز اقدام کنید.',
+    metrics:'مشخصات زمین', mJereb:'جریب', mHa:'هکتار', mWater:'آب',
+    mRain:'م.م/سال', mProv:'ولایت', mWaterNow:'آب فعلی', wOk:'💧 خوب', wLow:'🔴 کم',
+    trend:'📈 روند NDVI ۲۰۱۹–۲۰۲۵', worst:'🔴 بدترین سال (خشکسالی ۲۰۲۲)', best:'🟢 بهترین سال',
+    todo:'چه باید بکنید',
+    urgent:'🚨 فوری', important:'⚠️ مهم', recommended:'✅ توصیه شده',
+    irrTitle:'در {d}–{d2} روز آبیاری کنید', irrDesc:'۵۰–۷۰ م.م · قطره‌ای یا جویی · صبح زود',
+    fertTitle:'حالا کود نیتروژن بدهید', fertDesc:'یوریا {kg} کیلوگرام · با آب آبیاری مخلوط کنید',
+    droughtTitle:'به محصولات مقاوم به خشکی تغییر دهید', droughtDesc:'{rain}م.م/سال کم است · زعفران ۵۰ برابر گندم در هر م.م سود می‌دهد',
+    compostTitle:'پیش از فصل بعد کمپوست اضافه کنید', compostDesc:'۲–۳ تن/جریب · نگهداری آب را ۳۰٪ بهبود می‌دهد',
+    bestCrops:'بهترین محصولات برای زمین شما', highProfit:'سود بالا', medium:'متوسط',
+    income:'💰 برآورد عاید',
+    iSeed:'تخم + کود', iIrr:'آبیاری + کارگر', iYield:'برآورد حاصل',
+    iGross:'عاید مجموعی', iNet:'فایده خالص', kg:'کیلوگرام',
+    cropDet:'🌾 تشخیص محصول', confidence:'اطمینان',
+    cropWarn:'⚠️ تشخیص محصول از ماهواره ~۷۰–۸۵٪ دقت. در زمین تأیید کنید.',
+    rainTitle:'🌧️ بارندگی ماهانه — {rain}م.م/سال',
+    soilTitle:'🌍 تحلیل خاک', soilPh:'پی‌اچ خاک', soilCarbon:'کاربن آلی',
+    soilTexture:'بافت', soilRecs:'توصیه‌ها', soilLoading:'در حال بارگذاری داده خاک…',
+    acidic:'اسیدی', neutral:'خنثی', slAlkaline:'کمی قلیایی', alkaline:'قلیایی',
+    actionMonth:'📅 اقدام این ماه — {mo}',
+    askAI:'🤖 از هوش مصنوعی درباره زمین بپرسید →',
+    saving:'در حال ذخیره…', saveComplete:'✓ تحلیل تکمیل شد', loginToSave:'⚠️ برای ذخیره زمین وارد شوید',
+    cropSaffron:'🌸 زعفران', cropFlax:'🌿 کتان', cropChickpeas:'🫘 نخود',
+    cropWheat:'🌾 گندم', cropVeg:'🥬 سبزیجات', cropCotton:'🌱 پنبه',
+    wSaffron:'۳۰۰م.م آب · ۵۰ برابر سود گندم', wFlaxDrought:'مقاوم به خشکی · بازار خوب',
+    wChickpeas:'آب بسیار کم · خاک را بهبود می‌دهد', wWheatReliable:'محصول پایه مطمئن · کشت میزان–عقرب',
+    wFlaxLess:'آب کمتر از گندم · عاید بهتر', wVeg3x:'۳ برابر عاید با آبیاری',
+    wVegBest:'بهترین عاید با آب', wWheatPlant:'مطمئن · کشت میزان–عقرب', wCottonExport:'بازار صادراتی',
+    healthyCrops:'محصولات سالم', stressedNeeds:'تحت فشار — نیاز به توجه',
+    goodBiomass:'زیست‌توده خوب', lowBiomass:'زیست‌توده کم', soilAdj:'اثر خاک لخت را تصحیح می‌کند',
+    goodWater:'آب خوب', modWater:'متوسط', lowWaterSoon:'کم — به‌زودی آبیاری کنید',
+    goodCanopy:'آب کافی در پوشش', dryCanopy:'پوشش خشک — فشار آبی'
+  },
+  ps:{
+    field:'📍 ستاسو ځمکه', jereb:'جریب', ha:'هکتار',
+    measured:'📊 هغه څه چې ماهوارې اندازه کړل',
+    tapIdx:'👆 په هر شاخص ووهئ ترڅو په نقشه کې پیکسل په پیکسل وګورئ',
+    source:'سرچینه', overall:'د ځمکې ټوله وضعیت',
+    good:'🟢 ښه', moderate:'🟡 منځنی', stressed:'🔴 تر فشار لاندې',
+    sdGood:'د دې سیمې لپاره شنه پوښښ روغ دی.',
+    sdMod:'یو څه فشار — اوبه او سره په پام کې ونیسئ.',
+    sdBad:'سخت فشار — نن اقدام وکړئ.',
+    metrics:'د ځمکې مشخصات', mJereb:'جریب', mHa:'هکتار', mWater:'اوبه',
+    mRain:'م.م/کال', mProv:'ولایت', mWaterNow:'اوسنۍ اوبه', wOk:'💧 ښه', wLow:'🔴 کم',
+    trend:'📈 د NDVI روند ۲۰۱۹–۲۰۲۵', worst:'🔴 بدترین کال (د ۲۰۲۲ وچکالي)', best:'🟢 ښه کال',
+    todo:'څه باید وکړئ',
+    urgent:'🚨 بیړنی', important:'⚠️ مهم', recommended:'✅ سپارښتنه',
+    irrTitle:'په {d}–{d2} ورځو کې اوبه ورکړئ', irrDesc:'۵۰–۷۰ م.م · څاڅکی یا ویالې · سهار وختي',
+    fertTitle:'اوس نایتروجن سره ورکړئ', fertDesc:'یوریا {kg} کیلوګرام · د اوبو سره ګډ کړئ',
+    droughtTitle:'وچ زغملو محصولاتو ته واوړئ', droughtDesc:'{rain}م.م/کال کم دی · زعفران په هر م.م کې ۵۰ ځله د غنمو ګټه ورکوي',
+    compostTitle:'د راتلونکي فصل دمخه کمپوست ورزیات کړئ', compostDesc:'۲–۳ ټنه/جریب · د اوبو ساتنه ۳۰٪ ښه کوي',
+    bestCrops:'ستاسو د ځمکې لپاره غوره محصولات', highProfit:'لوړه ګټه', medium:'منځنی',
+    income:'💰 د عاید اټکل',
+    iSeed:'تخم + سره', iIrr:'اوبه + کارګر', iYield:'د حاصل اټکل',
+    iGross:'مجموعي عاید', iNet:'خالص ګټه', kg:'کیلوګرام',
+    cropDet:'🌾 د محصول تشخیص', confidence:'باور',
+    cropWarn:'⚠️ د ماهوارې محصول تشخیص ~۷۰–۸۵٪ دقت. په ځمکه کې یې تایید کړئ.',
+    rainTitle:'🌧️ میاشتنۍ باران — {rain}م.م/کال',
+    soilTitle:'🌍 د خاورې تحلیل', soilPh:'د خاورې pH', soilCarbon:'عضوي کاربن',
+    soilTexture:'جوړښت', soilRecs:'سپارښتنې', soilLoading:'د خاورې معلومات بارېږي…',
+    acidic:'اسیدي', neutral:'بې‌طرفه', slAlkaline:'لږ القلي', alkaline:'القلي',
+    actionMonth:'📅 د دې میاشتې اقدام — {mo}',
+    askAI:'🤖 د خپلې ځمکې په اړه له AI پوښتنه وکړئ →',
+    saving:'ساتل کیږي…', saveComplete:'✓ تحلیل بشپړ شو', loginToSave:'⚠️ د ځمکې ساتلو لپاره ننوځئ',
+    cropSaffron:'🌸 زعفران', cropFlax:'🌿 کتان', cropChickpeas:'🫘 نخود',
+    cropWheat:'🌾 غنم', cropVeg:'🥬 سبزیجات', cropCotton:'🌱 پنبه',
+    wSaffron:'۳۰۰م.م اوبه · ۵۰ ځله د غنمو ګټه', wFlaxDrought:'وچ زغمونکی · ښه بازار',
+    wChickpeas:'ډېرې لږې اوبه · خاوره ښه کوي', wWheatReliable:'باوري بنسټیز محصول · د تلې–لړم کرل',
+    wFlaxLess:'له غنمو لږې اوبه · ښه عاید', wVeg3x:'د اوبو سره ۳ ځله عاید',
+    wVegBest:'د اوبو سره غوره عاید', wWheatPlant:'باوري · د تلې–لړم کرل', wCottonExport:'صادراتي بازار',
+    healthyCrops:'روغ محصولات', stressedNeeds:'تر فشار لاندې — پاملرنې ته اړتیا',
+    goodBiomass:'ښه بایوماس', lowBiomass:'کم بایوماس', soilAdj:'د خالي خاورې اغیز سموي',
+    goodWater:'ښه اوبه', modWater:'منځنی', lowWaterSoon:'کم — ژر اوبه ورکړئ',
+    goodCanopy:'په پوښښ کې ښه اوبه', dryCanopy:'وچ پوښښ — د اوبو فشار'
+  }
+};
+function rt(k){var t=RT[appLang]||RT.en;return (t[k]!=null?t[k]:RT.en[k]);}
 function renderReport(){
   if(!fieldData)return;
   const ndvi=fieldData.ndvi||0.28,mndwi=fieldData.mndwi||-0.19,rain=fieldData.rain||240,prov=fieldData.prov||'Afghanistan',aHa=fieldData.aHa||1,aJ=fieldData.aJ||5,trend=fieldData.trend||{},evi=fieldData.evi||Math.round(ndvi*0.72*1000)/1000,savi=fieldData.savi||Math.round(ndvi*0.85*1000)/1000,lswi=fieldData.lswi||Math.round((mndwi+0.05)*1000)/1000;
   const src=fieldData.source==='gee_live'?'📡 Live Sentinel-2':'📊 Regional database';
   const sc=ndvi>=.30?'sc-good':ndvi>=.18?'sc-mod':'sc-bad';
-  const sl=ndvi>=.30?'🟢 GOOD':ndvi>=.18?'🟡 MODERATE':'🔴 STRESSED';
-  const sd=ndvi>=.30?'Vegetation healthy for this region.':ndvi>=.18?'Some stress — consider irrigation and fertilizer.':'Critical stress — act today.';
+  const sl=ndvi>=.30?rt('good'):ndvi>=.18?rt('moderate'):rt('stressed');
+  const sd=ndvi>=.30?rt('sdGood'):ndvi>=.18?rt('sdMod'):rt('sdBad');
   const ndviCol=ndvi>=.30?'#16a34a':ndvi>=.18?'#d97706':'#dc2626';
   const tv=Object.values(trend).filter(v=>v!=null),mx=tv.length?Math.max(...tv):0.4,mn=tv.length?Math.min(...tv):0.1;
   const trendHTML=Object.entries(trend).map(([yr,v])=>{if(v==null)return'';const h=Math.max(4,Math.round((v/mx)*52)),col=v===mn?'#dc2626':v===mx?'#16a34a':'#86efac';return'<div class="tb-w"><div style="font-family:var(--M);font-size:8px;color:var(--m2);text-align:center">'+v.toFixed(2)+'</div><div class="tb-b" style="height:'+h+'px;background:'+col+'"></div><div class="tb-yr">'+yr.toString().slice(-2)+'</div></div>';}).join('');
   let acts='';
-  if(mndwi<-0.05){const days=mndwi<-0.20?2:mndwi<-0.10?4:6;acts+=`<div class="act urgent"><div class="act-cat">🚨 URGENT</div><div class="act-t">Irrigate within ${days}–${days+2} days</div><div class="act-d">Apply 50–70mm · drip or furrow · early morning</div><div class="act-c">~ ${Math.round(aJ*400).toLocaleString()} AFN</div></div>`;}
-  if(ndvi<0.22){acts+=`<div class="act urgent"><div class="act-cat">🚨 URGENT</div><div class="act-t">Apply nitrogen fertilizer now</div><div class="act-d">Urea ${Math.round(aJ*35)} kg · mix into irrigation water</div><div class="act-c">~ ${Math.round(aJ*1200).toLocaleString()} AFN</div></div>`;}
-  if(rain<200){acts+=`<div class="act important"><div class="act-cat">⚠️ IMPORTANT</div><div class="act-t">Switch to drought-tolerant crops</div><div class="act-d">${rain}mm/yr is low · Saffron earns 50× per mm vs wheat</div></div>`;}
-  acts+=`<div class="act ok"><div class="act-cat">✅ RECOMMENDED</div><div class="act-t">Add compost before next season</div><div class="act-d">2–3 tonnes/jereb · improves water retention 30%</div><div class="act-c">~ ${Math.round(aJ*600).toLocaleString()} AFN</div></div>`;
-  const crpSet=(mndwi<-0.10||rain<200)?[{n:'🌸 Saffron',w:'300mm water · 50× wheat income',t:'tag-hi'},{n:'🌿 Flax',w:'Drought tolerant · good market',t:'tag-hi'},{n:'🫘 Chickpeas',w:'Very low water · improves soil',t:'tag-md'}]:rain<350?[{n:'🌾 Wheat',w:'Reliable staple · plant Oct–Nov',t:'tag-md'},{n:'🌿 Flax',w:'Less water than wheat · better income',t:'tag-hi'},{n:'🥬 Vegetables',w:'3× income with irrigation',t:'tag-hi'}]:[{n:'🥬 Vegetables',w:'Best income with water',t:'tag-hi'},{n:'🌾 Wheat',w:'Reliable · plant Oct–Nov',t:'tag-md'},{n:'🌱 Cotton',w:'Export market',t:'tag-hi'}];
-  const crpsHTML=crpSet.map(cr=>`<div class="crop"><div class="crop-n">${cr.n}</div><div class="crop-w">${cr.w}</div><span class="crop-tag ${cr.t}">${cr.t==='tag-hi'?'High profit':'Medium'}</span></div>`).join('');
+  if(mndwi<-0.05){const days=mndwi<-0.20?2:mndwi<-0.10?4:6;acts+=`<div class="act urgent"><div class="act-cat">${rt('urgent')}</div><div class="act-t">${rt('irrTitle').replace('{d}',days).replace('{d2}',days+2)}</div><div class="act-d">${rt('irrDesc')}</div><div class="act-c">~ ${Math.round(aJ*400).toLocaleString()} AFN</div></div>`;}
+  if(ndvi<0.22){acts+=`<div class="act urgent"><div class="act-cat">${rt('urgent')}</div><div class="act-t">${rt('fertTitle')}</div><div class="act-d">${rt('fertDesc').replace('{kg}',Math.round(aJ*35))}</div><div class="act-c">~ ${Math.round(aJ*1200).toLocaleString()} AFN</div></div>`;}
+  if(rain<200){acts+=`<div class="act important"><div class="act-cat">${rt('important')}</div><div class="act-t">${rt('droughtTitle')}</div><div class="act-d">${rt('droughtDesc').replace('{rain}',rain)}</div></div>`;}
+  acts+=`<div class="act ok"><div class="act-cat">${rt('recommended')}</div><div class="act-t">${rt('compostTitle')}</div><div class="act-d">${rt('compostDesc')}</div><div class="act-c">~ ${Math.round(aJ*600).toLocaleString()} AFN</div></div>`;
+  const crpSet=(mndwi<-0.10||rain<200)?[{n:rt('cropSaffron'),w:rt('wSaffron'),t:'tag-hi'},{n:rt('cropFlax'),w:rt('wFlaxDrought'),t:'tag-hi'},{n:rt('cropChickpeas'),w:rt('wChickpeas'),t:'tag-md'}]:rain<350?[{n:rt('cropWheat'),w:rt('wWheatReliable'),t:'tag-md'},{n:rt('cropFlax'),w:rt('wFlaxLess'),t:'tag-hi'},{n:rt('cropVeg'),w:rt('wVeg3x'),t:'tag-hi'}]:[{n:rt('cropVeg'),w:rt('wVegBest'),t:'tag-hi'},{n:rt('cropWheat'),w:rt('wWheatPlant'),t:'tag-md'},{n:rt('cropCotton'),w:rt('wCottonExport'),t:'tag-hi'}];
+  const crpsHTML=crpSet.map(cr=>`<div class="crop"><div class="crop-n">${cr.n}</div><div class="crop-w">${cr.w}</div><span class="crop-tag ${cr.t}">${cr.t==='tag-hi'?rt('highProfit'):rt('medium')}</span></div>`).join('');
   const yld=Math.round(aHa*(rain<200?80:rain<350?300:1000)),price=rain<200?3000:14,inc=yld*price,tc=Math.round(aJ*(400+1800+400+600)),np=inc-tc;
-  const iRows=[['Seeds + Fertilizer','−'+Math.round(aJ*2200).toLocaleString()+' AFN','neg'],['Irrigation + Labour','−'+Math.round(aJ*1000).toLocaleString()+' AFN','neg'],['Yield estimate',yld.toLocaleString()+' kg','val neu'],['Gross income',inc.toLocaleString()+' AFN','val neu'],['NET PROFIT',(np>=0?'+':'')+np.toLocaleString()+' AFN',np>=0?'pos':'neg']].map(([l,v,cls])=>`<div class="inc-row"><span class="lbl">${l}</span><span class="val ${cls}">${v}</span></div>`).join('');
+  const iRows=[[rt('iSeed'),'−'+Math.round(aJ*2200).toLocaleString()+' AFN','neg'],[rt('iIrr'),'−'+Math.round(aJ*1000).toLocaleString()+' AFN','neg'],[rt('iYield'),yld.toLocaleString()+' '+rt('kg'),'val neu'],[rt('iGross'),inc.toLocaleString()+' AFN','val neu'],[rt('iNet'),(np>=0?'+':'')+np.toLocaleString()+' AFN',np>=0?'pos':'neg']].map(([l,v,cls])=>`<div class="inc-row"><span class="lbl">${l}</span><span class="val ${cls}">${v}</span></div>`).join('');
   const ndre=fieldData.ndre||null,gndvi=fieldData.gndvi||null,vci=fieldData.vci||null,ndwi=fieldData.ndwi||null,ndmi=fieldData.ndmi||null;
-  const indices=[{l:'NDVI',raw:ndvi,max:0.70,col:ndviCol,tip:'Vegetation health',meaning:ndvi>=.30?'Healthy crops':'Stressed — needs attention'},{l:'EVI',raw:evi,max:0.60,col:'#22c55e',tip:'Enhanced (no soil noise)',meaning:evi>=.25?'Good biomass':'Low biomass'},{l:'SAVI',raw:savi,max:0.60,col:'#4ade80',tip:'Soil adjusted (arid)',meaning:'Corrects for bare soil background'},{l:'MNDWI',raw:mndwi,max:0.50,col:'#0284c7',tip:'Water availability',meaning:mndwi>0?'Good water':mndwi>-0.10?'Moderate':'Low — irrigate soon'},{l:'LSWI',raw:lswi,max:0.50,col:'#38bdf8',tip:'Land surface water',meaning:lswi>-0.05?'Good canopy water':'Dry canopy — water stress'}].concat(ndre?[{l:'NDRE',raw:ndre,max:0.50,col:'#a78bfa',tip:'Red Edge — 2-3 weeks early detection',meaning:ndre>=.20?'Good chlorophyll':'Early stress signal'}]:[]).concat(gndvi?[{l:'GNDVI',raw:gndvi,max:0.70,col:'#34d399',tip:'Green NDVI — chlorophyll',meaning:gndvi>=.30?'Good chlorophyll':'Low chlorophyll'}]:[]).concat(ndmi?[{l:'NDMI',raw:ndmi,max:0.50,col:'#60a5fa',tip:'Plant moisture',meaning:ndmi>=.10?'Good moisture':'Plant water stress'}]:[]).concat(ndwi?[{l:'NDWI',raw:ndwi,max:0.50,col:'#2dd4bf',tip:'Open water — rivers/canals',meaning:ndwi>0.0?'Water body nearby':'No open water'}]:[]);
-  const vciHTML=vci!=null?`<div style="background:var(--bg);border:1px solid var(--gbr);border-radius:8px;padding:.75rem;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-family:var(--M);font-size:11px;font-weight:600">VCI — Vegetation Condition Index</div><div style="font-size:11px;color:var(--m);margin-top:2px">0=worst ever, 100=best ever</div></div><div style="text-align:right"><div style="font-family:var(--D);font-size:28px;color:${vci>=60?'#16a34a':vci>=40?'#d97706':'#dc2626'}">${Math.round(vci)}%</div></div></div><div style="background:var(--gbr);border-radius:4px;height:8px;margin-top:8px;overflow:hidden"><div style="width:${Math.min(100,Math.round(vci))}%;height:100%;background:${vci>=60?'#16a34a':vci>=40?'#d97706':'#dc2626'};border-radius:4px"></div></div></div>`:'';
-  const idxRows=indices.map(ix=>{if(ix.raw===null||ix.raw===undefined)return'';const isW=['MNDWI','LSWI','NDWI','NDMI'].includes(ix.l);const pct=Math.min(100,Math.max(0,isW?Math.round((ix.raw+0.5)/ix.max*100):Math.round(ix.raw/ix.max*100)));const valCol=isW?(ix.raw>-0.05?'#16a34a':ix.raw>-0.15?'#d97706':'#dc2626'):(ix.raw>=.30?'#16a34a':ix.raw>=.18?'#d97706':'#dc2626');return`<div class="idx-row" data-index="${ix.l}" onclick="showIndexOverlay('${ix.l}',${ix.raw})" style="margin-bottom:8px;padding:8px 10px;border-radius:8px;cursor:pointer;border:1px solid transparent;transition:all .15s;border-bottom:1px solid var(--gbr)" onmouseover="this.style.background='var(--gb)'" onmouseout="if(!this.classList.contains('idx-active'))this.style.background='transparent'"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px"><div style="flex:1"><span style="font-family:var(--M);font-size:12px;font-weight:700;color:var(--t)">${ix.l}</span><span style="font-family:var(--M);font-size:9px;color:var(--m2);margin-left:5px">${ix.tip}</span><span style="font-family:var(--M);font-size:9px;color:#4ade80;margin-left:4px">👆 map</span></div><span style="font-family:var(--M);font-size:15px;font-weight:800;color:${valCol};flex-shrink:0;margin-left:8px">${ix.raw}</span></div><div style="background:var(--gbr);border-radius:4px;height:9px;overflow:hidden;margin-bottom:4px"><div style="width:${pct}%;height:100%;background:${valCol};border-radius:4px;transition:width 1s ease"></div></div><div style="font-size:10px;color:var(--m);font-style:italic">${ix.meaning}</div></div>`;}).join('');
+  const indices=[{l:'NDVI',raw:ndvi,max:0.70,col:ndviCol,tip:'Vegetation health',meaning:ndvi>=.30?rt('healthyCrops'):rt('stressedNeeds')},{l:'EVI',raw:evi,max:0.60,col:'#22c55e',tip:'Enhanced',meaning:evi>=.25?rt('goodBiomass'):rt('lowBiomass')},{l:'SAVI',raw:savi,max:0.60,col:'#4ade80',tip:'Soil adjusted',meaning:rt('soilAdj')},{l:'MNDWI',raw:mndwi,max:0.50,col:'#0284c7',tip:'Water',meaning:mndwi>0?rt('goodWater'):mndwi>-0.10?rt('modWater'):rt('lowWaterSoon')},{l:'LSWI',raw:lswi,max:0.50,col:'#38bdf8',tip:'Surface water',meaning:lswi>-0.05?rt('goodCanopy'):rt('dryCanopy')}].concat(ndre?[{l:'NDRE',raw:ndre,max:0.50,col:'#a78bfa',tip:'Red Edge',meaning:ndre>=.20?rt('goodBiomass'):rt('stressedNeeds')}]:[]).concat(gndvi?[{l:'GNDVI',raw:gndvi,max:0.70,col:'#34d399',tip:'Green NDVI',meaning:gndvi>=.30?rt('goodBiomass'):rt('lowBiomass')}]:[]).concat(ndmi?[{l:'NDMI',raw:ndmi,max:0.50,col:'#60a5fa',tip:'Moisture',meaning:ndmi>=.10?rt('goodWater'):rt('dryCanopy')}]:[]).concat(ndwi?[{l:'NDWI',raw:ndwi,max:0.50,col:'#2dd4bf',tip:'Open water',meaning:ndwi>0.0?rt('goodWater'):rt('modWater')}]:[]);
+  const vciHTML=vci!=null?`<div style="background:var(--bg);border:1px solid var(--gbr);border-radius:8px;padding:.75rem;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-family:var(--M);font-size:11px;font-weight:600">VCI</div></div><div style="text-align:right"><div style="font-family:var(--D);font-size:28px;color:${vci>=60?'#16a34a':vci>=40?'#d97706':'#dc2626'}">${Math.round(vci)}%</div></div></div><div style="background:var(--gbr);border-radius:4px;height:8px;margin-top:8px;overflow:hidden"><div style="width:${Math.min(100,Math.round(vci))}%;height:100%;background:${vci>=60?'#16a34a':vci>=40?'#d97706':'#dc2626'};border-radius:4px"></div></div></div>`:'';
+  const idxRows=indices.map(ix=>{if(ix.raw===null||ix.raw===undefined)return'';const isW=['MNDWI','LSWI','NDWI','NDMI'].includes(ix.l);const pct=Math.min(100,Math.max(0,isW?Math.round((ix.raw+0.5)/ix.max*100):Math.round(ix.raw/ix.max*100)));const valCol=isW?(ix.raw>-0.05?'#16a34a':ix.raw>-0.15?'#d97706':'#dc2626'):(ix.raw>=.30?'#16a34a':ix.raw>=.18?'#d97706':'#dc2626');return`<div class="idx-row" data-index="${ix.l}" onclick="showIndexOverlay('${ix.l}',${ix.raw})" style="margin-bottom:8px;padding:8px 10px;border-radius:8px;cursor:pointer;border:1px solid transparent;border-bottom:1px solid var(--gbr)"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px"><div style="flex:1"><span style="font-family:var(--M);font-size:12px;font-weight:700;color:var(--t)">${ix.l}</span><span style="font-family:var(--M);font-size:9px;color:#4ade80;margin-left:4px">👆</span></div><span style="font-family:var(--M);font-size:15px;font-weight:800;color:${valCol};flex-shrink:0;margin-left:8px">${ix.raw}</span></div><div style="background:var(--gbr);border-radius:4px;height:9px;overflow:hidden;margin-bottom:4px"><div style="width:${pct}%;height:100%;background:${valCol};border-radius:4px"></div></div><div style="font-size:10px;color:var(--m);font-style:italic">${ix.meaning}</div></div>`;}).join('');
   const crops=fieldData.crops||[];
   let cropDetHTML='';
-  if(crops.length){const top=crops[0],pct=Math.round(top.confidence*100),col=pct>=80?'#16a34a':pct>=65?'#d97706':'#6b7280';const othersHTML=crops.slice(1,3).map(cr=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--gbr)"><span style="font-size:12px">${cr.label_en}</span><div style="display:flex;align-items:center;gap:6px"><div style="width:60px;background:var(--gbr);border-radius:3px;height:5px"><div style="width:${Math.round(cr.confidence*100)}%;height:100%;background:#d97706;border-radius:3px"></div></div><span style="font-family:var(--M);font-size:11px;color:var(--m2)">${Math.round(cr.confidence*100)}%</span></div></div>`).join('');cropDetHTML=`<div class="rep-sec"><div class="rep-title">🌾 Crop detection</div><div style="background:var(--gb);border:2px solid ${col};border-radius:10px;padding:1rem;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-family:var(--D);font-size:22px">${top.label_en}</div><div style="font-size:11px;color:var(--m);margin-top:4px">${top.reason}</div></div><div style="text-align:center"><div style="font-family:var(--D);font-size:32px;color:${col}">${pct}%</div><div style="font-family:var(--M);font-size:9px;color:var(--m2)">confidence</div></div></div><div style="background:rgba(0,0,0,.05);border-radius:3px;height:6px;margin-top:8px"><div style="width:${pct}%;height:100%;background:${col};border-radius:3px"></div></div></div>${othersHTML}<div style="font-size:10px;color:var(--m2);margin-top:6px;font-style:italic">⚠️ Satellite crop detection ~70–85% accuracy. Verify in field.</div></div>`;}
+  if(crops.length){const top=crops[0],pct=Math.round(top.confidence*100),col=pct>=80?'#16a34a':pct>=65?'#d97706':'#6b7280';const lblKey=appLang==='fa'?'label_fa':appLang==='ps'?'label_ps':'label_en';const topLbl=top[lblKey]||top.label_en;const othersHTML=crops.slice(1,3).map(cr=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--gbr)"><span style="font-size:12px">${cr[lblKey]||cr.label_en}</span><div style="display:flex;align-items:center;gap:6px"><div style="width:60px;background:var(--gbr);border-radius:3px;height:5px"><div style="width:${Math.round(cr.confidence*100)}%;height:100%;background:#d97706;border-radius:3px"></div></div><span style="font-family:var(--M);font-size:11px;color:var(--m2)">${Math.round(cr.confidence*100)}%</span></div></div>`).join('');cropDetHTML=`<div class="rep-sec"><div class="rep-title">${rt('cropDet')}</div><div style="background:var(--gb);border:2px solid ${col};border-radius:10px;padding:1rem;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-family:var(--D);font-size:22px">${topLbl}</div></div><div style="text-align:center"><div style="font-family:var(--D);font-size:32px;color:${col}">${pct}%</div><div style="font-family:var(--M);font-size:9px;color:var(--m2)">${rt('confidence')}</div></div></div><div style="background:rgba(0,0,0,.05);border-radius:3px;height:6px;margin-top:8px"><div style="width:${pct}%;height:100%;background:${col};border-radius:3px"></div></div></div>${othersHTML}<div style="font-size:10px;color:var(--m2);margin-top:6px;font-style:italic">${rt('cropWarn')}</div></div>`;}
   const mr=fieldData.monthly_rain||[];
   let rainHTML='';
-  if(mr.length===12){const maxR=Math.max(...mr),curMo=new Date().getMonth(),mLabels=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];const bars=mr.map((v,i)=>{const h=maxR>0?Math.max(3,Math.round(v/maxR*70)):3,isCur=i===curMo,col=isCur?'#16a34a':v===maxR?'#0284c7':'#38bdf8';const tc2=isCur?'#16a34a':'var(--m2)',fw=isCur?'700':'400';return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-family:var(--M);font-size:7px;color:${tc2};font-weight:${fw}">${Math.round(v)}</div><div style="height:${h}px;width:90%;background:${col};border-radius:3px 3px 0 0;min-height:3px"></div><div style="font-family:var(--M);font-size:7px;color:${tc2};font-weight:${fw}">${mLabels[i].slice(0,1)}</div></div>`;}).join('');rainHTML=`<div class="rep-sec"><div class="rep-title">🌧️ Monthly rainfall — ${rain}mm/year</div><div style="display:flex;align-items:flex-end;gap:1px;height:90px;padding:0 2px;margin-bottom:6px">${bars}</div></div>`;}
+  if(mr.length===12){const maxR=Math.max(...mr),curMo=new Date().getMonth(),mLabels=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];const bars=mr.map((v,i)=>{const h=maxR>0?Math.max(3,Math.round(v/maxR*70)):3,isCur=i===curMo,col=isCur?'#16a34a':v===maxR?'#0284c7':'#38bdf8';const tc2=isCur?'#16a34a':'var(--m2)',fw=isCur?'700':'400';return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px"><div style="font-family:var(--M);font-size:7px;color:${tc2};font-weight:${fw}">${Math.round(v)}</div><div style="height:${h}px;width:90%;background:${col};border-radius:3px 3px 0 0;min-height:3px"></div><div style="font-family:var(--M);font-size:7px;color:${tc2};font-weight:${fw}">${mLabels[i].slice(0,1)}</div></div>`;}).join('');rainHTML=`<div class="rep-sec"><div class="rep-title">${rt('rainTitle').replace('{rain}',rain)}</div><div style="display:flex;align-items:flex-end;gap:1px;height:90px;padding:0 2px;margin-bottom:6px">${bars}</div></div>`;}
   const soil=fieldData.soil;
   let soilHTML='';
-  if(soil&&soil.ph){const phCol=soil.ph<6.5?'#dc2626':soil.ph>8.0?'#d97706':'#16a34a',phLabel=soil.ph<6.5?'Acidic':soil.ph<=7.3?'Neutral':soil.ph<=7.8?'Slightly alkaline':'Alkaline';const texItems=[{l:'Clay',v:soil.clay||20,col:'#dc2626'},{l:'Sand',v:soil.sand||40,col:'#d97706'},{l:'Silt',v:soil.silt||40,col:'#16a34a'}];const texBars=texItems.map(t=>`<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-family:var(--M);font-size:10px">${t.l}</span><span style="font-family:var(--M);font-size:10px;color:var(--m2)">${t.v}%</span></div><div style="background:var(--gbr);border-radius:3px;height:8px;overflow:hidden"><div style="width:${Math.min(100,t.v)}%;height:100%;background:${t.col};border-radius:3px"></div></div></div>`).join('');const recsHTML=(soil.recommendations||[]).slice(0,3).map((r,i)=>`<div style="display:flex;gap:8px;padding:6px 0;${i<2?'border-bottom:1px solid var(--gbr)':''}"><span style="color:var(--g)">→</span><span style="font-size:12px;color:var(--m);line-height:1.5">${r}</span></div>`).join('');soilHTML=`<div class="rep-sec"><div class="rep-title">🌍 Soil analysis</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px"><div style="background:var(--bg);border:1px solid var(--gbr);border-radius:8px;padding:.85rem;text-align:center"><div style="font-family:var(--D);font-size:26px;color:${phCol}">${soil.ph}</div><div style="font-family:var(--M);font-size:10px;color:${phCol}">${phLabel}</div><div style="font-family:var(--M);font-size:9px;color:var(--m2);margin-top:2px">Soil pH</div></div><div style="background:var(--bg);border:1px solid var(--gbr);border-radius:8px;padding:.85rem;text-align:center"><div style="font-family:var(--D);font-size:26px;color:var(--g)">${soil.soc||0.8}%</div><div style="font-family:var(--M);font-size:9px;color:var(--m2);margin-top:2px">Organic carbon</div></div></div><div style="font-family:var(--M);font-size:11px;font-weight:600;margin-bottom:8px">Texture: ${soil.texture||'Loam'}</div>${texBars}<div style="font-family:var(--M);font-size:10px;color:var(--m2);text-transform:uppercase;letter-spacing:.08em;margin:10px 0 4px">Recommendations</div>${recsHTML}<div style="font-size:10px;color:var(--m2);margin-top:8px">${soil.source==='soilgrids_api'?'🌐 SoilGrids API (ISRIC) · 250m':'📊 Afghan provincial database'}</div></div>`;}else{soilHTML=`<div class="rep-sec"><div class="rep-title">🌍 Soil analysis</div><div style="background:var(--bg);border:1px solid var(--gbr);border-radius:8px;padding:1rem;text-align:center;color:var(--m2)"><div style="font-size:24px">🌱</div><div style="font-family:var(--M);font-size:11px">Loading SoilGrids data…</div></div></div>`;}
+  if(soil&&soil.ph){const phCol=soil.ph<6.5?'#dc2626':soil.ph>8.0?'#d97706':'#16a34a',phLabel=soil.ph<6.5?rt('acidic'):soil.ph<=7.3?rt('neutral'):soil.ph<=7.8?rt('slAlkaline'):rt('alkaline');const texItems=[{l:'Clay',v:soil.clay||20,col:'#dc2626'},{l:'Sand',v:soil.sand||40,col:'#d97706'},{l:'Silt',v:soil.silt||40,col:'#16a34a'}];const texBars=texItems.map(t=>`<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="font-family:var(--M);font-size:10px">${t.l}</span><span style="font-family:var(--M);font-size:10px;color:var(--m2)">${t.v}%</span></div><div style="background:var(--gbr);border-radius:3px;height:8px;overflow:hidden"><div style="width:${Math.min(100,t.v)}%;height:100%;background:${t.col};border-radius:3px"></div></div></div>`).join('');const recsHTML=(soil.recommendations||[]).slice(0,3).map((r,i)=>`<div style="display:flex;gap:8px;padding:6px 0;${i<2?'border-bottom:1px solid var(--gbr)':''}"><span style="color:var(--g)">→</span><span style="font-size:12px;color:var(--m);line-height:1.5">${r}</span></div>`).join('');soilHTML=`<div class="rep-sec"><div class="rep-title">${rt('soilTitle')}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px"><div style="background:var(--bg);border:1px solid var(--gbr);border-radius:8px;padding:.85rem;text-align:center"><div style="font-family:var(--D);font-size:26px;color:${phCol}">${soil.ph}</div><div style="font-family:var(--M);font-size:10px;color:${phCol}">${phLabel}</div><div style="font-family:var(--M);font-size:9px;color:var(--m2);margin-top:2px">${rt('soilPh')}</div></div><div style="background:var(--bg);border:1px solid var(--gbr);border-radius:8px;padding:.85rem;text-align:center"><div style="font-family:var(--D);font-size:26px;color:var(--g)">${soil.soc||0.8}%</div><div style="font-family:var(--M);font-size:9px;color:var(--m2);margin-top:2px">${rt('soilCarbon')}</div></div></div><div style="font-family:var(--M);font-size:11px;font-weight:600;margin-bottom:8px">${rt('soilTexture')}: ${soil.texture||'Loam'}</div>${texBars}<div style="font-family:var(--M);font-size:10px;color:var(--m2);text-transform:uppercase;letter-spacing:.08em;margin:10px 0 4px">${rt('soilRecs')}</div>${recsHTML}</div>`;}else{soilHTML=`<div class="rep-sec"><div class="rep-title">${rt('soilTitle')}</div><div style="background:var(--bg);border:1px solid var(--gbr);border-radius:8px;padding:1rem;text-align:center;color:var(--m2)"><div style="font-size:24px">🌱</div><div style="font-family:var(--M);font-size:11px">${rt('soilLoading')}</div></div></div>`;}
   const season=fieldData.season||[];
   let seasonHTML='';
-  if(season.length){const mo=new Date().toLocaleString('en',{month:'long',year:'numeric'});seasonHTML=`<div class="rep-sec"><div class="rep-title">📅 Action this month — ${mo}</div>${season.map(s=>`<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--gbr);align-items:flex-start"><span style="font-size:18px;flex-shrink:0">${s.type==='urgent'?'🚨':s.type==='now'?'📅':'✅'}</span><div><div style="font-size:13px;font-weight:500">${s.action}</div></div></div>`).join('')}</div>`;}
+  if(season.length){const mo=new Date().toLocaleString('en',{month:'long',year:'numeric'});seasonHTML=`<div class="rep-sec"><div class="rep-title">${rt('actionMonth').replace('{mo}',mo)}</div>${season.map(s=>`<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--gbr);align-items:flex-start"><span style="font-size:18px;flex-shrink:0">${s.type==='urgent'?'🚨':s.type==='now'?'📅':'✅'}</span><div><div style="font-size:13px;font-weight:500">${s.action}</div></div></div>`).join('')}</div>`;}
 
   document.getElementById('rp-body').innerHTML=
-    '<div class="save-badge" id="sbdg">'+(farmerId?'<span class="spin"></span> Saving…':'⚠️ Login to save fields')+'</div>'+
-    '<div class="rep-sec"><div class="rep-title">📍 Your field — '+aJ+' jereb · '+aHa+' ha</div><div id="miniMap"></div></div>'+
-    '<div class="rep-sec"><div class="rep-title">📊 What the satellite measured</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-bottom:8px;padding:5px 8px;background:var(--gd);border-radius:6px">👆 Tap any index to see it on the map pixel by pixel</div>'+vciHTML+idxRows+'<div style="font-size:10px;color:var(--m2);padding:4px 0">Source: '+src+'</div></div>'+
-    '<div class="rep-sec"><div class="rep-title">Overall field status</div><div class="status-card '+sc+'"><div class="sc-top"><div class="sc-main">'+sl+'</div><div style="font-family:var(--M);font-size:22px;font-weight:700;color:'+ndviCol+'">'+ndvi+'</div></div><div class="sc-sub">'+sd+'</div></div></div>'+
-    '<div class="rep-sec"><div class="rep-title">Field metrics</div><div class="metrics"><div class="met"><div class="met-v">'+aJ+'</div><div class="met-l">Jereb</div></div><div class="met"><div class="met-v">'+aHa+'</div><div class="met-l">Hectares</div></div><div class="met"><div class="met-v" style="color:'+(mndwi>-0.1?'var(--b)':'var(--r)')+'">'+mndwi+'</div><div class="met-l">Water</div></div><div class="met"><div class="met-v" style="color:var(--b)">'+rain+'</div><div class="met-l">mm/year</div></div><div class="met"><div class="met-v">'+prov.split(' ')[0]+'</div><div class="met-l">Province</div></div><div class="met"><div class="met-v" style="font-size:11px">'+(mndwi>-0.05?'💧 OK':'🔴 Low')+'</div><div class="met-l">Water now</div></div></div></div>'+
-    '<div class="rep-sec"><div class="rep-title">📈 NDVI trend 2019–2025</div><div class="trend-bars">'+trendHTML+'</div><div style="display:flex;gap:8px;margin-top:6px"><span style="font-family:var(--M);font-size:10px;color:#dc2626">🔴 worst year (2022 drought)</span><span style="font-family:var(--M);font-size:10px;color:#16a34a">🟢 best year</span></div></div>'+
-    '<div class="rep-sec"><div class="rep-title">What you should do</div>'+acts+'</div>'+
+    '<div class="save-badge" id="sbdg">'+(farmerId?'<span class="spin"></span> '+rt('saving'):rt('loginToSave'))+'</div>'+
+    '<div class="rep-sec"><div class="rep-title">'+rt('field')+' — '+aJ+' '+rt('jereb')+' · '+aHa+' '+rt('ha')+'</div><div id="miniMap"></div></div>'+
+    '<div class="rep-sec"><div class="rep-title">'+rt('measured')+'</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-bottom:8px;padding:5px 8px;background:var(--gd);border-radius:6px">'+rt('tapIdx')+'</div>'+vciHTML+idxRows+'<div style="font-size:10px;color:var(--m2);padding:4px 0">'+rt('source')+': '+src+'</div></div>'+
+    '<div class="rep-sec"><div class="rep-title">'+rt('overall')+'</div><div class="status-card '+sc+'"><div class="sc-top"><div class="sc-main">'+sl+'</div><div style="font-family:var(--M);font-size:22px;font-weight:700;color:'+ndviCol+'">'+ndvi+'</div></div><div class="sc-sub">'+sd+'</div></div></div>'+
+    '<div class="rep-sec"><div class="rep-title">'+rt('metrics')+'</div><div class="metrics"><div class="met"><div class="met-v">'+aJ+'</div><div class="met-l">'+rt('mJereb')+'</div></div><div class="met"><div class="met-v">'+aHa+'</div><div class="met-l">'+rt('mHa')+'</div></div><div class="met"><div class="met-v" style="color:'+(mndwi>-0.1?'var(--b)':'var(--r)')+'">'+mndwi+'</div><div class="met-l">'+rt('mWater')+'</div></div><div class="met"><div class="met-v" style="color:var(--b)">'+rain+'</div><div class="met-l">'+rt('mRain')+'</div></div><div class="met"><div class="met-v">'+prov.split(' ')[0]+'</div><div class="met-l">'+rt('mProv')+'</div></div><div class="met"><div class="met-v" style="font-size:11px">'+(mndwi>-0.05?rt('wOk'):rt('wLow'))+'</div><div class="met-l">'+rt('mWaterNow')+'</div></div></div></div>'+
+    '<div class="rep-sec"><div class="rep-title">'+rt('trend')+'</div><div class="trend-bars">'+trendHTML+'</div><div style="display:flex;gap:8px;margin-top:6px"><span style="font-family:var(--M);font-size:10px;color:#dc2626">'+rt('worst')+'</span><span style="font-family:var(--M);font-size:10px;color:#16a34a">'+rt('best')+'</span></div></div>'+
+    '<div class="rep-sec"><div class="rep-title">'+rt('todo')+'</div>'+acts+'</div>'+
     cropDetHTML+
-    '<div class="rep-sec"><div class="rep-title">Best crops for your field</div><div class="crop-row">'+crpsHTML+'</div></div>'+
-    '<div class="rep-sec"><div class="rep-title">💰 Income estimate</div>'+iRows+'</div>'+
+    '<div class="rep-sec"><div class="rep-title">'+rt('bestCrops')+'</div><div class="crop-row">'+crpsHTML+'</div></div>'+
+    '<div class="rep-sec"><div class="rep-title">'+rt('income')+'</div>'+iRows+'</div>'+
     rainHTML+soilHTML+seasonHTML+
-    '<div class="rep-sec"><button onclick="openAIPanel()" style="width:100%;padding:13px;background:var(--gd);color:#4ade80;border:none;border-radius:8px;font-family:var(--M);font-size:13px;cursor:pointer;letter-spacing:.04em">🤖 Ask AI about your field →</button></div>';
+    '<div class="rep-sec"><button onclick="openAIPanel()" style="width:100%;padding:13px;background:var(--gd);color:#4ade80;border:none;border-radius:8px;font-family:var(--M);font-size:13px;cursor:pointer;letter-spacing:.04em">'+rt('askAI')+'</button></div>';
 
-  
-setTimeout(initMiniMap, 1000);
-
-setTimeout(()=>{const b=document.getElementById('sbdg');if(b){b.innerHTML='✓ Analysis complete';b.style.background='var(--gb)';}},2000);
-// Load weather for this field
-  // Load weather for this field
-if(pts.length>0){
-  const cLat=pts.reduce((s,p)=>s+p[0],0)/pts.length;
-  const cLon=pts.reduce((s,p)=>s+p[1],0)/pts.length;
-
-  loadWeather(cLat,cLon,appLang).then(html=>{
-    if(html){
-      const body=document.getElementById('rp-body');
-      const firstSec=body.querySelector('.rep-sec');
-
-      // Remove old weather widgets first
-      document.querySelectorAll('.weather-section').forEach(el=>el.remove());
-
-      if(firstSec){
-        const wDiv=document.createElement('div');
-        wDiv.className='rep-sec weather-section';
-        wDiv.innerHTML='<div class="rep-title">🌤️ Weather forecast</div>'+html;
-        firstSec.parentNode.insertBefore(wDiv,firstSec.nextSibling);
+  setTimeout(initMiniMap,1000);
+  setTimeout(()=>{const b=document.getElementById('sbdg');if(b){b.innerHTML=rt('saveComplete');b.style.background='var(--gb)';}},2000);
+  if(pts.length>0){
+    const cLat=pts.reduce((s,p)=>s+p[0],0)/pts.length;
+    const cLon=pts.reduce((s,p)=>s+p[1],0)/pts.length;
+    loadWeather(cLat,cLon,appLang).then(html=>{
+      if(html){
+        const body=document.getElementById('rp-body');
+        const firstSec=body.querySelector('.rep-sec');
+        document.querySelectorAll('.weather-section').forEach(el=>el.remove());
+        if(firstSec){
+          const wDiv=document.createElement('div');
+          wDiv.className='rep-sec weather-section';
+          wDiv.innerHTML='<div class="rep-title">🌤️ Weather forecast</div>'+html;
+          firstSec.parentNode.insertBefore(wDiv,firstSec.nextSibling);
+        }
       }
-    }
-  });
-}
-// Add crop calendar to report
+    });
+  }
   try{
     var calData=renderCropCalendar(prov);
     var calBody=document.getElementById('rp-body');
@@ -1489,7 +1616,6 @@ if(pts.length>0){
       else{var firstSec=calBody.querySelector('.rep-sec');if(firstSec)firstSec.parentNode.insertBefore(calDiv,firstSec.nextSibling);}
     }
   }catch(e){console.log('Calendar error:',e);}
-  
   setTimeout(()=>{if(drawnPts&&drawnPts.length>=3&&appMap){if(!appMap.getPane('ndviPane')){appMap.createPane('ndviPane');appMap.getPane('ndviPane').style.zIndex=450;appMap.getPane('ndviPane').style.pointerEvents='auto';}showIndexOverlay('NDVI',ndvi);}},800);
 }
 function initMiniMap(){
@@ -1733,7 +1859,14 @@ function closeRp(){document.getElementById('reportPanel').classList.remove('open
 // ── AI ────────────────────────────────────────────────────────────────────────
 function openAIPanel(){document.getElementById('aiPanel').classList.add('open');}
 function closeAI(){document.getElementById('aiPanel').classList.remove('open');}
-function updateAICtx(){if(!fieldData)return;const{ndvi,mndwi,rain,aJ}=fieldData;document.getElementById('welcome-msg').textContent=`I analysed your ${aJ} jereb field. NDVI ${ndvi} — ${ndvi>=.35?'good vegetation':'stressed'}. Water ${mndwi} — ${mndwi<-0.05?'irrigate soon':'moderate'}. Rainfall ${rain}mm. Ask me anything. 🎤`;}
+function updateAICtx(){
+  var wEl=document.getElementById('welcome-msg');
+  if(!fieldData){if(wEl)wEl.textContent=aui('welcome');return;}
+  const{ndvi,mndwi,rain,aJ}=fieldData;
+  if(appLang==='fa'){wEl.textContent=`زمین ${aJ} جریب شما تحلیل شد. NDVI ${ndvi} — ${ndvi>=.35?'پوشش خوب':'تحت فشار'}. آب ${mndwi} — ${mndwi<-0.05?'زودتر آبیاری کنید':'متوسط'}. باران ${rain} م.م. هر چیزی بپرسید. 🎤`;}
+  else if(appLang==='ps'){wEl.textContent=`ستاسو ${aJ} جریب ځمکه تحلیل شوه. NDVI ${ndvi} — ${ndvi>=.35?'ښه پوښښ':'تر فشار لاندې'}. اوبه ${mndwi} — ${mndwi<-0.05?'ژر اوبه ورکړئ':'منځنی'}. باران ${rain} م.م. هر څه وپوښتئ. 🎤`;}
+  else{wEl.textContent=`I analysed your ${aJ} jereb field. NDVI ${ndvi} — ${ndvi>=.35?'good vegetation':'stressed'}. Water ${mndwi} — ${mndwi<-0.05?'irrigate soon':'moderate'}. Rainfall ${rain}mm. Ask me anything. 🎤`;}
+}
 
 function smartAnswer(q,lang){
   if(!fieldData)return lang==='fa'?'لطفاً اول زمین خود را تحلیل کنید.':lang==='ps'?'لومړی خپله ځمکه تحلیل کړئ.':'Please draw and analyse your field first.';
@@ -1797,15 +1930,91 @@ function toggleVoice(){
   rec.start();
 }
 
+// ════════════════════════════════════════════════════════════════
+// APP UI TRANSLATIONS (toolbar, panels, modal, chat) — en/fa/ps
+// Paste this ABOVE function appLangSet(  in the script.
+// ════════════════════════════════════════════════════════════════
+const AT_UI={
+  en:{
+    draw:'Draw field', myfields:'My Fields', gps:'GPS', clear:'Clear', analyse:'Analyse', reanalyse:'Re-analyse',
+    close:'Close', assistant:'ZaminAI Assistant', report:'ZaminAI Report', fieldAnalysis:'Field analysis',
+    fpTitle:'My Fields', fpEmpty:'Draw your first field on the map.<br>It will appear here.',
+    drawTip:'Click map to draw · Double-click to finish',
+    gmTitle:'Auto-draw field', gmTip:'📱 Open Google Maps → long press your field → copy coordinates',
+    gmCoords:'GPS Coordinates', gmSize:'Field size', gmBtn:'📍 Draw on map →',
+    chatPlaceholder:'Ask about your field...',
+    welcome:'Hello! Analyse your field first, then ask me anything about water, crops, or profit.',
+    analysing:'Analysing satellite data…', loadingS2:'Loading Sentinel-2', calcNDVI:'Calculating NDVI · Water · Rainfall',
+    drawFirst:'Draw a field and click Analyse', weatherTitle:'🌤️ Weather forecast'
+  },
+  fa:{
+    draw:'رسم زمین', myfields:'زمین‌های من', gps:'موقعیت', clear:'پاک کردن', analyse:'تحلیل', reanalyse:'تحلیل دوباره',
+    close:'بستن', assistant:'دستیار زمین‌هوش', report:'گزارش زمین‌هوش', fieldAnalysis:'تحلیل زمین',
+    fpTitle:'زمین‌های من', fpEmpty:'اولین زمین خود را روی نقشه رسم کنید.<br>اینجا نمایش داده می‌شود.',
+    drawTip:'برای رسم روی نقشه کلیک کنید · برای پایان دوبار کلیک کنید',
+    gmTitle:'رسم خودکار زمین', gmTip:'📱 گوگل مپ را باز کنید ← روی زمین فشار دهید ← مختصات را کاپی کنید',
+    gmCoords:'مختصات GPS', gmSize:'اندازه زمین', gmBtn:'📍 روی نقشه رسم کن →',
+    chatPlaceholder:'درباره زمین خود بپرسید...',
+    welcome:'سلام! اول زمین خود را تحلیل کنید، سپس درباره آب، محصول یا فایده بپرسید.',
+    analysing:'در حال تحلیل داده ماهواره…', loadingS2:'بارگذاری Sentinel-2', calcNDVI:'محاسبه NDVI · آب · باران',
+    drawFirst:'زمین را رسم کنید و تحلیل را بزنید', weatherTitle:'🌤️ پیش‌بینی هوا'
+  },
+  ps:{
+    draw:'ځمکه رسم کول', myfields:'زما ځمکې', gps:'موقعیت', clear:'پاکول', analyse:'تحلیل', reanalyse:'بیا تحلیل',
+    close:'بندول', assistant:'د زمین‌هوش مرستیال', report:'د زمین‌هوش راپور', fieldAnalysis:'د ځمکې تحلیل',
+    fpTitle:'زما ځمکې', fpEmpty:'خپله لومړۍ ځمکه په نقشه کې رسم کړئ.<br>دلته به ښکاره شي.',
+    drawTip:'د رسمولو لپاره په نقشه کلیک وکړئ · د پای لپاره دوه ځله کلیک وکړئ',
+    gmTitle:'ځمکه په اتومات ډول رسم کول', gmTip:'📱 ګوګل مپ خلاص کړئ ← په ځمکه فشار ورکړئ ← کوارډینېټونه کاپي کړئ',
+    gmCoords:'د GPS کوارډینېټونه', gmSize:'د ځمکې اندازه', gmBtn:'📍 په نقشه رسم کړئ →',
+    chatPlaceholder:'د خپلې ځمکې په اړه پوښتنه وکړئ...',
+    welcome:'سلام! لومړی خپله ځمکه تحلیل کړئ، بیا د اوبو، محصول یا ګټې په اړه پوښتنه وکړئ.',
+    analysing:'د ماهواره معلومات تحلیلیږي…', loadingS2:'Sentinel-2 بارېږي', calcNDVI:'NDVI · اوبه · باران محاسبه کیږي',
+    drawFirst:'ځمکه رسم کړئ او تحلیل کلیک کړئ', weatherTitle:'🌤️ د هوا وړاندوینه'
+  }
+};
+function aui(k){var t=AT_UI[appLang]||AT_UI.en;return (t[k]!=null?t[k]:AT_UI.en[k]);}
+
+// Apply all static app-UI text + direction for the current appLang
+function applyAppLang(){
+  var rtl=(appLang==='fa'||appLang==='ps');
+  var ov=document.getElementById('appOverlay'); if(ov)ov.dir=rtl?'rtl':'ltr';
+  var rb=document.getElementById('rp-body'); if(rb)rb.dir=rtl?'rtl':'ltr';
+  // toolbar
+  var set=function(id,val){var e=document.getElementById(id);if(e)e.textContent=val;};
+  set('tbd',aui('draw')); set('tbf',aui('myfields')); set('tbg',aui('gps'));
+  set('tbc',aui('clear'));
+  var tba=document.getElementById('tba'); if(tba)tba.textContent=(fieldData?aui('reanalyse'):aui('analyse'));
+  // close button keeps icon
+  var closeBtn=document.querySelector('.ao-close'); if(closeBtn)closeBtn.innerHTML='✕ '+aui('close');
+  // panels & modal
+  set('fp-title-txt',aui('fpTitle'));
+  set('ai-title-txt',aui('assistant'));
+  set('rp-info',aui('fieldAnalysis'));
+  var fpEmpty=document.getElementById('fp-empty-txt'); if(fpEmpty)fpEmpty.innerHTML=aui('fpEmpty');
+  set('gmt',aui('gmTitle'));
+  var gmtip=document.getElementById('gmtip'); if(gmtip)gmtip.textContent=aui('gmTip');
+  set('gmc',aui('gmCoords')); set('gms',aui('gmSize'));
+  var gmb=document.getElementById('gmb'); if(gmb)gmb.textContent=aui('gmBtn');
+  var ci=document.getElementById('chat-inp'); if(ci)ci.placeholder=aui('chatPlaceholder');
+  var dt=document.getElementById('drawTip'); if(dt&&!dt.classList.contains('show'))dt.textContent=aui('drawTip');
+  // app language buttons highlight
+  var btns=document.querySelectorAll('.ao-lang button');
+  btns.forEach(function(b){b.classList.remove('on');});
+  if(btns[0]&&appLang==='en')btns[0].classList.add('on');
+  if(btns[1]&&appLang==='fa')btns[1].classList.add('on');
+  if(btns[2]&&appLang==='ps')btns[2].classList.add('on');
+}
+
 function appLangSet(l,el){
   appLang=l;
-  document.querySelector('.ao-lang').querySelectorAll('button').forEach(b=>b.classList.remove('on'));
-  el.classList.add('on');
-  const QR={en:['💧 Irrigation?','🌾 Best crop?','💰 Profit?','🌱 Fertilizer?','📈 Recovery?'],fa:['💧 آبیاری؟','🌾 بهترین محصول؟','💰 فایده؟','🌱 کود؟','📈 بهبود؟'],ps:['💧 اوبه ورکول؟','🌾 غوره محصول؟','💰 ګټه؟','🌱 سره؟','📈 بهتریدل؟']}[l]||[];
-  const QS=['How urgent is irrigation?','Best crop for my field?','Profit estimate?','What fertilizer do I need?','Is my NDVI recovering?'];
-  document.getElementById('quick-r').innerHTML=QR.map((lbl,i)=>`<button class="qr" onclick="sendQ('${QS[i]}')">${lbl}</button>`).join('');
-  document.getElementById('chat-inp').placeholder=l==='fa'?'درباره زمین بپرسید…':l==='ps'?'د ځمکې بارې پوښتئ…':'Ask about your field…';
+  applyAppLang();
+  // quick replies
+  var QR={en:['💧 Irrigation?','🌾 Best crop?','💰 Profit?','🌱 Fertilizer?','📈 Recovery?'],fa:['💧 آبیاری؟','🌾 بهترین محصول؟','💰 فایده؟','🌱 کود؟','📈 بهبود؟'],ps:['💧 اوبه ورکول؟','🌾 غوره محصول؟','💰 ګټه؟','🌱 سره؟','📈 بهتریدل؟']}[l]||[];
+  var QS=['How urgent is irrigation?','Best crop for my field?','Profit estimate?','What fertilizer do I need?','Is my NDVI recovering?'];
+  var qrEl=document.getElementById('quick-r');
+  if(qrEl)qrEl.innerHTML=QR.map(function(lbl,i){return '<button class="qr" onclick="sendQ(\''+QS[i]+'\')">'+lbl+'</button>';}).join('');
   updateAICtx();
+  if(fieldData)renderReport();
 }
 
 // ── HELPERS ────────────────────────────────────────────────────────────────────
