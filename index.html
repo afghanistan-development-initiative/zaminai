@@ -1446,7 +1446,7 @@ else console.error('Report panel not found');
       }
     }).catch(()=>{});
   renderReport();
-  document.getElementById('rp-info').textContent=aJ+' jereb · '+aHa+' ha · 2024';
+  document.getElementById('rp-info').textContent=aJ+' jereb · '+aHa+' ha · '+new Date().getFullYear();
   btn.innerHTML='🛰️ Re-analyse';btn.disabled=false;
   updateAICtx();
 
