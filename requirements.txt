@@ -15,5 +15,12 @@ google-generativeai==0.4.0
 pandas==2.2.0
 scikit-learn==1.4.0
 xgboost==2.0.3
-python-dotenv==1.0.0
+python-dotenv>=1.0.0
 geopandas==0.14.3
+anthropic>=0.40.0
+streamlit>=1.35.0
+streamlit-folium>=0.20.0
+folium>=0.16.0
+plotly>=5.20.0
+fastapi>=0.110.0
+uvicorn>=0.28.0

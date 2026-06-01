@@ -4,6 +4,7 @@ Covers: Profile | Irrigation | Fertilizer | Machinery | Seeds | Market | Program
 Author: Maiwand Jan Alamzoi — Afghanistan Development Initiative · zaminai.org
 """
 
+import os
 import streamlit as st
 import json
 import datetime
@@ -532,9 +533,9 @@ def save_farmer_data(farmer_id, data):
 
 def get_ai_response(system, messages, max_tokens=400):
     try:
-        client = anthropic.Anthropic(api_key=st.secrets["anthropic"]["api_key"])
+        client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
         response = client.messages.create(
-            model="claude-sonnet-4-5",
+            model="claude-sonnet-4-6",
             max_tokens=max_tokens,
             system=system,
             messages=messages
@@ -959,7 +960,7 @@ def render_farmer_module(language="English", field_results=None):
         if uploaded and st.button("🔍 Analyse photos", type="primary", use_container_width=True):
             with st.spinner("AI is analysing your photos..."):
                 try:
-                    client = anthropic.Anthropic(api_key=st.secrets["anthropic"]["api_key"])
+                    client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
                     content = []
 
                     for photo in uploaded[:3]:

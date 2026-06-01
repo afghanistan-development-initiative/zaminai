@@ -28,8 +28,11 @@
 
 import os, json, math, logging, requests
 from datetime import datetime
+from dotenv import load_dotenv
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+
+load_dotenv()
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -508,7 +511,7 @@ def smart_fallback(question,ndvi,water,rain,area_j,lang,province="Afghanistan"):
 def gee_analyse(coords,year,clat,clon):
     import ee
     poly=ee.Geometry.Polygon([[[c[1],c[0]] for c in coords]])
-    end_date=f"{year}-07-31" if year<2025 else "2025-05-31"
+    end_date=min(f"{year}-07-31", datetime.now().strftime("%Y-%m-%d"))
     s2=(ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
         .filterBounds(poly).filterDate(f"{year}-04-01",end_date)
         .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE",20))
@@ -532,10 +535,11 @@ def gee_analyse(coords,year,clat,clon):
     rain=mean(ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY").filterBounds(poly)
               .filterDate(f"{year}-01-01",f"{year}-12-31").select("precipitation").sum().clip(poly),"precipitation")
     trend={}
-    for yr in range(2019,2026):
+    for yr in range(2019, datetime.now().year + 1):
         try:
+            yr_end=min(f"{yr}-07-31", datetime.now().strftime("%Y-%m-%d"))
             c2=(ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED").filterBounds(poly)
-                .filterDate(f"{yr}-05-01",f"{yr}-07-31")
+                .filterDate(f"{yr}-05-01",yr_end)
                 .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE",25)).median().clip(poly))
             v=(c2.normalizedDifference(["B8","B4"])
                .reduceRegion(ee.Reducer.mean(),poly,10,maxPixels=1e8).get("nd").getInfo())
@@ -544,7 +548,7 @@ def gee_analyse(coords,year,clat,clon):
     return {"ndvi":ndvi,"evi":evi,"savi":savi,"mndwi":mndwi,"water":mndwi,
             "lswi":lswi,"ndre":ndre,"bsi":bsi,"rain":rain,"trend":trend,
             "ndvi_trend":trend,"lat":round(clat,5),"lon":round(clon,5),
-            "source":"gee_live","image_date":f"{year}-05"}
+            "source":"gee_live","image_date":end_date}
 
 
 # ════════════════════════════════════════════════════════════════════════════════
