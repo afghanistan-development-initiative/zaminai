@@ -226,6 +226,93 @@ def db_save_chat(farmer_id, field_id, question, answer, language):
         log.error(f"db_save_chat: {e}")
 
 
+# ── Alert helpers ─────────────────────────────────────────────────────────────
+# Requires Supabase table: farmer_alerts
+# SQL: CREATE TABLE farmer_alerts (
+#   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+#   farmer_id uuid NOT NULL, field_id uuid,
+#   alert_type TEXT NOT NULL,   -- ndvi_low | water_stress | rain_deficit | harvest_window
+#   threshold FLOAT, crop TEXT, province TEXT,
+#   is_active BOOLEAN DEFAULT true,
+#   created_at TIMESTAMP DEFAULT NOW(), last_triggered TIMESTAMP
+# );
+
+def db_save_alert(farmer_id, alert_type, threshold=None, crop="", province="Afghanistan", field_id=None):
+    if not sb_ok or not farmer_id:
+        return None
+    try:
+        res = sb.table("farmer_alerts").insert({
+            "farmer_id":  farmer_id,
+            "field_id":   field_id,
+            "alert_type": alert_type,
+            "threshold":  threshold,
+            "crop":       crop,
+            "province":   province,
+            "is_active":  True,
+            "created_at": datetime.utcnow().isoformat()
+        }).execute()
+        log.info(f"✓ Alert saved: {alert_type} farmer={farmer_id}")
+        return res.data[0] if res.data else None
+    except Exception as e:
+        log.error(f"db_save_alert: {e}")
+        return None
+
+
+def db_get_alerts(farmer_id):
+    if not sb_ok or not farmer_id:
+        return []
+    try:
+        res = (sb.table("farmer_alerts").select("*")
+               .eq("farmer_id", farmer_id).eq("is_active", True)
+               .order("created_at", desc=True).execute())
+        return res.data or []
+    except Exception as e:
+        log.error(f"db_get_alerts: {e}")
+        return []
+
+
+def db_delete_alert(alert_id, farmer_id):
+    if not sb_ok:
+        return False
+    try:
+        sb.table("farmer_alerts").update({"is_active": False}) \
+          .eq("id", alert_id).eq("farmer_id", farmer_id).execute()
+        return True
+    except Exception as e:
+        log.error(f"db_delete_alert: {e}")
+        return False
+
+
+def check_alerts_fire(alerts, ndvi, mndwi, rain, province):
+    """Return alerts that fire given current satellite readings."""
+    fired = []
+    month = datetime.now().month
+    for a in alerts:
+        atype = a.get("alert_type", "")
+        thr   = a.get("threshold")
+        try:
+            if atype == "ndvi_low" and ndvi is not None and thr is not None and ndvi < thr:
+                fired.append({**a, "value": ndvi,
+                              "msg": f"NDVI {ndvi} below {thr} — crop stress detected"})
+            elif atype == "water_stress" and mndwi is not None and thr is not None and mndwi < thr:
+                fired.append({**a, "value": mndwi,
+                              "msg": f"Water index {mndwi} below {thr} — irrigate soon"})
+            elif atype == "rain_deficit" and rain is not None and thr is not None and rain < thr:
+                fired.append({**a, "value": rain,
+                              "msg": f"Rainfall {rain}mm below {thr}mm threshold"})
+            elif atype == "harvest_window":
+                crop  = a.get("crop", "wheat")
+                ptype = get_province_type(province)
+                cal   = CROP_CALENDAR.get(crop, CROP_CALENDAR.get("wheat", {}))
+                zone  = cal.get(ptype, list(cal.values())[0] if cal else {})
+                if month in zone.get("harvest", []):
+                    fired.append({**a, "value": month,
+                                  "msg": f"Harvest window open for {crop} — act now"})
+        except Exception:
+            pass
+    return fired
+
+
 # ════════════════════════════════════════════════════════════════════════════════
 # REGIONAL DATABASE  (unchanged from v6.0)
 # ════════════════════════════════════════════════════════════════════════════════
@@ -508,47 +595,113 @@ def smart_fallback(question,ndvi,water,rain,area_j,lang,province="Afghanistan"):
         if is_fert: return f"NDVI {ndvi} — apply Urea: {fert}kg + DAP: {round(area_j*20)}kg/jereb."
         return f"Your {area_j} jereb — NDVI {ndvi}, water {water}, rain {rain}mm. What question?"
 
-def gee_analyse(coords,year,clat,clon):
+def gee_analyse(coords, year, clat, clon):
     import ee
-    poly=ee.Geometry.Polygon([[[c[1],c[0]] for c in coords]])
-    end_date=min(f"{year}-07-31", datetime.now().strftime("%Y-%m-%d"))
-    s2=(ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
-        .filterBounds(poly).filterDate(f"{year}-04-01",end_date)
-        .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE",20))
-        .sort("CLOUDY_PIXEL_PERCENTAGE").limit(5).median().clip(poly))
-    def mean(img,band):
-        v=(img.reduceRegion(ee.Reducer.mean(),poly,10,maxPixels=1e8).get(band).getInfo())
-        return round(float(v),4) if v is not None else None
-    ndvi=mean(s2.normalizedDifference(["B8","B4"]).rename("nd"),"nd")
-    evi_img=s2.expression("2.5*((NIR-RED)/(NIR+6*RED-7.5*BLUE+1))",
-        {"NIR":s2.select("B8"),"RED":s2.select("B4"),"BLUE":s2.select("B2")}).rename("evi")
-    evi=mean(evi_img,"evi")
-    savi_img=s2.expression("((NIR-RED)/(NIR+RED+0.5))*1.5",
-        {"NIR":s2.select("B8"),"RED":s2.select("B4")}).rename("savi")
-    savi=mean(savi_img,"savi")
-    mndwi=mean(s2.normalizedDifference(["B3","B11"]).rename("nd"),"nd")
-    lswi=mean(s2.normalizedDifference(["B8","B11"]).rename("nd"),"nd")
-    ndre=mean(s2.normalizedDifference(["B8A","B5"]).rename("nd"),"nd")
-    bsi_img=s2.expression("((SWIR1+RED)-(NIR+BLUE))/((SWIR1+RED)+(NIR+BLUE))",
-        {"SWIR1":s2.select("B11"),"RED":s2.select("B4"),"NIR":s2.select("B8"),"BLUE":s2.select("B2")}).rename("bsi")
-    bsi=mean(bsi_img,"bsi")
-    rain=mean(ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY").filterBounds(poly)
-              .filterDate(f"{year}-01-01",f"{year}-12-31").select("precipitation").sum().clip(poly),"precipitation")
-    trend={}
+    poly     = ee.Geometry.Polygon([[[c[1], c[0]] for c in coords]])
+    end_date = min(f"{year}-07-31", datetime.now().strftime("%Y-%m-%d"))
+
+    # ── Sentinel-2 (10 m, 2015+) ─────────────────────────────────────────────
+    s2 = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+          .filterBounds(poly).filterDate(f"{year}-04-01", end_date)
+          .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 20))
+          .sort("CLOUDY_PIXEL_PERCENTAGE").limit(5).median().clip(poly))
+
+    def s2m(img, band):
+        v = img.reduceRegion(ee.Reducer.mean(), poly, 10, maxPixels=1e8).get(band).getInfo()
+        return round(float(v), 4) if v is not None else None
+
+    ndvi  = s2m(s2.normalizedDifference(["B8","B4"]).rename("nd"), "nd")
+    evi   = s2m(s2.expression("2.5*((NIR-RED)/(NIR+6*RED-7.5*BLUE+1))",
+                {"NIR":s2.select("B8"),"RED":s2.select("B4"),"BLUE":s2.select("B2")}).rename("evi"), "evi")
+    savi  = s2m(s2.expression("((NIR-RED)/(NIR+RED+0.5))*1.5",
+                {"NIR":s2.select("B8"),"RED":s2.select("B4")}).rename("savi"), "savi")
+    mndwi = s2m(s2.normalizedDifference(["B3","B11"]).rename("nd"), "nd")
+    lswi  = s2m(s2.normalizedDifference(["B8","B11"]).rename("nd"), "nd")
+    ndre  = s2m(s2.normalizedDifference(["B8A","B5"]).rename("nd"), "nd")
+    bsi   = s2m(s2.expression("((SWIR1+RED)-(NIR+BLUE))/((SWIR1+RED)+(NIR+BLUE))",
+                {"SWIR1":s2.select("B11"),"RED":s2.select("B4"),
+                 "NIR":s2.select("B8"),"BLUE":s2.select("B2")}).rename("bsi"), "bsi")
+    rain  = s2m(ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY").filterBounds(poly)
+                .filterDate(f"{year}-01-01", f"{year}-12-31")
+                .select("precipitation").sum().clip(poly), "precipitation")
+
+    # ── Landsat 8 + 9 (30 m, 2013+) ─────────────────────────────────────────
+    # Merged L8/L9 collection → median composite → scale factors applied
+    landsat_data = None
+    try:
+        def lsm(img, band):
+            v = img.reduceRegion(ee.Reducer.mean(), poly, 30, maxPixels=1e8).get(band).getInfo()
+            return round(float(v), 4) if v is not None else None
+
+        ls_col = (ee.ImageCollection("LANDSAT/LC08/C02/T1_L2")
+                  .filterBounds(poly).filterDate(f"{year}-04-01", end_date)
+                  .filter(ee.Filter.lt("CLOUD_COVER", 20))
+                  .merge(ee.ImageCollection("LANDSAT/LC09/C02/T1_L2")
+                         .filterBounds(poly).filterDate(f"{year}-04-01", end_date)
+                         .filter(ee.Filter.lt("CLOUD_COVER", 20)))
+                  .sort("CLOUD_COVER").limit(8))
+        ls    = ls_col.median().clip(poly)
+        ls_sc = ls.select("SR_B.*").multiply(0.0000275).add(-0.2)
+
+        ls_ndvi  = lsm(ls_sc.normalizedDifference(["SR_B5","SR_B4"]).rename("nd"), "nd")
+        ls_evi   = lsm(ls_sc.expression("2.5*((NIR-RED)/(NIR+6*RED-7.5*BLUE+1))",
+                        {"NIR":ls_sc.select("SR_B5"),"RED":ls_sc.select("SR_B4"),
+                         "BLUE":ls_sc.select("SR_B2")}).rename("evi"), "evi")
+        ls_mndwi = lsm(ls_sc.normalizedDifference(["SR_B3","SR_B6"]).rename("nd"), "nd")
+        ls_lswi  = lsm(ls_sc.normalizedDifference(["SR_B5","SR_B6"]).rename("nd"), "nd")
+        ls_savi  = lsm(ls_sc.expression("((NIR-RED)/(NIR+RED+0.5))*1.5",
+                        {"NIR":ls_sc.select("SR_B5"),"RED":ls_sc.select("SR_B4")}).rename("savi"), "savi")
+        landsat_data = {
+            "ndvi": ls_ndvi, "evi": ls_evi, "mndwi": ls_mndwi,
+            "lswi": ls_lswi, "savi": ls_savi,
+            "source": "landsat_8_9", "resolution_m": 30
+        }
+        log.info(f"✓ Landsat L8/L9 NDVI={ls_ndvi}")
+    except Exception as e:
+        log.warning(f"Landsat composite failed: {e}")
+
+    # ── Sentinel-2 NDVI trend (2019 – present) ───────────────────────────────
+    s2_trend = {}
     for yr in range(2019, datetime.now().year + 1):
         try:
-            yr_end=min(f"{yr}-07-31", datetime.now().strftime("%Y-%m-%d"))
-            c2=(ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED").filterBounds(poly)
-                .filterDate(f"{yr}-05-01",yr_end)
-                .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE",25)).median().clip(poly))
-            v=(c2.normalizedDifference(["B8","B4"])
-               .reduceRegion(ee.Reducer.mean(),poly,10,maxPixels=1e8).get("nd").getInfo())
-            trend[yr]=round(float(v),4) if v else None
-        except: trend[yr]=None
-    return {"ndvi":ndvi,"evi":evi,"savi":savi,"mndwi":mndwi,"water":mndwi,
-            "lswi":lswi,"ndre":ndre,"bsi":bsi,"rain":rain,"trend":trend,
-            "ndvi_trend":trend,"lat":round(clat,5),"lon":round(clon,5),
-            "source":"gee_live","image_date":end_date}
+            yr_end = min(f"{yr}-07-31", datetime.now().strftime("%Y-%m-%d"))
+            c2 = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED").filterBounds(poly)
+                  .filterDate(f"{yr}-05-01", yr_end)
+                  .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 25)).median().clip(poly))
+            v  = (c2.normalizedDifference(["B8","B4"])
+                  .reduceRegion(ee.Reducer.mean(), poly, 10, maxPixels=1e8).get("nd").getInfo())
+            s2_trend[yr] = round(float(v), 4) if v else None
+        except:
+            s2_trend[yr] = None
+
+    # ── Landsat NDVI trend (2013 – 2018, pre-Sentinel era) ───────────────────
+    ls_trend = {}
+    for yr in range(2013, 2019):
+        try:
+            yr_end = min(f"{yr}-07-31", datetime.now().strftime("%Y-%m-%d"))
+            lc    = (ee.ImageCollection("LANDSAT/LC08/C02/T1_L2")
+                     .filterBounds(poly).filterDate(f"{yr}-04-01", yr_end)
+                     .filter(ee.Filter.lt("CLOUD_COVER", 25)).median().clip(poly))
+            lc_sc = lc.select("SR_B.*").multiply(0.0000275).add(-0.2)
+            v     = (lc_sc.normalizedDifference(["SR_B5","SR_B4"])
+                     .reduceRegion(ee.Reducer.mean(), poly, 30, maxPixels=1e8).get("nd").getInfo())
+            ls_trend[yr] = round(float(v), 4) if v else None
+        except:
+            ls_trend[yr] = None
+
+    # Combined 2013-present: Landsat fills pre-S2 years, Sentinel-2 from 2019
+    combined_trend = {**ls_trend, **s2_trend}
+
+    return {
+        "ndvi": ndvi, "evi": evi, "savi": savi, "mndwi": mndwi, "water": mndwi,
+        "lswi": lswi, "ndre": ndre, "bsi": bsi, "rain": rain,
+        "trend": s2_trend, "ndvi_trend": s2_trend,
+        "landsat": landsat_data,
+        "landsat_trend": ls_trend,
+        "combined_trend": combined_trend,
+        "lat": round(clat, 5), "lon": round(clon, 5),
+        "source": "gee_live", "image_date": end_date
+    }
 
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -558,14 +711,20 @@ def gee_analyse(coords,year,clat,clon):
 @app.route("/health")
 def health():
     return jsonify({
-        "status":"ok","version":"7.0","gee":gee_ok,
+        "status": "ok", "version": "8.0", "gee": gee_ok,
         "database": sb_ok,
-        "ai":"gemini" if GEMINI_KEY else "smart_only",
-        "indices":["ndvi","evi","savi","mndwi","lswi","ndre","bsi"],
-        "endpoints":["/health","/analyse","/ask","/ndvi_tile",
-                     "/crop_detect","/monthly_rain","/soil",
-                     "/db/farmer","/db/field/save","/db/fields/<id>",
-                     "/db/analysis/save","/db/chat/save"]
+        "ai": "gemini" if GEMINI_KEY else "smart_only",
+        "satellites": ["sentinel2_10m", "landsat8_9_30m"],
+        "indices": ["ndvi","evi","savi","mndwi","lswi","ndre","bsi"],
+        "trend_years": "2013–present (Landsat 2013-2018 + Sentinel-2 2019+)",
+        "endpoints": [
+            "/health", "/analyse", "/ask", "/ndvi_tile",
+            "/crop_detect", "/monthly_rain", "/soil",
+            "/db/farmer", "/db/field/save", "/db/fields/<id>",
+            "/db/analysis/save", "/db/chat/save",
+            "/alerts/save", "/alerts/<farmer_id>",
+            "/alerts/delete", "/alerts/check"
+        ]
     })
 
 
@@ -683,6 +842,75 @@ def db_chat_save():
         return jsonify({"status":"ok"})
     except Exception as e:
         return jsonify({"error":str(e)}),500
+
+
+# ── ALERT ROUTES ─────────────────────────────────────────────────────────────
+
+@app.route("/alerts/save", methods=["POST","OPTIONS"])
+def alerts_save():
+    if request.method == "OPTIONS": return jsonify({}), 200
+    try:
+        d          = request.get_json(force=True)
+        farmer_id  = d.get("farmer_id")
+        alert_type = d.get("alert_type")
+        if not farmer_id or not alert_type:
+            return jsonify({"error": "farmer_id and alert_type required"}), 400
+        result = db_save_alert(
+            farmer_id, alert_type,
+            threshold = d.get("threshold"),
+            crop      = d.get("crop", ""),
+            province  = d.get("province", "Afghanistan"),
+            field_id  = d.get("field_id")
+        )
+        if not result:
+            return jsonify({"error": "Could not save alert — run SQL migration first", "ok": False}), 503
+        return jsonify({"status": "ok", "alert": result})
+    except Exception as e:
+        log.error(f"/alerts/save: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/alerts/<farmer_id>", methods=["GET","OPTIONS"])
+def alerts_get(farmer_id):
+    if request.method == "OPTIONS": return jsonify({}), 200
+    try:
+        alerts = db_get_alerts(farmer_id)
+        return jsonify({"status": "ok", "alerts": alerts, "count": len(alerts)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/alerts/delete", methods=["POST","OPTIONS"])
+def alerts_delete():
+    if request.method == "OPTIONS": return jsonify({}), 200
+    try:
+        d         = request.get_json(force=True)
+        alert_id  = d.get("alert_id")
+        farmer_id = d.get("farmer_id")
+        if not alert_id or not farmer_id:
+            return jsonify({"error": "alert_id and farmer_id required"}), 400
+        ok = db_delete_alert(alert_id, farmer_id)
+        return jsonify({"status": "ok" if ok else "error", "ok": ok})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/alerts/check", methods=["POST","OPTIONS"])
+def alerts_check():
+    """Check which of a farmer's alerts fire against current satellite readings."""
+    if request.method == "OPTIONS": return jsonify({}), 200
+    try:
+        d         = request.get_json(force=True)
+        farmer_id = d.get("farmer_id")
+        ndvi      = d.get("ndvi")
+        mndwi     = d.get("mndwi")
+        rain      = d.get("rain")
+        province  = d.get("province", "Afghanistan")
+        alerts    = db_get_alerts(farmer_id)
+        fired     = check_alerts_fire(alerts, ndvi, mndwi, rain, province)
+        return jsonify({"status": "ok", "fired": fired, "total": len(alerts), "fired_count": len(fired)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ── ANALYSIS ROUTE (unchanged logic, added db save) ───────────────────────────

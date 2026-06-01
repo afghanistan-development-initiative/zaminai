@@ -897,7 +897,17 @@ function renderRegions(l){
 renderRegions('en');
 
 // ── CALCULATOR ────────────────────────────────────────────────────────────────
-const CROPS={wheat:{yb:300,price:14,seed:400},flax:{yb:120,price:28,seed:600},saffron:{yb:0.8,price:3000,seed:8000},chickpeas:{yb:150,price:22,seed:350},vegetables:{yb:1200,price:10,seed:800},cotton:{yb:200,price:20,seed:500},almonds:{yb:180,price:120,seed:5000},maize:{yb:500,price:12,seed:450}};
+// Yield baselines (kg/jereb), farm-gate prices (AFN/kg), seed cost (AFN/jereb) — 2024 Afghanistan market
+const CROPS={
+  wheat:     {yb:280, price:30,    seed:600},   // 280 kg/jereb avg, 30 AFN/kg
+  flax:      {yb:120, price:45,    seed:650},   // 45 AFN/kg seed market
+  saffron:   {yb:0.9, price:45000, seed:10000}, // 0.9 kg dried/jereb; 45,000 AFN/kg farm gate (~$500/kg)
+  chickpeas: {yb:140, price:42,    seed:500},
+  vegetables:{yb:1000,price:30,    seed:2000},  // mixed veg, 30 AFN/kg conservative
+  cotton:    {yb:180, price:38,    seed:600},
+  almonds:   {yb:200, price:280,   seed:7000},  // 280 AFN/kg shelled
+  maize:     {yb:450, price:22,    seed:600}
+};
 function fmt(n){if(typeof n!=='number'||isNaN(n))return'—';if(Math.abs(n)>=1e6)return(Math.round(n/1e5)/10)+'M';if(Math.abs(n)>=1000)return(Math.round(n/100)/10)+'K';return Math.round(n).toString();}
 function updLand(){const v=parseInt(document.getElementById('land').value);document.getElementById('lv').textContent=v;document.getElementById('lh').textContent='('+Math.round(v*.2*10)/10+' ha)';calcFarm();}
 function calcFarm(){
@@ -911,7 +921,8 @@ function calcFarm(){
   const im=irr==='drip'?1.15:irr==='furrow'?1.0:irr==='flood'?.85:1.08;
   const fm=fert==='full'?1.2:fert==='basic'?1.0:fert==='organic'?.9:.7;
   const yld=Math.round(c.yb*wm*im*fm*land),inc=Math.round(yld*c.price);
-  const sc=c.seed,fc={full:2800,basic:1800,organic:600,none:0}[fert],ic={drip:800,furrow:400,flood:200,sprinkler:600}[irr],mc={tractor:1200,partial:600,manual:300}[mach],lc2=600,oc=300;
+  // Costs per jereb per season — 2024 Afghanistan rates (AFN)
+  const sc=c.seed,fc={full:4000,basic:2200,organic:1000,none:0}[fert],ic={drip:1500,furrow:600,flood:350,sprinkler:1200}[irr],mc={tractor:2000,partial:1000,manual:500}[mach],lc2=1000,oc=500;
   const tc=Math.round((sc+fc+ic+mc+lc2+oc)*land),np=inc-tc;
   document.getElementById('r1').textContent=fmt(yld)+' kg';
   document.getElementById('r2').textContent=fmt(inc)+' AFN';
@@ -919,7 +930,7 @@ function calcFarm(){
   document.getElementById('r4').textContent=(np>=0?'+':'')+fmt(np)+' AFN';
   document.getElementById('r4').style.color=np>=0?'#4ade80':'#f87171';
   const l=pgCurrentLang;
-  const TL={en:{s:'Seeds',f:'Fertilizer',i:'Irrigation',l:'Labour',o:'Other',tot:'Total costs',g:'Gross income',p:'NET PROFIT'},fa:{s:'تخم',f:'کود',i:'آبیاری',l:'کارگر',o:'سایر',tot:'مجموع مصرف',g:'عاید مجموعی',p:'فایده خالص'},ps:{s:'تخم',f:'سره',i:'اوبه',l:'کارګر',o:'نور',tot:'ټول لګښتونه',g:'مجموعي عاید',p:'خالص ګټه'}}[l]||{s:'Seeds',f:'Fertilizer',i:'Irrigation',l:'Labour',o:'Other',tot:'Total costs',g:'Gross income',p:'NET PROFIT'};
+  const TL={en:{s:'Seeds',f:'Fertilizer',i:'Irrigation',l:'Labour',o:'Other',tot:'Total costs',g:'Gross income',p:'NET PROFIT'},fa:{s:'تخم',f:'کود',i:'آبیاری',l:'کارگر',o:'سایر',tot:'مجموع مصرف',g:'عاید مجموعی',p:'فایده خالص'},ps:{s:'تخم',f:'کود',i:'اوبه',l:'کارګر',o:'نور',tot:'ټول لګښتونه',g:'مجموعي عاید',p:'خالص ګټه'}}[l]||{s:'Seeds',f:'Fertilizer',i:'Irrigation',l:'Labour',o:'Other',tot:'Total costs',g:'Gross income',p:'NET PROFIT'};
   const rows=[[TL.s,sc,sc*land,'neg'],[TL.f,fc,fc*land,'neg'],[TL.i,ic,ic*land,'neg'],[TL.l,lc2,lc2*land,'neg'],[TL.o,oc,oc*land,'neg'],['<b>'+TL.tot+'</b>',(sc+fc+ic+mc+lc2+oc),tc,'neg'],['<b>'+TL.g+'</b>','—',inc,'pos'],['<b>'+TL.p+'</b>','—',np,np>=0?'pos':'neg']];
   document.getElementById('ctbl').innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td>${typeof r[1]==='number'?fmt(r[1])+' AFN':r[1]}</td><td class="${r[3]}">${r[3]==='pos'?'+':''}${fmt(r[2])} AFN</td></tr>`).join('');
   let rec='';
@@ -1432,7 +1443,7 @@ const RT={
     sdBad:'Critical stress — act today.',
     metrics:'Field metrics', mJereb:'Jereb', mHa:'Hectares', mWater:'Water',
     mRain:'mm/year', mProv:'Province', mWaterNow:'Water now', wOk:'💧 OK', wLow:'🔴 Low',
-    trend:'📈 NDVI trend 2019–2025', worst:'🔴 worst year (2022 drought)', best:'🟢 best year',
+    trend:'📈 NDVI trend 2013–present (Landsat + Sentinel-2)', worst:'🔴 worst year (2022 drought)', best:'🟢 best year',
     todo:'What you should do',
     urgent:'🚨 URGENT', important:'⚠️ IMPORTANT', recommended:'✅ RECOMMENDED',
     irrTitle:'Irrigate within {d}–{d2} days', irrDesc:'Apply 50–70mm · drip or furrow · early morning',
@@ -1474,7 +1485,7 @@ const RT={
     sdBad:'فشار شدید — امروز اقدام کنید.',
     metrics:'مشخصات زمین', mJereb:'جریب', mHa:'هکتار', mWater:'آب',
     mRain:'م.م/سال', mProv:'ولایت', mWaterNow:'آب فعلی', wOk:'💧 خوب', wLow:'🔴 کم',
-    trend:'📈 روند NDVI ۲۰۱۹–۲۰۲۵', worst:'🔴 بدترین سال (خشکسالی ۲۰۲۲)', best:'🟢 بهترین سال',
+    trend:'📈 روند NDVI ۲۰۱۳–اکنون (لندست + سنتینل)', worst:'🔴 بدترین سال (خشکسالی ۲۰۲۲)', best:'🟢 بهترین سال',
     todo:'چه باید بکنید',
     urgent:'🚨 فوری', important:'⚠️ مهم', recommended:'✅ توصیه شده',
     irrTitle:'در {d}–{d2} روز آبیاری کنید', irrDesc:'۵۰–۷۰ م.م · قطره‌ای یا جویی · صبح زود',
@@ -1516,7 +1527,7 @@ const RT={
     sdBad:'سخت فشار — نن اقدام وکړئ.',
     metrics:'د ځمکې مشخصات', mJereb:'جریب', mHa:'هکتار', mWater:'اوبه',
     mRain:'م.م/کال', mProv:'ولایت', mWaterNow:'اوسنۍ اوبه', wOk:'💧 ښه', wLow:'🔴 کم',
-    trend:'📈 د NDVI روند ۲۰۱۹–۲۰۲۵', worst:'🔴 بدترین کال (د ۲۰۲۲ وچکالي)', best:'🟢 ښه کال',
+    trend:'📈 د NDVI روند ۲۰۱۳–اوس (لندست + سنتینل)', worst:'🔴 بدترین کال (د ۲۰۲۲ وچکالي)', best:'🟢 ښه کال',
     todo:'څه باید وکړئ',
     urgent:'🚨 بیړنی', important:'⚠️ مهم', recommended:'✅ سپارښتنه',
     irrTitle:'په {d}–{d2} ورځو کې اوبه ورکړئ', irrDesc:'۵۰–۷۰ م.م · څاڅکی یا ویالې · سهار وختي',
@@ -1525,7 +1536,7 @@ const RT={
     compostTitle:'د راتلونکي فصل دمخه کمپوست ورزیات کړئ', compostDesc:'۲–۳ ټنه/جریب · د اوبو ساتنه ۳۰٪ ښه کوي',
     bestCrops:'ستاسو د ځمکې لپاره غوره محصولات', highProfit:'لوړه ګټه', medium:'منځنی',
     income:'💰 د عاید اټکل',
-    iSeed:'تخم + سره', iIrr:'اوبه + کارګر', iYield:'د حاصل اټکل',
+    iSeed:'تخم + کود', iIrr:'اوبه + کارګر', iYield:'د حاصل اټکل',
     iGross:'مجموعي عاید', iNet:'خالص ګټه', kg:'کیلوګرام',
     cropDet:'🌾 د محصول تشخیص', confidence:'باور',
     cropWarn:'⚠️ د ماهوارې محصول تشخیص ~۷۰–۸۵٪ دقت. په ځمکه کې یې تایید کړئ.',
