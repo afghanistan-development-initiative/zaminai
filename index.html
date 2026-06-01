@@ -1064,12 +1064,40 @@ function onMapClick(e){
 }
 function onMapDbl(e){if(pts.length<3)return;L.DomEvent.stop(e);finishPoly();}
 function updatePoly(){if(polyLayer){appMap.removeLayer(polyLayer);polyLayer=null;}if(pts.length>=2){polyLayer=L.polygon(pts,{color:'#16a34a',fillColor:'#16a34a',fillOpacity:.15,weight:2,dashArray:'5,3'}).addTo(appMap);}}
+// ── Province auto-detect from coordinates ────────────────────────────────────
+function autoDetectLocation(lat,lng){
+  for(const [lamin,lamax,lomin,lomax,name,ndvi,mndwi,rain] of DB){
+    if(lat>=lamin&&lat<=lamax&&lng>=lomin&&lng<=lomax)
+      return{name,ndvi,mndwi,rain};
+  }
+  const ndvi=Math.round(Math.max(0.08,Math.min(0.45,0.06+lat*0.003+(lng-62)*0.002))*100)/100;
+  return{name:'Afghanistan',ndvi,mndwi:-0.18,rain:Math.max(80,Math.min(480,Math.round(lat*8)))};
+}
+
 function finishPoly(){
   if(polyLayer){appMap.removeLayer(polyLayer);polyLayer=null;}
   polyLayer=L.polygon(pts,{color:'#16a34a',fillColor:'#16a34a',fillOpacity:.2,weight:2.5}).addTo(appMap);
   const ha=calcArea(pts),j=(ha*5).toFixed(1);
-  polyLayer.bindPopup(`<div style="font-family:monospace;font-size:12px;color:#052e16">✓ ${j} jereb · ${ha} ha</div>`).openPopup();
-  hideTip();notify('✓ Field drawn — '+j+' jereb');document.getElementById('tb-analyse').disabled=false;
+
+  // Auto-detect province + baseline data from centroid
+  const clat=pts.reduce((s,p)=>s+p[0],0)/pts.length;
+  const clon=pts.reduce((s,p)=>s+p[1],0)/pts.length;
+  const prov=autoDetectLocation(clat,clon);
+  window._detectedProvince=prov;
+
+  const wIcon=prov.mndwi>-0.10?'💧 OK':'🔴 Low water';
+  const ndviIcon=prov.ndvi>=0.30?'🟢':'prov.ndvi>=0.18'?'🟡':'🔴';
+  const popHtml=`<div style="font-family:monospace;font-size:12px;color:#052e16;min-width:175px;line-height:1.6">
+    <b>✓ ${j} jereb · ${ha} ha</b><br>
+    📍 <b>${prov.name}</b><br>
+    🌧️ ~${prov.rain}mm/year<br>
+    ${wIcon} · NDVI ~${prov.ndvi}<br>
+    <small style="color:#6b9e74;font-size:10px">Click Analyse for live satellite data</small>
+  </div>`;
+  polyLayer.bindPopup(popHtml).openPopup();
+  hideTip();
+  notify(`✓ ${j} jereb · ${prov.name} · ~${prov.rain}mm rain`);
+  document.getElementById('tb-analyse').disabled=false;
 }
 function tbDraw(){pts=[];ptMarkers.forEach(m=>appMap.removeLayer(m));ptMarkers=[];if(polyLayer){appMap.removeLayer(polyLayer);polyLayer=null;}document.getElementById('tb-analyse').disabled=true;showTip('Click map to draw · Double-click to finish');}
 function drawFieldGrid(coords,ndvi,indexName){
@@ -1944,15 +1972,96 @@ async function sendQ(q){
   if(window.speechSynthesis){const u=new SpeechSynthesisUtterance(reply.replace(/<[^>]*>/g,'').slice(0,400));u.lang=appLang==='fa'?'fa-IR':appLang==='ps'?'ps-AF':'en-US';u.rate=.9;speechSynthesis.speak(u);}
 }
 
+// ── Voice command parser ─────────────────────────────────────────────────────
+// Understands commands in English, Dari, Pashto. Falls back to AI chat.
+function parseVoiceCommand(text, lang){
+  const t=text.toLowerCase();
+
+  // GPS / locate
+  if(/\b(gps|locate|location|current position|موقعیت|ځای مې|locate me)\b/i.test(t))
+    return{type:'gps',text};
+
+  // Analyse trigger
+  if(/\b(analyse|analyze|satellite|تحلیل|تحلیل کنید|تحلیل کړه|ماهواره)\b/i.test(t))
+    return{type:'analyse',text};
+
+  // Field label: "call it my wheat field" / "اسمش کندز گندم" / "نوم يې غنم"
+  const lm=t.match(/(?:call it|name it|label it|اسمش|نامش|نوم يې|بخوانش)\s+(.{2,40})/i);
+  if(lm)return{type:'label',value:lm[1].trim(),text};
+
+  // Crop selection — sets the calculator dropdown
+  const crops={
+    wheat:    ['wheat','گندم','غنم','grain'],
+    saffron:  ['saffron','زعفران'],
+    flax:     ['flax','کتان','linseed'],
+    vegetables:['vegetable','سبزی','سبزیجات','sabzi'],
+    cotton:   ['cotton','پنبه'],
+    maize:    ['maize','corn','جواری','ذرت'],
+    almonds:  ['almond','بادام'],
+    chickpeas:['chickpea','نخود']
+  };
+  for(const[crop,words] of Object.entries(crops)){
+    if(words.some(w=>t.includes(w)))return{type:'crop',value:crop,text};
+  }
+
+  // Province name → fly map to that province
+  const provMap={
+    kunduz:[36.8,68.7],balkh:[36.8,66.9],herat:[34.3,62.2],nangarhar:[34.2,70.6],
+    kabul:[34.5,69.2],kandahar:[31.6,65.7],helmand:[31.0,64.0],badakhshan:[37.0,70.8],
+    takhar:[36.7,69.7],baghlan:[36.2,68.7],faryab:[35.5,64.9],ghazni:[33.5,68.4],
+    bamyan:[34.8,67.8],logar:[33.9,69.2],paktia:[33.2,69.0],jawzjan:[36.2,65.7],
+    کندز:[36.8,68.7],بلخ:[36.8,66.9],هرات:[34.3,62.2],ننگرهار:[34.2,70.6],
+    کابل:[34.5,69.2],قندهار:[31.6,65.7],هلمند:[31.0,64.0],بدخشان:[37.0,70.8],
+    تخار:[36.7,69.7],بغلان:[36.2,68.7]
+  };
+  for(const[name,coords] of Object.entries(provMap)){
+    if(t.includes(name))return{type:'fly',name,coords,text};
+  }
+
+  return{type:'chat',text};
+}
+
 function toggleVoice(){
   if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)){notify('Voice not supported — use Chrome');return;}
   if(isListening){if(window._rec)window._rec.stop();return;}
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   const rec=new SR();window._rec=rec;
   rec.lang=appLang==='fa'?'fa-IR':appLang==='ps'?'ps-AF':'en-US';
-  rec.onstart=()=>{isListening=true;document.getElementById('voice-btn').classList.add('listening');notify('🎤 Listening…');};
+  rec.onstart=()=>{isListening=true;document.getElementById('voice-btn').classList.add('listening');
+    notify(appLang==='fa'?'🎤 گوش می‌دهم…':appLang==='ps'?'🎤 اورم…':'🎤 Listening…');};
   rec.onend=()=>{isListening=false;document.getElementById('voice-btn').classList.remove('listening');};
-  rec.onresult=e=>{document.getElementById('chat-inp').value=e.results[0][0].transcript;sendMsg();};
+  rec.onresult=e=>{
+    const transcript=e.results[0][0].transcript;
+    const cmd=parseVoiceCommand(transcript,appLang);
+    if(cmd.type==='gps'){
+      if(navigator.geolocation){
+        notify('📍 Getting GPS…');
+        navigator.geolocation.getCurrentPosition(pos=>{
+          const lat=pos.coords.latitude.toFixed(6),lng=pos.coords.longitude.toFixed(6);
+          const gl=document.getElementById('gLat'),gn=document.getElementById('gLon');
+          if(gl)gl.value=lat; if(gn)gn.value=lng;
+          gpsAutoDraw();
+        },()=>notify('⚠️ GPS not available — try again'));
+      }
+    } else if(cmd.type==='analyse'){
+      tbAnalyse();
+    } else if(cmd.type==='label'){
+      window._fieldLabel=cmd.value;
+      notify(`📝 Label set: "${cmd.value}"`);
+    } else if(cmd.type==='crop'){
+      const sel=document.getElementById('crop');
+      if(sel){sel.value=cmd.value;updLand();}
+      notify(`🌾 Crop: ${cmd.value}`);
+    } else if(cmd.type==='fly'){
+      if(appMap)appMap.flyTo(cmd.coords,12);
+      notify(`📍 ${cmd.name}`);
+    } else {
+      // Default: AI chat
+      document.getElementById('chat-inp').value=transcript;
+      sendMsg();
+    }
+  };
+  rec.onerror=e=>{isListening=false;document.getElementById('voice-btn').classList.remove('listening');notify('⚠️ Voice error: '+e.error);};
   rec.start();
 }
 

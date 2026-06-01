@@ -692,13 +692,73 @@ def gee_analyse(coords, year, clat, clon):
     # Combined 2013-present: Landsat fills pre-S2 years, Sentinel-2 from 2019
     combined_trend = {**ls_trend, **s2_trend}
 
+    # ── Sentinel-1 SAR (10 m, cloud-free radar) ──────────────────────────────
+    # Works through clouds — critical for Afghanistan monsoon/winter seasons.
+    # VV = soil moisture / flood. VH = crop canopy. VH-VV ratio = structure.
+    sar_data = None
+    try:
+        def sarm(img, band):
+            v = img.reduceRegion(ee.Reducer.mean(), poly, 10, maxPixels=1e8).get(band).getInfo()
+            return round(float(v), 3) if v is not None else None
+
+        s1 = (ee.ImageCollection("COPERNICUS/S1_GRD")
+              .filterBounds(poly)
+              .filterDate(f"{year}-04-01", end_date)
+              .filter(ee.Filter.eq("instrumentMode", "IW"))
+              .filter(ee.Filter.listContains("transmitterReceiverPolarisation", "VV"))
+              .filter(ee.Filter.listContains("transmitterReceiverPolarisation", "VH"))
+              .select(["VV", "VH"])
+              .median().clip(poly))
+        vv = sarm(s1, "VV")   # dB — wetter soil → less negative
+        vh = sarm(s1, "VH")   # dB — denser vegetation → less negative
+        vh_vv = round(vh - vv, 3) if (vv and vh) else None  # structure ratio
+        sar_data = {
+            "vv_db":    vv,      # soil moisture proxy (typical: -20 to -5 dB)
+            "vh_db":    vh,      # vegetation density proxy
+            "vh_vv_db": vh_vv,   # crop structure (more negative = sparser)
+            "source":   "sentinel1_SAR_IW",
+            "resolution_m": 10,
+            "cloud_free": True
+        }
+        log.info(f"✓ SAR VV={vv} VH={vh}")
+    except Exception as e:
+        log.warning(f"Sentinel-1 SAR failed: {e}")
+
+    # ── MODIS Land Surface Temperature (1 km, 8-day composite) ───────────────
+    # Frost risk detection, heat stress. Scale: pixel × 0.02 − 273.15 → °C
+    modis_data = None
+    try:
+        def modt(col):
+            img = col.mean()
+            def mv(band):
+                v = img.reduceRegion(ee.Reducer.mean(), poly, 1000, maxPixels=1e8).get(band).getInfo()
+                return round(float(v) * 0.02 - 273.15, 1) if v is not None else None
+            return mv("LST_Day_1km"), mv("LST_Night_1km")
+
+        lst = ee.ImageCollection("MODIS/061/MOD11A2").filterBounds(poly)
+        t_sum_d, t_sum_n = modt(lst.filterDate(f"{year}-06-01", f"{year}-08-31"))
+        t_win_d, t_win_n = modt(lst.filterDate(f"{year}-01-01", f"{year}-03-31"))
+        modis_data = {
+            "summer_day_c":  t_sum_d,   # peak heat stress
+            "summer_night_c": t_sum_n,
+            "winter_day_c":  t_win_d,
+            "winter_night_c": t_win_n,  # frost risk if < 0
+            "frost_risk":    (t_win_n < 0) if t_win_n is not None else None,
+            "source": "modis_MOD11A2"
+        }
+        log.info(f"✓ MODIS LST summer={t_sum_d}°C winter_night={t_win_n}°C")
+    except Exception as e:
+        log.warning(f"MODIS LST failed: {e}")
+
     return {
         "ndvi": ndvi, "evi": evi, "savi": savi, "mndwi": mndwi, "water": mndwi,
         "lswi": lswi, "ndre": ndre, "bsi": bsi, "rain": rain,
         "trend": s2_trend, "ndvi_trend": s2_trend,
-        "landsat": landsat_data,
+        "landsat":       landsat_data,
         "landsat_trend": ls_trend,
         "combined_trend": combined_trend,
+        "sar":   sar_data,
+        "modis": modis_data,
         "lat": round(clat, 5), "lon": round(clon, 5),
         "source": "gee_live", "image_date": end_date
     }
@@ -714,7 +774,7 @@ def health():
         "status": "ok", "version": "8.0", "gee": gee_ok,
         "database": sb_ok,
         "ai": "gemini" if GEMINI_KEY else "smart_only",
-        "satellites": ["sentinel2_10m", "landsat8_9_30m"],
+        "satellites": ["sentinel2_10m", "landsat8_9_30m", "sentinel1_SAR_10m", "modis_LST_1km"],
         "indices": ["ndvi","evi","savi","mndwi","lswi","ndre","bsi"],
         "trend_years": "2013–present (Landsat 2013-2018 + Sentinel-2 2019+)",
         "endpoints": [
