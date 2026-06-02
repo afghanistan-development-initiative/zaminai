@@ -45,12 +45,13 @@ app = Flask(__name__)
 CORS(app, origins="*")
 
 # ── Environment variables ─────────────────────────────────────────────────────
-GEMINI_KEY    = os.environ.get("GEMINI_API_KEY", "")
-ANTHROPIC_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
-GEE_SA        = os.environ.get("GEE_SERVICE_ACCOUNT", "")
-GEE_KEY       = os.environ.get("GEE_PRIVATE_KEY", "").replace("\\n", "\n")
-SUPABASE_URL  = os.environ.get("SUPABASE_URL", "")
-SUPABASE_KEY  = os.environ.get("SUPABASE_KEY", "")
+GEMINI_KEY      = os.environ.get("GEMINI_API_KEY", "")
+ANTHROPIC_KEY   = os.environ.get("ANTHROPIC_API_KEY", "")
+GEE_SA          = os.environ.get("GEE_SERVICE_ACCOUNT", "")
+GEE_KEY         = os.environ.get("GEE_PRIVATE_KEY", "").replace("\\n", "\n")
+SUPABASE_URL    = os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY    = os.environ.get("SUPABASE_KEY", "")
+TELEGRAM_TOKEN  = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 
 # ── Supabase client ───────────────────────────────────────────────────────────
 sb = None
@@ -777,13 +778,15 @@ def health():
         "satellites": ["sentinel2_10m", "landsat8_9_30m", "sentinel1_SAR_10m", "modis_LST_1km"],
         "indices": ["ndvi","evi","savi","mndwi","lswi","ndre","bsi"],
         "trend_years": "2013–present (Landsat 2013-2018 + Sentinel-2 2019+)",
+        "telegram": bool(TELEGRAM_TOKEN),
         "endpoints": [
             "/health", "/analyse", "/ask", "/ndvi_tile",
             "/crop_detect", "/monthly_rain", "/soil",
             "/db/farmer", "/db/field/save", "/db/fields/<id>",
             "/db/analysis/save", "/db/chat/save",
-            "/alerts/save", "/alerts/<farmer_id>",
-            "/alerts/delete", "/alerts/check"
+            "/alerts/save", "/alerts/<farmer_id>", "/alerts/delete",
+            "/alerts/check", "/alerts/daily",
+            "/telegram/webhook", "/telegram/setup"
         ]
     })
 
@@ -904,6 +907,126 @@ def db_chat_save():
         return jsonify({"error":str(e)}),500
 
 
+# ── Telegram helpers ─────────────────────────────────────────────────────────
+
+def send_telegram(chat_id, text):
+    """Send a message to a Telegram user. Returns True on success."""
+    if not TELEGRAM_TOKEN or not chat_id:
+        return False
+    try:
+        resp = requests.post(
+            f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+            json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
+            timeout=10
+        )
+        return resp.status_code == 200
+    except Exception as e:
+        log.error(f"Telegram send failed: {e}")
+        return False
+
+
+def build_alert_message(fired, ndvi, mndwi, rain, province, lang="en"):
+    """Build a multilingual alert message for Telegram."""
+    now = datetime.now().strftime("%d %b %Y")
+    if lang == "fa":
+        lines = [f"🌾 <b>ZaminAI هشدار</b>", f"📍 {province}  ·  {now}"]
+        for a in fired:
+            lines.append(f"\n🚨 {a.get('msg','')}")
+        lines.append(f"\n📊 NDVI: {ndvi}  |  آب: {mndwi}  |  باران: {rain}mm")
+        lines.append("🌐 zaminai.org")
+    elif lang == "ps":
+        lines = [f"🌾 <b>ZaminAI خبرداری</b>", f"📍 {province}  ·  {now}"]
+        for a in fired:
+            lines.append(f"\n🚨 {a.get('msg','')}")
+        lines.append(f"\n📊 NDVI: {ndvi}  |  اوبه: {mndwi}  |  باران: {rain}mm")
+        lines.append("🌐 zaminai.org")
+    else:
+        lines = [f"🌾 <b>ZaminAI Alert</b>", f"📍 {province}  ·  {now}"]
+        for a in fired:
+            lines.append(f"\n🚨 {a.get('msg','')}")
+        lines.append(f"\n📊 NDVI: {ndvi}  |  Water: {mndwi}  |  Rain: {rain}mm")
+        lines.append("🌐 zaminai.org")
+    return "\n".join(lines)
+
+
+def db_link_telegram(phone, chat_id):
+    """Link a farmer's phone number to their Telegram chat_id."""
+    if not sb_ok:
+        return None
+    try:
+        res = sb.table("farmers").select("*").eq("phone", phone).execute()
+        if not res.data:
+            return None
+        sb.table("farmers").update({
+            "telegram_chat_id": str(chat_id),
+            "last_seen": datetime.utcnow().isoformat()
+        }).eq("phone", phone).execute()
+        log.info(f"✓ Telegram linked: {phone} → {chat_id}")
+        return res.data[0]
+    except Exception as e:
+        log.error(f"db_link_telegram: {e}")
+        return None
+
+
+def run_daily_alerts():
+    """
+    Check every farmer's saved alerts against their latest analysis.
+    Sends Telegram notifications for any that fire.
+    Called by POST /alerts/daily.
+    """
+    if not sb_ok or not TELEGRAM_TOKEN:
+        return {"sent": 0, "reason": "db or telegram not configured"}
+    try:
+        farmers_res = (sb.table("farmers").select("*")
+                       .not_.is_("telegram_chat_id", "null").execute())
+        farmers = farmers_res.data or []
+        sent = skipped = 0
+
+        for farmer in farmers:
+            chat_id   = farmer.get("telegram_chat_id")
+            farmer_id = farmer.get("id")
+            lang      = farmer.get("language", "en")
+            if not chat_id or not farmer_id:
+                continue
+
+            # Latest analysis for this farmer
+            a_res = (sb.table("analyses").select("*")
+                     .eq("farmer_id", farmer_id)
+                     .order("analysed_at", desc=True).limit(1).execute())
+            if not a_res.data:
+                skipped += 1
+                continue
+
+            latest   = a_res.data[0]
+            ndvi     = latest.get("ndvi")
+            mndwi    = latest.get("mndwi")
+            rain     = latest.get("rain")
+            province = latest.get("province", "Afghanistan")
+
+            alerts = db_get_alerts(farmer_id)
+            fired  = check_alerts_fire(alerts, ndvi, mndwi, rain, province)
+
+            if fired:
+                msg = build_alert_message(fired, ndvi, mndwi, rain, province, lang)
+                if send_telegram(chat_id, msg):
+                    sent += 1
+                    for a in fired:
+                        try:
+                            sb.table("farmer_alerts").update({
+                                "last_triggered": datetime.utcnow().isoformat()
+                            }).eq("id", a["id"]).execute()
+                        except:
+                            pass
+            else:
+                skipped += 1
+
+        log.info(f"Daily alerts: {sent} sent, {skipped} skipped")
+        return {"sent": sent, "skipped": skipped, "total_farmers": len(farmers)}
+    except Exception as e:
+        log.error(f"run_daily_alerts: {e}")
+        return {"error": str(e)}
+
+
 # ── ALERT ROUTES ─────────────────────────────────────────────────────────────
 
 @app.route("/alerts/save", methods=["POST","OPTIONS"])
@@ -971,6 +1094,143 @@ def alerts_check():
         return jsonify({"status": "ok", "fired": fired, "total": len(alerts), "fired_count": len(fired)})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ── TELEGRAM ROUTES ──────────────────────────────────────────────────────────
+
+@app.route("/telegram/webhook", methods=["POST"])
+def telegram_webhook():
+    """
+    Receives messages from Telegram users.
+    Farmer registration flow:
+      1. Farmer opens t.me/ZaminAIBot → sends /start
+      2. Bot asks for phone number
+      3. Farmer sends phone → bot links account → farmer receives alerts
+    """
+    try:
+        data    = request.get_json(force=True) or {}
+        msg     = data.get("message", {})
+        chat_id = str(msg.get("chat", {}).get("id", ""))
+        text    = msg.get("text", "").strip()
+        if not chat_id or not text:
+            return jsonify({}), 200
+
+        if text == "/start":
+            send_telegram(chat_id,
+                "🌾 <b>ZaminAI</b> — Satellite Farming Intelligence\n\n"
+                "Send your phone number to link your account and receive field alerts.\n\n"
+                "📱 Example: +93701234567\n\n"
+                "🌐 zaminai.org")
+
+        elif text == "/stop":
+            # Unlink telegram from farmer account
+            if sb_ok:
+                try:
+                    sb.table("farmers").update({"telegram_chat_id": None}) \
+                      .eq("telegram_chat_id", chat_id).execute()
+                except:
+                    pass
+            send_telegram(chat_id, "✅ Alerts stopped. Send /start to re-enable.")
+
+        elif text == "/status":
+            # Show farmer's current field status
+            if sb_ok:
+                try:
+                    f_res = sb.table("farmers").select("*").eq("telegram_chat_id", chat_id).execute()
+                    if f_res.data:
+                        farmer = f_res.data[0]
+                        a_res  = (sb.table("analyses").select("*")
+                                  .eq("farmer_id", farmer["id"])
+                                  .order("analysed_at", desc=True).limit(1).execute())
+                        if a_res.data:
+                            a = a_res.data[0]
+                            send_telegram(chat_id,
+                                f"🌾 <b>Your latest field analysis</b>\n"
+                                f"📍 {a.get('province','Afghanistan')}\n"
+                                f"📊 NDVI: {a.get('ndvi','—')}  |  Water: {a.get('mndwi','—')}\n"
+                                f"🌧️ Rain: {a.get('rain','—')}mm\n"
+                                f"📅 {str(a.get('analysed_at',''))[:10]}\n\n"
+                                f"🌐 zaminai.org")
+                        else:
+                            send_telegram(chat_id, "No analysis yet. Open zaminai.org to analyse your field.")
+                    else:
+                        send_telegram(chat_id, "Account not linked. Send your phone number first.")
+                except Exception as e:
+                    send_telegram(chat_id, "Could not fetch status. Try again later.")
+
+        else:
+            # Try to link phone number
+            phone = text.replace(" ","").replace("-","")
+            if phone.startswith("+") or phone.isdigit():
+                farmer = db_link_telegram(phone, chat_id)
+                if farmer:
+                    lang = farmer.get("language","en")
+                    if lang == "fa":
+                        send_telegram(chat_id,
+                            f"✅ <b>حساب متصل شد!</b>\n\n"
+                            f"📱 شماره: {phone}\n"
+                            f"📍 {farmer.get('province','Afghanistan')}\n\n"
+                            f"از این پس هشدارهای زمین خود را اینجا دریافت می‌کنید.\n"
+                            f"برای دیدن وضعیت زمین: /status\n"
+                            f"🌐 zaminai.org")
+                    elif lang == "ps":
+                        send_telegram(chat_id,
+                            f"✅ <b>حساب وصل شو!</b>\n\n"
+                            f"📱 شمیره: {phone}\n"
+                            f"📍 {farmer.get('province','Afghanistan')}\n\n"
+                            f"له دې وروسته به دلته د ځمکې خبرداریونه ترلاسه کوئ.\n"
+                            f"د ځمکې وضعیت: /status\n"
+                            f"🌐 zaminai.org")
+                    else:
+                        send_telegram(chat_id,
+                            f"✅ <b>Account linked!</b>\n\n"
+                            f"📱 Phone: {phone}\n"
+                            f"📍 {farmer.get('province','Afghanistan')}\n\n"
+                            f"You will now receive ZaminAI field alerts here.\n"
+                            f"Check field status: /status\n"
+                            f"🌐 zaminai.org")
+                else:
+                    send_telegram(chat_id,
+                        "⚠️ Phone number not found.\n\n"
+                        "Please register first at zaminai.org, then send your number here.")
+            else:
+                send_telegram(chat_id,
+                    "🌾 Send your phone number to link your account.\n"
+                    "Example: +93701234567\n\n"
+                    "Commands:\n/status — latest field data\n/stop — stop alerts")
+
+    except Exception as e:
+        log.error(f"/telegram/webhook: {e}")
+    return jsonify({}), 200
+
+
+@app.route("/telegram/setup", methods=["GET"])
+def telegram_setup():
+    """Register the webhook URL with Telegram. Call once after deployment."""
+    if not TELEGRAM_TOKEN:
+        return jsonify({"error": "TELEGRAM_BOT_TOKEN not set"}), 400
+    webhook_url = f"https://zaminai.onrender.com/telegram/webhook"
+    try:
+        resp = requests.post(
+            f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/setWebhook",
+            json={"url": webhook_url, "allowed_updates": ["message"]},
+            timeout=10
+        )
+        result = resp.json()
+        log.info(f"Telegram webhook set: {result}")
+        return jsonify({"status": "ok", "webhook": webhook_url, "telegram": result})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/alerts/daily", methods=["POST", "GET"])
+def alerts_daily():
+    """
+    Run daily alert checks for all farmers with Telegram linked.
+    Call this once per day from a cron job or scheduler.
+    """
+    result = run_daily_alerts()
+    return jsonify({"status": "ok", **result})
 
 
 # ── ANALYSIS ROUTE (unchanged logic, added db save) ───────────────────────────
