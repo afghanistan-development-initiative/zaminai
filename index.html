@@ -1142,13 +1142,22 @@ function loadSavedFields(){
     const lastA=field.analyses&&field.analyses.length>0?field.analyses[0]:null;
     const lastN=lastA?lastA.ndvi:null;
     const col=lastN>=0.30?'#16a34a':lastN>=0.18?'#d97706':'#dc2626';
-    const poly=L.polygon(coords,{color:col,weight:2,fillColor:col,fillOpacity:0.15,dashArray:'5,4'}).addTo(appMap);
+
+    // Draw the same pixel grid as a live analysis (not just a flat fill)
+    drawFieldGrid(coords, lastN, 'NDVI');
+
+    // Transparent outline polygon — only for popup binding
+    const poly=L.polygon(coords,{color:col,weight:2,fillOpacity:0,dashArray:'5,4'}).addTo(appMap);
+    const lastDate=lastA?(' · '+String(lastA.analysed_at||'').slice(0,10)):'';
     const popupDiv=document.createElement('div');
-    popupDiv.style.cssText='font-family:monospace;font-size:12px;min-width:140px';
-    popupDiv.innerHTML='<b style="color:'+col+'">'+(field.label||'Field')+'</b><br>'+(field.area_jereb||'?')+'j · '+(field.area_ha||'?')+'ha<br>'+(lastN?'NDVI '+lastN.toFixed(2):'Not analysed yet');
+    popupDiv.style.cssText='font-family:monospace;font-size:12px;min-width:160px;line-height:1.6';
+    popupDiv.innerHTML=
+      '<b style="color:'+col+'">'+(field.label||'Field')+'</b><br>'+
+      (field.area_jereb||'?')+'j · '+(field.area_ha||'?')+'ha'+lastDate+'<br>'+
+      (lastN!=null?'NDVI <b>'+lastN.toFixed(2)+'</b>'+(lastN>=0.30?' 🟢':lastN>=0.18?' 🟡':' 🔴'):'Not analysed yet');
     const btn=document.createElement('button');
     btn.textContent='Re-analyse';
-    btn.style.cssText='margin-top:4px;padding:3px 8px;background:#16a34a;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px';
+    btn.style.cssText='margin-top:6px;padding:4px 10px;background:#16a34a;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;width:100%';
     btn.addEventListener('click',function(){reloadField(coords);});
     popupDiv.appendChild(btn);
     poly.bindPopup(popupDiv);
