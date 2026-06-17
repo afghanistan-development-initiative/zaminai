@@ -1048,6 +1048,7 @@ async function detectFields(){
     let geojson = null;
     for(let i=0; i<40 && !geojson; i++){
       await new Promise(res=>setTimeout(res,5000));
+      if (i === 4) setStatus('⏳ Server starting up — first request takes ~30 s after sleep…');
       const poll = await fetch(`${API}/officer/detect-fields/${taskId}`);
       if(!poll.ok){ const e=await poll.json().catch(()=>({})); throw new Error(e.error||`Poll HTTP ${poll.status}`); }
       const pd = await poll.json();
@@ -1194,6 +1195,9 @@ async function analyseAdmin(){
     let data = null;
     for (let i = 0; i < 60 && !data; i++){
       await new Promise(res => setTimeout(res, 5000));
+      // Cold-start notice: Render sleeps after 15 min inactivity
+      if (i === 4)  setStatus('⏳ Server starting up — first request takes ~30 s after sleep…');
+      if (i === 10) setStatus(`<span class="spin"></span>${t('analysing')} (satellite data loading…)`);
       const poll = await fetch(`${API}/officer/analyse-result/${taskId}`);
       if (!poll.ok){ const e = await poll.json().catch(()=>({})); throw new Error(e.error || `Poll HTTP ${poll.status}`); }
       const pd = await poll.json();

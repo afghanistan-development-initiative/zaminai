@@ -1093,7 +1093,7 @@ function finishPoly(){
   window._detectedProvince=prov;
 
   const wIcon=prov.mndwi>-0.10?'💧 OK':'🔴 Low water';
-  const ndviIcon=prov.ndvi>=0.30?'🟢':'prov.ndvi>=0.18'?'🟡':'🔴';
+  const ndviIcon=prov.ndvi>=0.30?'🟢':prov.ndvi>=0.18?'🟡':'🔴';
   const popHtml=`<div style="font-family:monospace;font-size:12px;color:#052e16;min-width:175px;line-height:1.6">
     <b>✓ ${j} jereb · ${ha} ha</b><br>
     📍 <b>${prov.name}</b><br>
@@ -1163,7 +1163,7 @@ function loadSavedFields(){
       (field.area_jereb||'?')+'j · '+(field.area_ha||'?')+'ha'+lastDate+'<br>'+
       (lastN!=null?'NDVI <b>'+lastN.toFixed(2)+'</b>'+(lastN>=0.30?' 🟢':lastN>=0.18?' 🟡':' 🔴'):'Not analysed yet');
     const btn=document.createElement('button');
-    btn.textContent='Re-analyse';
+    btn.textContent=appLang==='fa'?'تحلیل دوباره':appLang==='ps'?'بیا تحلیل':'Re-analyse';
     btn.style.cssText='margin-top:6px;padding:4px 10px;background:#16a34a;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;width:100%';
     btn.addEventListener('click',function(){reloadField(coords);});
     popupDiv.appendChild(btn);
@@ -1427,6 +1427,8 @@ async function tbAnalyse(){
   if(pts.length<3){notify('Draw your field first');return;}
   drawnPts=[...pts];
   const btn=document.getElementById('tb-analyse');
+  const _analyseStart = Date.now();
+  const _warmupTimer = setTimeout(()=>notify('⏳ Server starting up (~30s on first use)…'), 8000);
   btn.innerHTML='<span class="spin"></span> Analysing...';btn.disabled=true;
   const panel = document.getElementById('reportPanel') || document.querySelector('.rp');
 if (panel) panel.classList.add('open');
@@ -1457,6 +1459,7 @@ else console.error('Report panel not found');
   // Call API
   fetch(API+'/analyse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({coords:pts.map(p=>[p[0],p[1]]),year:new Date().getFullYear(),province:fieldData.prov||'Afghanistan',farmer_id:farmerId,field_id:fieldData.field_id,label:fieldData.prov||'Field'})})
     .then(r=>r.json()).then(d=>{
+      clearTimeout(_warmupTimer);
       if(d.status==='success'&&d.ndvi){
         fieldData.ndvi=d.ndvi;fieldData.mndwi=d.mndwi||d.water;fieldData.rain=d.rain||rain;
         fieldData.trend=d.trend||d.ndvi_trend||trend;fieldData.evi=d.evi||null;fieldData.savi=d.savi||null;
@@ -1470,7 +1473,7 @@ else console.error('Report panel not found');
     }).catch(()=>{});
   renderReport();
   document.getElementById('rp-info').textContent=aJ+' jereb · '+aHa+' ha · '+new Date().getFullYear();
-  btn.innerHTML='🛰️ Re-analyse';btn.disabled=false;
+  btn.innerHTML='🛰️ '+(appLang==='fa'?'تحلیل دوباره':appLang==='ps'?'بیا تحلیل':'Re-analyse');btn.disabled=false;
   updateAICtx();
 
   // Fetch soil in background
