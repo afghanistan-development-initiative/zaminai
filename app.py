@@ -29,7 +29,7 @@
 import os, json, math, logging, requests
 from datetime import datetime
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 
 load_dotenv()
@@ -768,6 +768,16 @@ def gee_analyse(coords, year, clat, clon):
 # ════════════════════════════════════════════════════════════════════════════════
 # FLASK ROUTES
 # ════════════════════════════════════════════════════════════════════════════════
+
+@app.route("/")
+@app.route("/index.html")
+def serve_index():
+    return send_from_directory(".", "index.html")
+
+@app.route("/officer.html")
+def serve_officer():
+    return send_from_directory(".", "officer.html")
+
 
 @app.route("/health")
 def health():
