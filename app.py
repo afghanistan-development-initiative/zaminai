@@ -1667,7 +1667,7 @@ def gee_analyse_officer(coords, year, clat, clon, scale=500):
         pop_yr = min(year, 2020)
         pop_img = (ee.ImageCollection("WorldPop/GP/100m/pop")
                    .filterBounds(poly)
-                   .filter(ee.Filter.calendarRange(pop_yr, pop_yr, "year"))
+                   .filterDate(f"{pop_yr}-01-01", f"{pop_yr}-12-31")
                    .first())
         total_pop = (pop_img.clip(poly)
                      .reduceRegion(ee.Reducer.sum(), poly, 100, maxPixels=1e10, bestEffort=True)
@@ -1716,34 +1716,42 @@ def gee_analyse_officer(coords, year, clat, clon, scale=500):
     except Exception as e:
         log.warning(f"DynamicWorld failed: {e}")
 
-    # ── Terrain — SRTM 30 m ───────────────────────────────────────────────────
+    # ── Terrain — SRTM 30 m (single getInfo call) ────────────────────────────
     terrain_data = None
     try:
-        ter_scale = max(30, scale)
+        ter_scale = max(90, scale)
         dem   = ee.Image("USGS/SRTMGL1_003").clip(poly)
         slope = ee.Terrain.slope(dem)
-        aspect = ee.Terrain.aspect(dem)
-        def ter_stat(img, band, reducer):
-            v = img.reduceRegion(reducer, poly, ter_scale, maxPixels=1e9).get(band).getInfo()
+        # Stack elevation + slope into one image → one getInfo() round-trip
+        ter_img = dem.rename("elevation").addBands(slope.rename("slope"))
+        combined_reducer = ee.Reducer.mean().combine(
+            reducer2=ee.Reducer.minMax(), sharedInputs=True)
+        ter_stats = ter_img.reduceRegion(
+            combined_reducer, poly, ter_scale, maxPixels=1e9, bestEffort=True
+        ).getInfo()
+        def _tf(key):
+            v = ter_stats.get(key)
             return round(float(v), 1) if v is not None else None
         terrain_data = {
-            "elev_mean_m": ter_stat(dem,   "elevation", ee.Reducer.mean()),
-            "elev_min_m":  ter_stat(dem,   "elevation", ee.Reducer.min()),
-            "elev_max_m":  ter_stat(dem,   "elevation", ee.Reducer.max()),
-            "slope_deg":   ter_stat(slope, "slope",     ee.Reducer.mean()),
-            "source": "SRTM_30m"
+            "elev_mean_m": _tf("elevation_mean"),
+            "elev_min_m":  _tf("elevation_min"),
+            "elev_max_m":  _tf("elevation_max"),
+            "slope_deg":   _tf("slope_mean"),
+            "source": "SRTM_90m"
         }
     except Exception as e:
         log.warning(f"SRTM terrain failed: {e}")
 
-    # ── JRC Global Surface Water (permanent water bodies) ─────────────────────
+    # ── JRC Global Surface Water — single getInfo() via mean of binary mask ────
     water_bodies = None
     try:
-        gsw   = ee.Image("JRC/GSW1_4/GlobalSurfaceWater").select("occurrence").clip(poly)
-        perm  = gsw.gte(50)
-        w_px  = perm.reduceRegion(ee.Reducer.sum(),   poly, 30, maxPixels=1e10, bestEffort=True).get("occurrence").getInfo()
-        t_px  = perm.reduceRegion(ee.Reducer.count(), poly, 30, maxPixels=1e10, bestEffort=True).get("occurrence").getInfo()
-        w_pct = round(float(w_px) / float(t_px) * 100, 2) if (w_px and t_px) else 0
+        jrc_scale = max(30, min(scale, 300))
+        gsw  = ee.Image("JRC/GSW1_4/GlobalSurfaceWater").select("occurrence").clip(poly)
+        perm = gsw.gte(50)   # binary: 1 = water ≥50% of observed years
+        w_mean = (perm.reduceRegion(
+            ee.Reducer.mean(), poly, jrc_scale, maxPixels=1e10, bestEffort=True
+        ).get("occurrence").getInfo())
+        w_pct = round(float(w_mean) * 100, 2) if w_mean is not None else 0
         water_bodies = {
             "pct": w_pct,
             "ha":  round(area_ha * w_pct / 100, 1),
@@ -1752,21 +1760,23 @@ def gee_analyse_officer(coords, year, clat, clon, scale=500):
     except Exception as e:
         log.warning(f"JRC surface water failed: {e}")
 
-    # ── Monthly NDVI profile (crop calendar proxy, bi-monthly) ────────────────
+    # ── Monthly NDVI profile — skip for large areas to avoid timeout ──────────
     ndvi_monthly = {}
-    try:
-        months = [1, 3, 5, 7, 9, 11]
-        for mo in months:
-            mo_end = f"{year}-{mo+1:02d}-01" if mo < 12 else f"{year}-12-31"
-            mc = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
-                  .filterBounds(poly).filterDate(f"{year}-{mo:02d}-01", mo_end)
-                  .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 35)).median().clip(poly))
-            v = mc.normalizedDifference(["B8","B4"]).reduceRegion(
-                    ee.Reducer.mean(), poly, max(scale, 300), maxPixels=1e9
-                ).get("nd").getInfo()
-            ndvi_monthly[mo] = round(float(v), 3) if v else None
-    except Exception as e:
-        log.warning(f"Monthly NDVI profile failed: {e}")
+    if area_km2 < 8000:   # only run for districts / small provinces
+        try:
+            cal_scale = max(scale, 300)
+            for mo in [1, 3, 5, 7, 9, 11]:
+                mo_end = f"{year}-{mo+1:02d}-01"
+                mc = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+                      .filterBounds(poly).filterDate(f"{year}-{mo:02d}-01", mo_end)
+                      .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 35))
+                      .median().clip(poly))
+                v = mc.normalizedDifference(["B8","B4"]).reduceRegion(
+                        ee.Reducer.mean(), poly, cal_scale, maxPixels=1e9
+                    ).get("nd").getInfo()
+                ndvi_monthly[mo] = round(float(v), 3) if v else None
+        except Exception as e:
+            log.warning(f"Monthly NDVI profile failed: {e}")
 
     return {
         "ndvi":ndvi,"evi":evi,"savi":savi,"mndwi":mndwi,"water":mndwi,"rain":rain,
@@ -1853,15 +1863,18 @@ def officer_detect_fields():
         agri = ndvi.gt(0.12).And(ndvi.lt(0.90))
 
         snic_size = max(4, seg_scale // 2)
-        snic = ee.Algorithms.Image.Segmentation.SNIC(
+        snic_out = ee.Algorithms.Image.Segmentation.SNIC(
             image=s2.select(["B2","B3","B4","B8","B11"]).addBands(ndvi),
             size=snic_size, compactness=0.5, connectivity=8, neighborhoodSize=128
-        ).select(["ndvi_mean"]).rename("ndvi")
+        )
+        # reduceToVectors needs ≥2 bands: cluster IDs + at least one value band
+        # clusters band → polygon boundaries; ndvi band → mean NDVI per polygon
+        cluster_ndvi = snic_out.select("clusters").addBands(ndvi.rename("ndvi"))
 
         min_px = max(5, int(500  / (seg_scale ** 2)))   # ~500 m²  min
         max_px =       int(5000000 / (seg_scale ** 2))  # ~500 ha max
 
-        fields = (snic.updateMask(agri)
+        fields = (cluster_ndvi.updateMask(agri)
                   .reduceToVectors(
                       geometry=poly, scale=seg_scale,
                       geometryType="polygon", eightConnected=True,

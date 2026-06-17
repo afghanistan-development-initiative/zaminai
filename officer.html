@@ -181,8 +181,8 @@ body[dir=rtl] .ctrl{direction:rtl}
       <div class="leg-row"><div class="leg-dot" style="background:#f39c12"></div><span>0.25 – 0.40</span></div>
       <div class="leg-row"><div class="leg-dot" style="background:#e67e22"></div><span>0.10 – 0.25</span></div>
       <div class="leg-row"><div class="leg-dot" style="background:#e74c3c"></div><span>< 0.10 Low</span></div>
-      <div class="leg-row" style="margin-top:5px;border-top:1px solid #163352;padding-top:5px"><div class="leg-dot" style="background:#3498db;border:1px solid #3498db"></div><span id="leg-vil">Villages</span></div>
-      <div class="leg-row"><div class="leg-dot" style="background:#163352;border:1px solid #27ae60"></div><span id="leg-prov">Provinces</span></div>
+      <div class="leg-row" style="margin-top:5px;border-top:1px solid #163352;padding-top:5px"><div class="leg-dot" style="background:#ffe066"></div><span id="leg-vil">Villages</span></div>
+      <div class="leg-row"><div class="leg-dot" style="background:transparent;border:2px solid #fff"></div><span id="leg-prov">Provinces</span></div>
     </div>
   </div>
 </div>
@@ -408,9 +408,37 @@ const API = 'https://zaminai.onrender.com';
 // ── Init ────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   map = L.map('map', {zoomControl:true}).setView([30, 50], 3);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
-    attribution:'&copy; OSM contributors &copy; CARTO', maxZoom:18
-  }).addTo(map);
+
+  // ── Base layers ──────────────────────────────────────────────────────────
+  const esriSat = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {attribution:'Tiles &copy; Esri &mdash; Esri, DigitalGlobe, GeoEye, CNES/Airbus DS, USDA, USGS, AeroGRID, IGN',maxZoom:19}
+  );
+  const esriLabels = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+    {attribution:'',maxZoom:19,opacity:0.9,zIndex:600}
+  );
+  const googleSat = L.tileLayer(
+    'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+    {attribution:'&copy; Google',maxZoom:20}
+  );
+  const osmLayer = L.tileLayer(
+    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {attribution:'&copy; OpenStreetMap contributors',maxZoom:19}
+  );
+  const darkLayer = L.tileLayer(
+    'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    {attribution:'&copy; OSM &copy; CARTO',maxZoom:18}
+  );
+
+  esriSat.addTo(map);
+  esriLabels.addTo(map);
+
+  L.control.layers(
+    {'🛰️ Satellite (ESRI)':esriSat,'🌍 Google Satellite':googleSat,'🗺️ OpenStreetMap':osmLayer,'🌑 Dark Map':darkLayer},
+    {'🏷️ Labels':esriLabels},
+    {position:'topright',collapsed:true}
+  ).addTo(map);
 
   const ySel = document.getElementById('year-sel');
   const cur = new Date().getFullYear();
@@ -499,7 +527,7 @@ async function onCountrySelected(country){
     names.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; ps.appendChild(o); });
     ps.disabled = false;
     bndLayer = L.geoJSON(l1Data, {
-      style:{ color:'#27ae60', weight:1, fillColor:'#27ae60', fillOpacity:.07 },
+      style:{ color:'#ffffff', weight:1.5, fillColor:'#27ae60', fillOpacity:.05 },
       onEachFeature:(f,layer) => {
         layer.on('click', () => { ps.value = f.properties.NAME_1; onProvClicked(f); });
         layer.bindTooltip(f.properties.NAME_1, {sticky:true, className:'leaflet-tooltip-dark'});
@@ -595,7 +623,7 @@ async function loadVillages(iso, gid2){
 function drawVillageBoundaries(feats){
   if (vilBndLayer){ map.removeLayer(vilBndLayer); vilBndLayer = null; }
   vilBndLayer = L.geoJSON({type:'FeatureCollection', features:feats},{
-    style:{ color:'#3498db', weight:1, fillColor:'#1a5276', fillOpacity:0.08 },
+    style:{ color:'#ffe066', weight:1, fillColor:'#ffe066', fillOpacity:0.06 },
     onEachFeature:(f, layer) => {
       layer.bindTooltip(f.properties.NAME_3||'', {sticky:true, className:'leaflet-tooltip-dark'});
       layer.on('click', () => {
@@ -701,12 +729,12 @@ async function detectFields(){
 
     detectLayer = L.geoJSON(geojson,{
       style: feat => {
-        const ndvi = feat.properties?.mean ?? feat.properties?.ndvi ?? null;
+        const ndvi = feat.properties?.ndvi ?? feat.properties?.mean ?? null;
         const col  = ndviToColor(ndvi);
         return {color:col, weight:1.2, fillColor:col, fillOpacity:0.52};
       },
       onEachFeature:(feat,layer)=>{
-        const ndvi   = feat.properties?.mean ?? null;
+        const ndvi   = feat.properties?.ndvi ?? feat.properties?.mean ?? null;
         const col    = ndviToColor(ndvi);
         const pxArea = feat.properties?.count ?? 0;
         const badge  = ndvi===null?'':ndvi>=0.40
