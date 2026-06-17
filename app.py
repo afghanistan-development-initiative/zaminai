@@ -1867,8 +1867,29 @@ def officer_detect_fields():
 
         ndvi = s2.normalizedDifference(["B8","B4"]).rename("ndvi")
 
-        # Vegetation mask — calibrated for active crops globally (0.15–0.90)
-        veg_mask = ndvi.gt(0.15).And(ndvi.lt(0.90))
+        # ── Crop mask ────────────────────────────────────────────────────────
+        # Dynamic World (V1) classifies every Sentinel-2 pixel into 10 classes.
+        # Class 4 = crops.  Using it as a pre-filter stops forests, jungles and
+        # dense shrubland (all NDVI > 0.15) from being detected as fields —
+        # critical for tropical regions (SE Asia, Congo, Amazon, etc.).
+        # Fall back to NDVI-only mask when DW has no data for the area/date.
+        dw_col = (ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1")
+                  .filterBounds(poly)
+                  .filterDate(f"{year}-01-01", end_date))
+        dw_size = dw_col.size().getInfo()
+
+        if dw_size > 0:
+            # DW classes: 0=water 1=trees 2=grass 3=flooded_veg 4=crops
+            #             5=shrub 6=built 7=bare 8=snow 9=clouds
+            # Accept crops(4) AND flooded_vegetation(3) for paddy fields
+            dw_label = dw_col.select("label").mode().clip(poly)
+            crop_prior = dw_label.eq(4).Or(dw_label.eq(3))
+            veg_mask = ndvi.gt(0.15).And(ndvi.lt(0.90)).And(crop_prior)
+            log.info(f"detect-fields: using Dynamic World crop mask ({dw_size} scenes)")
+        else:
+            # No DW coverage — NDVI-only (works well for arid/semi-arid regions)
+            veg_mask = ndvi.gt(0.15).And(ndvi.lt(0.90))
+            log.info("detect-fields: no Dynamic World data, falling back to NDVI mask")
 
         # Morphological opening: erode then dilate removes isolated noise pixels
         # while keeping real field interiors intact
