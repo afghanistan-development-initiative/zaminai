@@ -769,14 +769,16 @@ def gee_analyse(coords, year, clat, clon):
 # FLASK ROUTES
 # ════════════════════════════════════════════════════════════════════════════════
 
+_HERE = os.path.dirname(os.path.abspath(__file__))
+
 @app.route("/")
 @app.route("/index.html")
 def serve_index():
-    return send_from_directory(".", "index.html")
+    return send_from_directory(_HERE, "index.html")
 
 @app.route("/officer.html")
 def serve_officer():
-    return send_from_directory(".", "officer.html")
+    return send_from_directory(_HERE, "officer.html")
 
 
 @app.route("/health")
