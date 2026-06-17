@@ -1569,13 +1569,23 @@ def weather_forecast():
 def gee_analyse_officer(coords, year, clat, clon, scale=500):
     """Regional GEE analysis at coarser resolution for large admin polygons."""
     import ee
-    poly     = ee.Geometry.Polygon([[[c[1], c[0]] for c in coords]])
-    end_date = min(f"{year}-07-31", datetime.now().strftime("%Y-%m-%d"))
+    poly  = ee.Geometry.Polygon([[[c[1], c[0]] for c in coords]])
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    # Hemisphere-aware growing season (same logic as detect-fields)
+    if clat >= 10:
+        s_start = f"{year}-04-01";  s_end = min(f"{year}-09-30", today)
+    elif clat <= -10:
+        s_start = f"{year-1}-10-01"; s_end = min(f"{year}-04-30", today)
+    else:
+        s_start = f"{year}-01-01";  s_end = min(f"{year}-12-31", today)
+    if s_start > today:
+        s_start = f"{year-1}{s_start[4:]}"; s_end = f"{year-1}{s_end[4:]}"
 
     s2 = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
-          .filterBounds(poly).filterDate(f"{year}-04-01", end_date)
-          .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 20))
-          .sort("CLOUDY_PIXEL_PERCENTAGE").limit(5).median().clip(poly))
+          .filterBounds(poly).filterDate(s_start, s_end)
+          .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 35))
+          .sort("CLOUDY_PIXEL_PERCENTAGE").limit(8).median().clip(poly))
 
     # ── All S2 indices in one reduceRegion call (was 4 separate getInfo calls) ──
     indices = (s2.normalizedDifference(["B8","B4"]).rename("ndvi")
@@ -1880,7 +1890,28 @@ def officer_detect_fields():
 
         poly     = ee.Geometry.Polygon([[[c[1], c[0]] for c in coords]])
         area_km2 = calc_area_ha(coords) / 100.0
-        end_date = min(f"{year}-07-31", datetime.now().strftime("%Y-%m-%d"))
+        today    = datetime.now().strftime("%Y-%m-%d")
+
+        # ── Hemisphere-aware growing season ──────────────────────────────────
+        # April-July assumes Northern Hemisphere. Southern Hemisphere crops
+        # peak Oct-Mar (Brazil, Australia, Argentina, South Africa etc.).
+        clat = sum(c[0] for c in coords) / len(coords)
+        if clat >= 10:
+            # Northern hemisphere — spring/summer
+            s_start = f"{year}-04-01"
+            s_end   = min(f"{year}-09-30", today)
+        elif clat <= -10:
+            # Southern hemisphere — straddles year boundary
+            s_start = f"{year-1}-10-01"
+            s_end   = min(f"{year}-04-30", today)
+        else:
+            # Equatorial — crops year-round
+            s_start = f"{year}-01-01"
+            s_end   = min(f"{year}-12-31", today)
+        # Safety: if entire window is in the future, shift back one year
+        if s_start > today:
+            s_start = f"{year-1}{s_start[4:]}"
+            s_end   = f"{year-1}{s_end[4:]}"
 
         # Resolution: adaptive by area.
         # Minimum 20 m — connectedComponents caps maxSize at 1024 px.
@@ -1891,9 +1922,9 @@ def officer_detect_fields():
 
         s2 = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
               .filterBounds(poly)
-              .filterDate(f"{year}-04-01", end_date)
-              .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 20))
-              .limit(6).median().clip(poly))
+              .filterDate(s_start, s_end)
+              .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 35))
+              .sort("CLOUDY_PIXEL_PERCENTAGE").limit(8).median().clip(poly))
 
         ndvi = s2.normalizedDifference(["B8","B4"]).rename("ndvi")
 
@@ -1935,7 +1966,7 @@ def officer_detect_fields():
             try:
                 dw_mode = (ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1")
                            .filterBounds(poly)
-                           .filterDate(f"{year}-01-01", end_date)
+                           .filterDate(s_start, s_end)
                            .select("label").limit(500).mode().clip(poly))
                 # Exclude confirmed forest; keep crops/grass/shrub/bare
                 forest_mask = dw_mode.eq(1)
