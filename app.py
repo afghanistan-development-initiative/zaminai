@@ -1830,7 +1830,13 @@ def officer_farmers():
 
 @app.route("/officer/detect-fields", methods=["POST","OPTIONS"])
 def officer_detect_fields():
-    """Use GEE SNIC segmentation to auto-detect agricultural field boundaries."""
+    """Auto-detect agricultural fields via NDVI connected-component analysis.
+
+    Replaces the previous SNIC approach, which silently returned 0 features
+    because SNIC's 'clusters' band is float — reduceToVectors requires an
+    integer label image.  connectedComponents() natively produces integer
+    labels and is more reliable globally.
+    """
     if request.method == "OPTIONS":
         return jsonify({}), 200
     if not gee_ok:
@@ -1847,43 +1853,51 @@ def officer_detect_fields():
         area_km2 = calc_area_ha(coords) / 100.0
         end_date = min(f"{year}-07-31", datetime.now().strftime("%Y-%m-%d"))
 
-        # Scale: finer for small areas, coarser for large ones
+        # Resolution: finer for small areas, coarser for large provinces
         if area_km2 < 50:    seg_scale = 10
         elif area_km2 < 200: seg_scale = 20
         elif area_km2 < 800: seg_scale = 30
         else:                 seg_scale = 50
 
         s2 = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
-              .filterBounds(poly).filterDate(f"{year}-04-01", end_date)
+              .filterBounds(poly)
+              .filterDate(f"{year}-04-01", end_date)
               .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 20))
               .limit(6).median().clip(poly))
 
         ndvi = s2.normalizedDifference(["B8","B4"]).rename("ndvi")
-        # Agricultural mask: active vegetation
-        agri = ndvi.gt(0.12).And(ndvi.lt(0.90))
 
-        snic_size = max(4, seg_scale // 2)
-        snic_out = ee.Algorithms.Image.Segmentation.SNIC(
-            image=s2.select(["B2","B3","B4","B8","B11"]).addBands(ndvi),
-            size=snic_size, compactness=0.5, connectivity=8, neighborhoodSize=128
-        )
-        # reduceToVectors needs ≥2 bands: cluster IDs + at least one value band
-        # clusters band → polygon boundaries; ndvi band → mean NDVI per polygon
-        cluster_ndvi = snic_out.select("clusters").addBands(ndvi.rename("ndvi"))
+        # Vegetation mask — calibrated for active crops globally (0.15–0.90)
+        veg_mask = ndvi.gt(0.15).And(ndvi.lt(0.90))
 
-        min_px = max(5, int(500  / (seg_scale ** 2)))   # ~500 m²  min
-        max_px =       int(5000000 / (seg_scale ** 2))  # ~500 ha max
+        # Morphological opening: erode then dilate removes isolated noise pixels
+        # while keeping real field interiors intact
+        veg_clean = (veg_mask
+                     .focal_min(radius=1, units="pixels", iterations=1)
+                     .focal_max(radius=1, units="pixels", iterations=1))
 
-        fields = (cluster_ndvi.updateMask(agri)
+        # Connected components — each contiguous crop patch = one field candidate.
+        # maxSize: 65536 px covers ~650 ha at 10 m; large enough for any real field.
+        components = (veg_clean.selfMask()
+                      .connectedComponents(
+                          connectedness=ee.Kernel.plus(1),
+                          maxSize=65536))
+
+        # Size filters in pixels
+        min_px = max(5, int(400   / (seg_scale ** 2)))  # ~400 m²  minimum field
+        max_px =       int(4000000 / (seg_scale ** 2))  # ~400 ha  maximum field
+
+        fields = (components.select("labels").toInt()
+                  .addBands(ndvi)
                   .reduceToVectors(
                       geometry=poly, scale=seg_scale,
-                      geometryType="polygon", eightConnected=True,
+                      geometryType="polygon", eightConnected=False,
                       labelProperty="field", reducer=ee.Reducer.mean(),
-                      maxPixels=1e10, bestEffort=True, tileScale=8)
+                      maxPixels=1e10, bestEffort=True, tileScale=4)
                   .filter(ee.Filter.And(
                       ee.Filter.gte("count", min_px),
                       ee.Filter.lte("count", max_px)))
-                  .limit(800))
+                  .limit(500))
 
         geojson = fields.getInfo()
         count   = len(geojson.get("features", []))
