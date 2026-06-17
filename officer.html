@@ -1315,52 +1315,63 @@ function inferCrops(d){
   const ndvi  = d.ndvi  ?? 0.3;
   const rain  = d.rain  ?? 300;
   const tmax  = d.modis?.summer_day_c ?? null;
-  const tmin  = d.modis?.winter_night_c ?? null;
   const frost = d.modis?.frost_risk ?? null;
   const elev  = d.terrain?.elev_mean_m ?? null;
   const slope = d.terrain?.slope_deg ?? 0;
   const crop_pct = d.landcover?.crop_pct ?? null;
   const crop_ha  = d.landcover?.crop_ha  ?? null;
-
-  if(crop_pct !== null && crop_pct < 3 && ndvi < 0.15){
-    return `<div style="color:#5a7a9a;font-style:italic">Non-agricultural land — arid, barren, or forested region. Cropland < 3%.</div>`;
-  }
-
-  const lines = [];
   const cs = v => `<b style="color:#27ae60">${v}</b>`;
 
-  // Crop area summary
-  if(crop_ha !== null) lines.push(`🌍 Estimated cropland: ${cs(Math.round(crop_ha).toLocaleString()+' ha')} (${crop_pct?.toFixed(1)}% of region)`);
-
-  // Rain-based crops
-  if(rain >= 1000 && (tmax===null || tmax >= 26)){
-    lines.push(`🌾 ${cs('Rice (paddy)')} — high rainfall + warm summers support wet-rice cultivation`);
-    lines.push(`🌴 ${cs('Tropical crops')} (banana, cassava, sugarcane) likely in lowland areas`);
-  } else if(rain >= 600){
-    lines.push(`🌽 ${cs('Maize (corn)')} — primary crop in this rainfall regime`);
-    lines.push(`🫘 ${cs('Soybeans / legumes')} — common rotation with maize`);
-    if(tmax && tmax >= 28) lines.push(`🍅 ${cs('Vegetables')} (tomato, pepper, eggplant) viable year-round`);
-  } else if(rain >= 280){
-    lines.push(`🌾 ${cs('Wheat & barley')} — dominant staple crops in 280–600 mm rainfall zones`);
-    if(!frost) lines.push(`🍈 ${cs('Melon / watermelon')} — common in dry summers with irrigation`);
-    if(ndvi >= 0.40) lines.push(`🌿 ${cs('Irrigated fields detected')} — cotton, orchards, or vegetables likely`);
-  } else {
-    lines.push(`🌵 ${cs('Dryland farming')} — millet, sorghum, or nomadic pastoralism`);
-    if(ndvi >= 0.30) lines.push(`🌿 ${cs('Irrigation pockets')} visible — oasis or canal-fed orchards`);
+  // Non-agricultural
+  if(crop_pct !== null && crop_pct < 3 && ndvi < 0.15){
+    const msg = lang==='fa' ? 'زمین غیرزراعتی — منطقه خشک، بایر یا جنگلی. زمین زراعتی < ۳٪.'
+               :lang==='ps' ? 'غیرزراعتي ځمکه — وچه، بنجره یا ځنګلي سیمه. د کرهڼې ځمکه < ۳٪.'
+               : 'Non-agricultural land — arid, barren, or forested region. Cropland < 3%.';
+    return `<div style="color:#5a7a9a;font-style:italic">${msg}</div>`;
   }
 
-  // Temperature / frost adjustments
-  if(frost === true) lines.push(`❄️ ${cs('Frost winters')} limit tropical crops — focus on cold-hardy varieties (winter wheat, potato)`);
-  if(tmax && tmax >= 35) lines.push(`☀️ Heat stress risk in summer — ${cs('drought-tolerant varieties')} advised`);
+  const L = (en,fa,ps) => lang==='fa'?fa : lang==='ps'?ps : en;
+  const lines = [];
 
-  // Elevation adjustments
+  // Crop area summary
+  if(crop_ha !== null){
+    const ha = Math.round(crop_ha).toLocaleString();
+    lines.push(L(
+      `🌍 Estimated cropland: ${cs(ha+' ha')} (${crop_pct?.toFixed(1)}% of region)`,
+      `🌍 زمین زراعتی: ${cs(ha+' هکتار')} (${crop_pct?.toFixed(1)}٪ منطقه)`,
+      `🌍 د کرهڼې ځمکه: ${cs(ha+' هکتار')} (${crop_pct?.toFixed(1)}٪ سیمه)`
+    ));
+  }
+
+  // Rain-based crop types
+  if(rain >= 1000 && (tmax===null || tmax >= 26)){
+    lines.push(L(`🌾 ${cs('Rice (paddy)')} — high rainfall + warm summers support wet-rice cultivation`,`🌾 ${cs('وریجه')} — باران زیاد + تابستان گرم از کشت وریجه حمایت می‌کند`,`🌾 ${cs('وریجه')} — زیات باران + ګرم اوړي ددی ملاتړ کوي`));
+    lines.push(L(`🌴 ${cs('Tropical crops')} (banana, cassava, sugarcane) likely in lowland areas`,`🌴 ${cs('محصولات گرمسیری')} (موز، نیشکر) در مناطق پست احتمالی`,`🌴 ${cs('استوایي محصولات')} (خرما، نیشکر) د ټیټو سیمو کې احتمالي`));
+  } else if(rain >= 600){
+    lines.push(L(`🌽 ${cs('Maize (corn)')} — primary crop in this rainfall regime`,`🌽 ${cs('جواری')} — محصول اصلی در این رژیم باران`,`🌽 ${cs('جواري')} — د دې باران رژیم کې لومړنی محصول`));
+    lines.push(L(`🫘 ${cs('Soybeans / legumes')} — common rotation with maize`,`🫘 ${cs('سویا / حبوبات')} — تناوب رایج با جواری`,`🫘 ${cs('سویا / لوبیا')} — د جواري سره لوبدل`));
+    if(tmax && tmax >= 28) lines.push(L(`🍅 ${cs('Vegetables')} (tomato, pepper, eggplant) viable year-round`,`🍅 ${cs('سبزیجات')} (بادنجان رومی، مرچ) سراسر سال امکانپذیر`,`🍅 ${cs('سبزیجات')} (ٹماٹ، مرچ) کلني ممکن`));
+  } else if(rain >= 280){
+    lines.push(L(`🌾 ${cs('Wheat & barley')} — dominant staple crops in 280–600 mm rainfall zones`,`🌾 ${cs('گندم و جو')} — محصولات غالب در مناطق با ۲۸۰–۶۰۰ م.م باران`,`🌾 ${cs('غنم او جو')} — د ۲۸۰–۶۰۰ م.م باران سیمو کې غالب محصولات`));
+    if(!frost) lines.push(L(`🍈 ${cs('Melon / watermelon')} — common in dry summers with irrigation`,`🍈 ${cs('خربوزه / هندوانه')} — با آبیاری در تابستان‌های خشک رایج`,`🍈 ${cs('خربوزه / هندوانه')} — د اوبو لګولو سره د وچو اوړو کې عام`));
+    if(ndvi >= 0.40) lines.push(L(`🌿 ${cs('Irrigated fields detected')} — cotton, orchards, or vegetables likely`,`🌿 ${cs('مزارع آبیاری‌شده')} — پنبه، باغات یا سبزیجات محتمل`,`🌿 ${cs('د اوبو لګولو ځمکې')} — پنبه، باغونه یا سبزیجات احتمالي`));
+  } else {
+    lines.push(L(`🌵 ${cs('Dryland farming')} — millet, sorghum, or nomadic pastoralism`,`🌵 ${cs('زراعت دیم')} — ارزن، سورگوم یا چراگاه کوچ‌نشین`,`🌵 ${cs('وچه زراعت')} — ارزن، سورګم یا کوچیانه چرتلاش`));
+    if(ndvi >= 0.30) lines.push(L(`🌿 ${cs('Irrigation pockets')} visible — oasis or canal-fed orchards`,`🌿 ${cs('جزایر آبیاری')} — باغ‌های کانال‌دار یا واحه`,`🌿 ${cs('د اوبو کولو ټاپوګانه')} — کانالي باغونه یا واحه`));
+  }
+
+  // Frost / heat
+  if(frost === true) lines.push(L(`❄️ ${cs('Frost winters')} — focus on cold-hardy varieties (winter wheat, potato)`,`❄️ ${cs('زمستان یخبندان')} — بر ارقام سرماپذیر تمرکز کنید (گندم زمستانه، کچالو)`,`❄️ ${cs('د یخ ژمی')} — د سړو مقاوم ډولونو باندې تمرکز (د ژمي غنم، کچالو)`));
+  if(tmax && tmax >= 35) lines.push(L(`☀️ Heat stress risk — ${cs('drought-tolerant varieties')} advised`,`☀️ خطر گرما — ${cs('ارقام مقاوم به خشکی')} توصیه می‌شود`,`☀️ د ګرمۍ فشار خطر — ${cs('د خشکسالۍ مقاوم ډولونه')} سپارل کیږي`));
+
+  // Elevation
   if(elev !== null){
-    if(elev > 3000) lines.push(`🏔️ High altitude (${Math.round(elev)}m) — ${cs('potato, buckwheat, medicinal herbs')}; short growing season`);
-    else if(elev > 1500) lines.push(`⛰️ Mid-altitude (${Math.round(elev)}m) — ${cs('apple, apricot, grape orchards')} common; cool nights improve fruit quality`);
+    if(elev > 3000) lines.push(L(`🏔️ High altitude (${Math.round(elev)}m) — ${cs('potato, buckwheat, herbs')}; short season`,`🏔️ ارتفاع بالا (${Math.round(elev)}م) — ${cs('کچالو، گندم سیاه، گیاهان دارویی')}؛ فصل کوتاه`,`🏔️ لوړ لوړوالی (${Math.round(elev)}م) — ${cs('کچالو، دارویي نباتات')}؛ لنډ موسم`));
+    else if(elev > 1500) lines.push(L(`⛰️ Mid-altitude (${Math.round(elev)}m) — ${cs('apple, apricot, grape orchards')}`,`⛰️ ارتفاع متوسط (${Math.round(elev)}م) — ${cs('سیب، زردآلو، انگور')}`,`⛰️ منځنی لوړوالی (${Math.round(elev)}م) — ${cs('مڼه، خوبانۍ، انگور')}`));
   }
 
   // Slope
-  if(slope > 15) lines.push(`📐 Steep terrain (${slope.toFixed(1)}°) — ${cs('terraced farming')} or pastoral use; erosion control needed`);
+  if(slope > 15) lines.push(L(`📐 Steep terrain (${slope.toFixed(1)}°) — ${cs('terraced farming')} or pastoral use`,`📐 زمین پر شیب (${slope.toFixed(1)}°) — ${cs('زراعت پله‌ای')} یا چراگاه`,`📐 تیز ځمکه (${slope.toFixed(1)}°) — ${cs('پله‌ایزه زراعت')} یا چرتلاش`));
 
   return lines.map(l=>`<div style="margin:4px 0;font-size:11px;color:#b8d4c0;line-height:1.5">${l}</div>`).join('');
 }
@@ -1557,46 +1568,46 @@ function renderResults(d, country, province, district, village){
 
 // ── Recommendations ─────────────────────────────────────────────────────────
 function buildRec(d){
-  const ndvi = d.ndvi, rain = d.rain, mndwi = d.mndwi ?? d.water;
+  const ndvi  = d.ndvi, rain = d.rain, mndwi = d.mndwi ?? d.water;
   if (ndvi === null) return t('insuffData');
+
+  // Pull land cover percentages from DW classes
+  const cls       = d.landcover?.classes || {};
+  const crop_pct  = cls.crops        ?? d.landcover?.crop_pct  ?? 0;
+  const bare_pct  = cls.bare_ground  ?? d.landcover?.bare_pct  ?? 0;
+  const built_pct = cls.built_up     ?? d.landcover?.built_pct ?? 0;
+  const tree_pct  = cls.trees        ?? d.landcover?.tree_pct  ?? 0;
+  const water_pct = cls.water        ?? d.landcover?.water_pct ?? 0;
+
+  const L = (en,fa,ps) => lang==='fa'?fa : lang==='ps'?ps : en;
   const lines = [];
-  if (lang === 'fa'){
-    if (ndvi>=0.40) lines.push('پوشش گیاهی خوب — منطقه برای محصولات متراکم مناسب است.');
-    else if (ndvi>=0.25) lines.push('پوشش گیاهی متوسط — محصولات مقاوم به خشکی پیشنهاد می‌شود.');
-    else lines.push('پوشش گیاهی ضعیف — زمین ممکن است شور، خشک یا رها شده باشد.');
-    if (rain!=null){
-      if (rain<200) lines.push(`باران کم (${Math.round(rain)} mm) — آبیاری تکمیلی برای اکثر محصولات ضروری است.`);
-      else if (rain>600) lines.push(`باران زیاد (${Math.round(rain)} mm) — زهکشی مناسب برای جلوگیری از پوسیدگی ریشه مهم است.`);
-      else lines.push(`باران متوسط (${Math.round(rain)} mm) — مناسب برای گندم، جو و حبوبات.`);
-    }
-    if (mndwi!=null && mndwi<-0.2) lines.push('شاخص آب پایین — خطر خشکسالی. نظارت بر رطوبت خاک توصیه می‌شود.');
-    if (d.modis?.frost_risk) lines.push('خطر یخبندان در زمستان — از کشت زودهنگام محصولات حساس به سرما پرهیز شود.');
-    if (d.sar?.vv_db != null && d.sar.vv_db < -15) lines.push('رادار SAR نشان‌دهنده رطوبت کم خاک است — مدیریت آبیاری را مرور کنید.');
-  } else if (lang === 'ps'){
-    if (ndvi>=0.40) lines.push('ښه د نباتاتو پوښښ — سیمه د متراکمو محصولاتو لپاره مناسبه ده.');
-    else if (ndvi>=0.25) lines.push('منځنی د نباتاتو پوښښ — د وچکالۍ مقاوم محصولات سپارل کیږي.');
-    else lines.push('کمزوری د نباتاتو پوښښ — ځمکه ممکن مالګینه، وچه یا پریښودل شوې وي.');
-    if (rain!=null){
-      if (rain<200) lines.push(`لږ باران (${Math.round(rain)} mm) — د ډیری محصولاتو لپاره اضافي اوبه اړین دي.`);
-      else if (rain>600) lines.push(`زیات باران (${Math.round(rain)} mm) — د ریښې پوسیدو د مخنیوي لپاره ښه ناوه اړینه ده.`);
-      else lines.push(`منځنی باران (${Math.round(rain)} mm) — د غنمو، جوارو او لوبیا لپاره مناسب.`);
-    }
-    if (mndwi!=null && mndwi<-0.2) lines.push('ټیټ د اوبو شاخص — د وچکالۍ خطر. د خاورې لندوالي نظارت سپارل کیږي.');
-    if (d.modis?.frost_risk) lines.push('د ژمي د یخ خطر — د یخ حساسو محصولاتو ژر کرل مه کوئ.');
-    if (d.sar?.vv_db != null && d.sar.vv_db < -15) lines.push('SAR رادار د خاورې لږ لندوالی ښيي — د اوبو مدیریت بیاکتنه وکړئ.');
-  } else {
-    if (ndvi>=0.40) lines.push('Good vegetation cover — region suitable for intensive cropping.');
-    else if (ndvi>=0.25) lines.push('Moderate vegetation — drought-tolerant crops recommended.');
-    else lines.push('Low vegetation cover — land may be saline, degraded, or fallow.');
-    if (rain!=null){
-      if (rain<200) lines.push(`Low rainfall (${Math.round(rain)} mm) — supplemental irrigation essential for most crops.`);
-      else if (rain>600) lines.push(`High rainfall (${Math.round(rain)} mm) — good drainage important to prevent root rot.`);
-      else lines.push(`Moderate rainfall (${Math.round(rain)} mm) — suitable for wheat, barley, and pulses.`);
-    }
-    if (mndwi!=null && mndwi<-0.2) lines.push('Low water index — drought risk. Soil moisture monitoring advised.');
-    if (d.modis?.frost_risk) lines.push('Frost risk in winter — avoid early planting of cold-sensitive crops.');
-    if (d.sar?.vv_db != null && d.sar.vv_db < -15) lines.push('SAR radar shows low soil moisture — review irrigation management.');
+
+  // ── Land cover insights (if available) ────────────────────────────────────
+  if(d.landcover){
+    if(crop_pct > 40)  lines.push(L(`🌾 ${crop_pct.toFixed(0)}% cropland — high-intensity agricultural region.`,`🌾 ${crop_pct.toFixed(0)}٪ زمین زراعتی — منطقه با کشاورزی پرفشار.`,`🌾 ${crop_pct.toFixed(0)}٪ کرهڼیزه ځمکه — د لوړ زراعتي تولید سیمه.`));
+    if(bare_pct > 35)  lines.push(L(`🏜️ ${bare_pct.toFixed(0)}% bare ground — erosion risk; cover crops or reforestation advised.`,`🏜️ ${bare_pct.toFixed(0)}٪ خاک برهنه — خطر فرسایش؛ پوشش گیاهی توصیه می‌شود.`,`🏜️ ${bare_pct.toFixed(0)}٪ لوڅه خاوره — د فرسایش خطر؛ د نباتاتو پوښنه سپارل کیږي.`));
+    if(built_pct > 20) lines.push(L(`🏘️ ${built_pct.toFixed(0)}% urban/built-up — market access nearby, consider high-value crops.`,`🏘️ ${built_pct.toFixed(0)}٪ مناطق شهری — بازار نزدیک؛ محصولات پرارزش را در نظر بگیرید.`,`🏘️ ${built_pct.toFixed(0)}٪ ابادي — نږدې بازار شتون لري؛ د لوړ ارزښت محصولاتو فکر وکړئ.`));
+    if(tree_pct > 30)  lines.push(L(`🌲 ${tree_pct.toFixed(0)}% forest cover — protect watershed; agroforestry potential.`,`🌲 ${tree_pct.toFixed(0)}٪ پوشش جنگلی — از حوضه آبریز حفاظت کنید؛ جنگل‌زراعی ممکن.`,`🌲 ${tree_pct.toFixed(0)}٪ ځنګل — د اوبو سرچینې ساتنه؛ د ځنګل-زراعت فرصت.`));
+    if(water_pct > 5)  lines.push(L(`💧 ${water_pct.toFixed(0)}% water bodies — irrigation potential high.`,`💧 ${water_pct.toFixed(0)}٪ منابع آبی — پتانسیل آبیاری بالا.`,`💧 ${water_pct.toFixed(0)}٪ اوبه — د آبیاری ظرفیت لوړ دی.`));
   }
+
+  // ── NDVI ──────────────────────────────────────────────────────────────────
+  if(ndvi >= 0.40)      lines.push(L('Good vegetation cover — region suitable for intensive cropping.','پوشش گیاهی خوب — منطقه برای محصولات متراکم مناسب است.','ښه د نباتاتو پوښښ — سیمه د متراکمو محصولاتو لپاره مناسبه ده.'));
+  else if(ndvi >= 0.25) lines.push(L('Moderate vegetation — drought-tolerant crops recommended.','پوشش گیاهی متوسط — محصولات مقاوم به خشکی پیشنهاد می‌شود.','منځنی پوښښ — د وچکالۍ مقاوم محصولات سپارل کیږي.'));
+  else                  lines.push(L('Low vegetation cover — land may be saline, degraded, or fallow.','پوشش گیاهی ضعیف — زمین ممکن است شور، خشک یا رها شده باشد.','کمزوری پوښښ — ځمکه ممکن مالګینه، وچه یا پریښودل شوې وي.'));
+
+  // ── Rain ──────────────────────────────────────────────────────────────────
+  if(rain != null){
+    if(rain < 200)      lines.push(L(`Low rainfall (${Math.round(rain)} mm) — supplemental irrigation essential.`,`باران کم (${Math.round(rain)} mm) — آبیاری تکمیلی ضروری است.`,`لږ باران (${Math.round(rain)} mm) — اضافي اوبه لګول اړین دي.`));
+    else if(rain > 600) lines.push(L(`High rainfall (${Math.round(rain)} mm) — good drainage important.`,`باران زیاد (${Math.round(rain)} mm) — زهکشی مناسب مهم است.`,`زیات باران (${Math.round(rain)} mm) — ښه ناوه اړینه ده.`));
+    else                lines.push(L(`Moderate rainfall (${Math.round(rain)} mm) — suitable for wheat, barley, and pulses.`,`باران متوسط (${Math.round(rain)} mm) — مناسب برای گندم، جو و حبوبات.`,`منځنی باران (${Math.round(rain)} mm) — د غنمو، جوارو او لوبیا لپاره مناسب.`));
+  }
+
+  // ── Water / SAR / Frost ───────────────────────────────────────────────────
+  if(mndwi != null && mndwi < -0.2) lines.push(L('Low water index — drought risk. Soil moisture monitoring advised.','شاخص آب پایین — خطر خشکسالی. نظارت بر رطوبت خاک.','ټیټ د اوبو شاخص — د وچکالۍ خطر. د خاورې لندوالي نظارت.'));
+  if(d.modis?.frost_risk)            lines.push(L('Frost risk in winter — avoid early planting of cold-sensitive crops.','خطر یخبندان — از کشت زودهنگام محصولات حساس به سرما پرهیز شود.','د ژمي یخ خطر — د یخ حساسو محصولاتو ژر کرل مه کوئ.'));
+  if(d.sar?.vv_db != null && d.sar.vv_db < -15) lines.push(L('SAR radar shows low soil moisture — review irrigation management.','رادار SAR رطوبت کم خاک — مدیریت آبیاری را مرور کنید.','SAR رادار د خاورې لږ لندوالی ښيي — د اوبو مدیریت بیاکتنه.'));
+
   return lines.map(l=>`• ${l}`).join('<br>') || '—';
 }
 
