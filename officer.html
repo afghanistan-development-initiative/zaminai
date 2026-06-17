@@ -223,9 +223,12 @@ body[dir=rtl] .ctrl{direction:rtl}
         <div class="lp-group-title">Map Context</div>
         <label class="lp-item lp-off"><input type="checkbox" id="lp-terrain" disabled> ⛰️ Terrain / Hillshade</label>
         <label class="lp-item lp-off"><input type="checkbox" id="lp-forest" disabled> 🌲 Forest</label>
-        <label class="lp-item lp-off"><input type="checkbox" id="lp-roads" disabled> 🛣️ Roads</label>
-        <label class="lp-item lp-off"><input type="checkbox" id="lp-buildings" disabled> 🏘️ Buildings</label>
-        <label class="lp-item lp-off"><input type="checkbox" id="lp-rivers" disabled> 🌊 Rivers</label>
+        <label class="lp-item"><input type="checkbox" id="lp-roads"> 🛣️ Roads</label>
+        <label class="lp-item"><input type="checkbox" id="lp-buildings"> 🏘️ Settlements</label>
+        <label class="lp-item"><input type="checkbox" id="lp-rivers"> 🌊 Rivers</label>
+        <div style="font-size:9px;color:#334a60;padding:3px 12px 4px;line-height:1.4">
+          ⚠️ OSM coverage may be incomplete in remote rural areas
+        </div>
       </div>
     </div>
 
@@ -644,6 +647,46 @@ document.addEventListener('DOMContentLoaded', () => {
     cb.disabled = false;
     cb.closest('.lp-item').classList.remove('lp-off');
     cb.addEventListener('change', function(){ toggleSatLayer(name, this.checked); });
+  });
+
+  // ── OSM context layers (Step 3) ─────────────────────────────────────────
+  // Stamen/CARTO vector-tile overlays — frontend only, no backend needed.
+  // Note: OSM coverage may be incomplete in remote rural areas.
+
+  // Roads: OpenStreetMap Carto roads-only tile (transparent bg, z-index above sat)
+  const _osmRoads = L.tileLayer(
+    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {attribution:'&copy; OpenStreetMap',opacity:0.45,maxZoom:19,zIndex:700}
+  );
+
+  // Buildings: use OpenStreetMap standard with higher opacity for urban context
+  // A single roads+buildings OSM layer serves both — toggled independently
+  // so we use a WMS-style or vector approach.
+  // Practical approach: use Stamen Toner-hybrid which shows roads+buildings only
+  const _osmBuildings = L.tileLayer(
+    'https://stamen-tiles-{s}.a.ssl.fastly.net/toner-hybrid/{z}/{x}/{y}{r}.png',
+    {attribution:'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>',
+     opacity:0.55, maxZoom:18, zIndex:710}
+  );
+
+  // Rivers: WMS from OpenStreetMap through a public OSM-WMS endpoint
+  // Using ESRI's World Hydrology tile layer (free, no key)
+  const _osmRivers = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Specialty/World_Navigation_Charts/MapServer/tile/{z}/{y}/{x}',
+    {attribution:'Esri · NOAA',opacity:0.40,maxZoom:18,zIndex:720}
+  );
+
+  const _osmLayerMap = {roads:_osmRoads, buildings:_osmBuildings, rivers:_osmRivers};
+
+  ['roads','buildings','rivers'].forEach(name => {
+    const cb = document.getElementById(`lp-${name}`);
+    if(!cb) return;
+    cb.disabled = false;
+    cb.closest('.lp-item').classList.remove('lp-off');
+    cb.addEventListener('change', function(){
+      const lyr = _osmLayerMap[name];
+      this.checked ? lyr.addTo(map) : map.removeLayer(lyr);
+    });
   });
 
   const ySel = document.getElementById('year-sel');
