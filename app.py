@@ -1564,9 +1564,13 @@ def gee_analyse_officer(coords, year, clat, clon, scale=500):
                 .filterDate(f"{year}-01-01", f"{year}-12-31")
                 .select("precipitation").sum().clip(poly), "precipitation")
 
+    # For very large polygons sample every other year to stay within timeout budget
+    trend_step = 2 if scale >= 2000 else 1
+    cur_year = datetime.now().year
+
     # NDVI trend S2 (2019-present)
     s2_trend = {}
-    for yr in range(2019, datetime.now().year + 1):
+    for yr in range(2019, cur_year + 1, trend_step):
         try:
             yr_end = min(f"{yr}-07-31", datetime.now().strftime("%Y-%m-%d"))
             c2 = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED").filterBounds(poly)
@@ -1580,7 +1584,7 @@ def gee_analyse_officer(coords, year, clat, clon, scale=500):
 
     # NDVI trend Landsat (2013-2018 pre-Sentinel era)
     ls_trend = {}
-    for yr in range(2013, 2019):
+    for yr in range(2013, 2019, trend_step):
         try:
             yr_end = min(f"{yr}-07-31", datetime.now().strftime("%Y-%m-%d"))
             lc    = (ee.ImageCollection("LANDSAT/LC08/C02/T1_L2")
@@ -1660,11 +1664,12 @@ def officer_analyse():
         area_ha  = calc_area_ha(coords)
         area_km2 = area_ha / 100.0
 
-        # Choose scale based on polygon size so GEE doesn't time out
-        if area_km2 < 100:   scale = 100
-        elif area_km2 < 1000: scale = 300
+        # Choose scale based on polygon size so GEE stays within 300s budget
+        if area_km2 < 100:    scale = 100
+        elif area_km2 < 1000:  scale = 300
         elif area_km2 < 10000: scale = 500
-        else:                   scale = 1000
+        elif area_km2 < 30000: scale = 1000
+        else:                   scale = 2000
 
         result = {}
         if gee_ok:
