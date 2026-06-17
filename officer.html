@@ -127,6 +127,12 @@ body[dir=rtl] .ctrl{direction:rtl}
         </select>
       </div>
       <div class="sw">
+        <div class="lbl" id="lbl-vil">Village (optional)</div>
+        <select id="vil-sel" class="ctrl" disabled>
+          <option value="">— select district first —</option>
+        </select>
+      </div>
+      <div class="sw">
         <div class="lbl" id="lbl-year">Analysis Year</div>
         <select id="year-sel" class="ctrl"></select>
       </div>
@@ -177,7 +183,8 @@ const OT = {
     frost:'Frost Risk',frostY:'Yes — frost likely',frostN:'No frost risk',
     good:'Good',mod:'Moderate',low:'Low',
     water:'Water Present',drought:'Drought Risk',
-    district:'District',province:'Province',country2:'Country',
+    district:'District',province:'Province',country2:'Country',village:'Village',
+    vil:'Village (optional)',
     insuffData:'Insufficient satellite data for recommendations.',
   },
   fa:{
@@ -204,7 +211,8 @@ const OT = {
     frost:'خطر یخبندان',frostY:'بله — یخبندان محتمل',frostN:'بدون خطر یخبندان',
     good:'خوب',mod:'متوسط',low:'کم',
     water:'آب موجود',drought:'خطر خشکسالی',
-    district:'ولسوالی',province:'ولایت',country2:'کشور',
+    district:'ولسوالی',province:'ولایت',country2:'کشور',village:'قریه',
+    vil:'قریه (اختیاری)',
     insuffData:'داده‌های کافی ماهواره‌ای برای توصیه موجود نیست.',
   },
   ps:{
@@ -231,7 +239,8 @@ const OT = {
     frost:'د یخ خطر',frostY:'هو — یخ احتمالي دی',frostN:'د یخ خطر نشته',
     good:'ښه',mod:'منځنی',low:'کم',
     water:'اوبه شتون لري',drought:'د وچکالۍ خطر',
-    district:'ولسوالۍ',province:'ولایت',country2:'هیواد',
+    district:'ولسوالۍ',province:'ولایت',country2:'هیواد',village:'کلی',
+    vil:'کلی (اختیاري)',
     insuffData:'د سپارښتنو لپاره کافي د ماهوارې معلومات نشته.',
   }
 };
@@ -289,7 +298,7 @@ const COUNTRIES = [
 // ── State ───────────────────────────────────────────────────────────────────
 let lang = 'en';
 let map, bndLayer, hlLayer;
-let l1Data = null, l2Data = null;
+let l1Data = null, l2Data = null, l3Data = null;
 let selFeat = null;
 let curISO = null;
 const API = 'https://zaminai.onrender.com';
@@ -331,6 +340,7 @@ function applyLang(){
   document.getElementById('lbl-country').textContent = t('country');
   document.getElementById('lbl-prov').textContent = t('prov');
   document.getElementById('lbl-dist').textContent = t('dist');
+  document.getElementById('lbl-vil').textContent = t('vil');
   document.getElementById('lbl-year').textContent = t('year');
   document.getElementById('analyse-btn').textContent = t('btn');
   document.getElementById('country-in').placeholder = t('ph');
@@ -358,18 +368,20 @@ function onCountryInput(){
 
 async function onCountrySelected(country){
   curISO = country.iso;
-  selFeat = null; l1Data = null; l2Data = null;
+  selFeat = null; l1Data = null; l2Data = null; l3Data = null;
   const ps = document.getElementById('prov-sel');
   const ds = document.getElementById('dist-sel');
+  const vs = document.getElementById('vil-sel');
   ps.disabled = true; ps.innerHTML = '<option>Loading…</option>';
   ds.disabled = true; ds.innerHTML = `<option>— ${t('prov')} first —</option>`;
+  vs.disabled = true; vs.innerHTML = `<option>— select district first —</option>`;
   document.getElementById('analyse-btn').disabled = true;
   setStatus(t('loading'));
   if (bndLayer){ map.removeLayer(bndLayer); bndLayer = null; }
   if (hlLayer) { map.removeLayer(hlLayer);  hlLayer  = null; }
   closeResults();
   try {
-    const url = `https://geodata.ucdavis.edu/gadm/gadm4.1/json/gadm41_${country.iso}_1.json`;
+    const url = `${API}/gadm/${country.iso}/1`;
     const r = await fetch(url);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     l1Data = await r.json();
@@ -403,9 +415,11 @@ function onProvClicked(feat){
   selFeat = feat;
   highlight(feat);
   document.getElementById('analyse-btn').disabled = false;
-  // reset district
   const ds = document.getElementById('dist-sel');
   ds.disabled = true; ds.innerHTML = `<option value="">Loading districts…</option>`;
+  const vs = document.getElementById('vil-sel');
+  vs.disabled = true; vs.innerHTML = `<option value="">— select district first —</option>`;
+  l3Data = null;
   loadDistricts(curISO, feat.properties.GID_1);
 }
 
@@ -413,7 +427,7 @@ async function loadDistricts(iso, gid1){
   const ds = document.getElementById('dist-sel');
   try {
     if (!l2Data){
-      const url = `https://geodata.ucdavis.edu/gadm/gadm4.1/json/gadm41_${iso}_2.json`;
+      const url = `${API}/gadm/${iso}/2`;
       const r = await fetch(url);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       l2Data = await r.json();
@@ -430,8 +444,45 @@ async function loadDistricts(iso, gid1){
 }
 
 document.getElementById('dist-sel').addEventListener('change', function(){
-  if (!this.value || !l2Data) return;
+  const vs = document.getElementById('vil-sel');
+  vs.disabled = true; vs.innerHTML = `<option value="">Loading villages…</option>`;
+  l3Data = null;
+  if (!this.value || !l2Data){
+    vs.innerHTML = `<option value="">— select district first —</option>`;
+    return;
+  }
   const f = l2Data.features.find(f => f.properties.NAME_2 === this.value);
+  if (f){ selFeat = f; highlight(f); loadVillages(curISO, f.properties.GID_2); }
+});
+
+async function loadVillages(iso, gid2){
+  const vs = document.getElementById('vil-sel');
+  try {
+    if (!l3Data){
+      setStatus(t('loading'));
+      const r = await fetch(`${API}/gadm/${iso}/3`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      l3Data = await r.json();
+      setStatus('');
+    }
+    const feats = l3Data.features.filter(f => f.properties.GID_2 === gid2);
+    if (!feats.length){ vs.innerHTML = '<option value="">No village data</option>'; return; }
+    const names = feats.map(f => f.properties.NAME_3).sort();
+    vs.innerHTML = `<option value="">— whole district —</option>`;
+    names.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; vs.appendChild(o); });
+    vs.disabled = false;
+  } catch(e){
+    vs.innerHTML = '<option value="">Village data unavailable</option>';
+    setStatus('');
+  }
+}
+
+document.getElementById('vil-sel').addEventListener('change', function(){
+  if (!this.value || !l3Data || !l2Data) return;
+  const distName = document.getElementById('dist-sel').value;
+  const distFeat = l2Data.features.find(f => f.properties.NAME_2 === distName);
+  if (!distFeat) return;
+  const f = l3Data.features.find(f => f.properties.NAME_3 === this.value && f.properties.GID_2 === distFeat.properties.GID_2);
   if (f){ selFeat = f; highlight(f); }
 });
 
@@ -471,13 +522,14 @@ async function analyseAdmin(){
     const country  = cIn.value.trim();
     const province = p.NAME_1 || '';
     const district = p.NAME_2 || '';
+    const village  = p.NAME_3 || '';
     const resp = await fetch(`${API}/officer/analyse`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ coords, year:parseInt(year), country, province, district, lang })
+      body: JSON.stringify({ coords, year:parseInt(year), country, province, district, village, lang })
     });
     if (!resp.ok){ const e = await resp.json().catch(()=>({})); throw new Error(e.error || `HTTP ${resp.status}`); }
     const data = await resp.json();
-    renderResults(data, country, province, district);
+    renderResults(data, country, province, district, village);
     setStatus('', 'ok');
   } catch(e){
     setStatus(e.message || t('noData'), 'err');
@@ -488,10 +540,10 @@ async function analyseAdmin(){
 }
 
 // ── Render results ──────────────────────────────────────────────────────────
-function renderResults(d, country, province, district){
+function renderResults(d, country, province, district, village){
   const body    = document.getElementById('res-body');
-  const adminName = district || province || country;
-  const adminLvl  = district ? t('district') : province ? t('province') : t('country2');
+  const adminName = village || district || province || country;
+  const adminLvl  = village ? t('village') : district ? t('district') : province ? t('province') : t('country2');
   const ndvi  = d.ndvi  ?? null;
   const evi   = d.evi   ?? null;
   const mndwi = d.mndwi ?? d.water ?? null;

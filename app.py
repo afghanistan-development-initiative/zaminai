@@ -1643,6 +1643,22 @@ def gee_analyse_officer(coords, year, clat, clon, scale=500):
     }
 
 
+@app.route("/gadm/<iso>/<int:level>", methods=["GET"])
+def gadm_proxy(iso, level):
+    """Proxy GADM GeoJSON to avoid browser CORS restrictions."""
+    if level not in (1, 2, 3):
+        return jsonify({"error": "Level must be 1, 2, or 3"}), 400
+    iso = iso.upper()[:3]
+    url = f"https://geodata.ucdavis.edu/gadm/gadm4.1/json/gadm41_{iso}_{level}.json"
+    try:
+        r = requests.get(url, timeout=60)
+        if r.status_code != 200:
+            return jsonify({"error": f"GADM returned {r.status_code} for {iso} L{level}"}), 404
+        return r.content, 200, {"Content-Type": "application/json"}
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/officer/analyse", methods=["POST","OPTIONS"])
 def officer_analyse():
     if request.method == "OPTIONS":
