@@ -1913,11 +1913,11 @@ def officer_detect_fields():
             s_start = f"{year-1}{s_start[4:]}"
             s_end   = f"{year-1}{s_end[4:]}"
 
-        # Resolution: adaptive by area.
-        # Minimum 20 m — connectedComponents caps maxSize at 1024 px.
-        # At 20 m: 1024 px = 41 ha, covers >99% of global farm sizes.
-        if area_km2 < 200:   seg_scale = 20
-        elif area_km2 < 800: seg_scale = 30
+        # Resolution: coarser for larger areas to stay under GEE's 80 MiB tile limit.
+        # focal_min/connectedComponents run at native S2 10m without reproject,
+        # so we force the working scale explicitly (see ndvi.reproject below).
+        if area_km2 < 50:    seg_scale = 20
+        elif area_km2 < 300: seg_scale = 30
         else:                 seg_scale = 50
 
         s2 = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
@@ -1926,7 +1926,11 @@ def officer_detect_fields():
               .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 35))
               .sort("CLOUDY_PIXEL_PERCENTAGE").limit(8).median().clip(poly))
 
-        ndvi = s2.normalizedDifference(["B8","B4"]).rename("ndvi")
+        # Force all downstream ops (focal_min, connectedComponents, reduceToVectors)
+        # to run at seg_scale — without reproject they default to S2's native
+        # 10 m, causing the "output > 80 MiB" error on any region > ~50 km².
+        ndvi = (s2.normalizedDifference(["B8","B4"]).rename("ndvi")
+                .reproject(crs='EPSG:4326', scale=seg_scale))
 
         # Size filters in pixels
         min_px = max(5, int(400   / (seg_scale ** 2)))   # ~400 m²  min
@@ -1946,7 +1950,7 @@ def officer_detect_fields():
                         geometry=poly, scale=seg_scale,
                         geometryType="polygon", eightConnected=False,
                         labelProperty="field", reducer=ee.Reducer.mean(),
-                        maxPixels=1e10, bestEffort=True, tileScale=4)
+                        maxPixels=1e10, bestEffort=True, tileScale=16)
                     .filter(ee.Filter.And(
                         ee.Filter.gte("count", min_px),
                         ee.Filter.lte("count", max_px)))
