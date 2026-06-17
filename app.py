@@ -1936,9 +1936,10 @@ def officer_detect_fields():
         # Unique integer ID per grid cell from pixel coordinates
         proj_g    = ee.Projection(utm_epsg).atScale(grid_scale)
         px_coords = ee.Image.pixelCoordinates(proj_g)
-        cell_id   = (px_coords.select("x").divide(grid_scale).floor().int()
+        # int64 required — multiply(1000000) overflows int32 for large UTM coordinates
+        cell_id   = (px_coords.select("x").divide(grid_scale).floor().int64()
                      .multiply(1000000)
-                     .add(px_coords.select("y").divide(grid_scale).floor().int()))
+                     .add(px_coords.select("y").divide(grid_scale).floor().int64()))
 
         fc = (cell_id.updateMask(crop_g)
               .addBands(ndvi_g.rename("ndvi"))
