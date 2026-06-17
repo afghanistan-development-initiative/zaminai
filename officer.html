@@ -699,7 +699,8 @@ async function loadRegionFields(province){
         <div class="pop-row"><span class="pop-k">Area</span><span class="pop-v">${f.area_ha?f.area_ha.toFixed(2)+' ha':'—'} · ${f.area_jereb?f.area_jereb.toFixed(1)+' jer':'—'}</span></div>
         ${badge}`;
       const poly = L.polygon(coords.map(c=>[c[0],c[1]]),{
-        color:col, weight:1.8, fillColor:col, fillOpacity:0.45
+        color:'#ffffff', weight:1.8, fillColor:col,
+        fillOpacity: ndvi !== null ? 0.50 : 0.25
       });
       poly.bindTooltip(`${f.label||'Field'} · NDVI ${ndvi!==null?ndvi.toFixed(2):'—'}`,{sticky:true,className:'leaflet-tooltip-dark'});
       poly.bindPopup(popHtml,{maxWidth:240});
@@ -731,7 +732,7 @@ async function detectFields(){
       style: feat => {
         const ndvi = feat.properties?.ndvi ?? feat.properties?.mean ?? null;
         const col  = ndviToColor(ndvi);
-        return {color:col, weight:1.2, fillColor:col, fillOpacity:0.52};
+        return {color:'#ffffff', weight:1.0, fillColor:col, fillOpacity:0.52};
       },
       onEachFeature:(feat,layer)=>{
         const ndvi   = feat.properties?.ndvi ?? feat.properties?.mean ?? null;

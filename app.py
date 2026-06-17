@@ -1974,20 +1974,27 @@ def officer_fields():
                  .eq("province", province)
                  .execute())
         fields = res.data or []
+        # Batch analyses — one query instead of one per field (N+1 fix)
+        field_ids = [f["id"] for f in fields]
+        analyses_map = {}
+        if field_ids:
+            try:
+                a_res = (sb.table("analyses")
+                           .select("field_id,ndvi,evi,mndwi,rain,savi")
+                           .in_("field_id", field_ids)
+                           .order("analysed_at", desc=True)
+                           .execute())
+                for a in (a_res.data or []):
+                    fid = a["field_id"]
+                    if fid not in analyses_map:   # first = most recent (ordered desc)
+                        analyses_map[fid] = a
+            except Exception as ae:
+                log.warning(f"Officer batch analyses failed: {ae}")
         for f in fields:
             if isinstance(f.get("coords"), str):
                 try: f["coords"] = json.loads(f["coords"])
                 except: f["coords"] = []
-            try:
-                a = (sb.table("analyses")
-                       .select("ndvi,evi,mndwi,rain,savi")
-                       .eq("field_id", f["id"])
-                       .order("analysed_at", desc=True)
-                       .limit(1)
-                       .execute())
-                f["analysis"] = a.data[0] if a.data else None
-            except:
-                f["analysis"] = None
+            f["analysis"] = analyses_map.get(f["id"])
         return jsonify({"fields": fields, "count": len(fields)})
     except Exception as e:
         log.error(f"/officer/fields: {e}")
