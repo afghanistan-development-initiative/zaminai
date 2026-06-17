@@ -1938,8 +1938,12 @@ def officer_detect_fields():
                         .filterBounds(poly)
                         .filterDate(s_start, s_end)
                         .select("label").limit(200).mode().clip(poly))
+            # unmask NDVI with 0 — if S2 composite is masked (cloud) the DW labels
+            # must still produce polygons. addBands(masked_image) would mask the
+            # entire pixel so DW features would disappear. unmask(0) keeps them.
+            ndvi_safe = ndvi.unmask(ee.Image(0).rename("ndvi"))
             fc = (dw_label.toInt()
-                  .addBands(ndvi)
+                  .addBands(ndvi_safe)
                   .reduceToVectors(
                       geometry=poly, scale=seg_scale,
                       geometryType="polygon", eightConnected=True,
