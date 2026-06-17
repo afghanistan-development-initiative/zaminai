@@ -26,7 +26,7 @@
 ╚══════════════════════════════════════════════════════════════════════════════╝
 """
 
-import os, json, math, logging, requests
+import os, json, math, logging, requests, threading, uuid
 from datetime import datetime
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, send_from_directory, Response
@@ -1867,21 +1867,20 @@ def officer_farmers():
         return jsonify({"error": str(e)}), 500
 
 
+# In-memory task store for async field detection
+# Render free tier has a hard 30-second request timeout — GEE takes 30-120 s.
+# Solution: POST returns a task_id immediately; client polls GET until done.
+_detect_tasks = {}
+
 @app.route("/officer/detect-fields", methods=["POST","OPTIONS"])
 def officer_detect_fields():
-    """Auto-detect agricultural fields via NDVI connected-component analysis.
-
-    Streams newline keep-alives every 5 s to prevent Render's 30-second
-    load-balancer idle timeout from dropping long GEE computations.
-    The final JSON body may be prefixed with whitespace; JSON.parse handles it.
+    """Start async field detection. Returns {task_id} immediately.
+    Client polls GET /officer/detect-fields/<task_id> for the result.
     """
-    import threading, json as _json
-
     if request.method == "OPTIONS":
         return jsonify({}), 200
     if not gee_ok:
         return jsonify({"error": "Satellite analysis not available"}), 503
-
     try:
         import ee
         data    = request.get_json(force=True)
@@ -1905,12 +1904,10 @@ def officer_detect_fields():
         if s_start > today:
             s_start = f"{year-1}{s_start[4:]}"; s_end = f"{year-1}{s_end[4:]}"
 
-        # Resolution: coarser for larger areas
         if area_km2 < 50:    seg_scale = 20
         elif area_km2 < 300: seg_scale = 30
         else:                 seg_scale = 50
 
-        # Build the GEE computation graph (lazy — nothing runs yet)
         s2 = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
               .filterBounds(poly)
               .filterDate(s_start, s_end)
@@ -1940,45 +1937,44 @@ def officer_detect_fields():
                   ee.Filter.lte("count", max_px)))
               .limit(300))
 
-        # Run getInfo() in a background thread and stream keep-alive newlines
-        # every 5 s so Render's 30-second load-balancer timeout doesn't drop us.
-        result_box = [None]; error_box  = [None]
+        task_id = str(uuid.uuid4())
+        _detect_tasks[task_id] = {"status": "pending"}
 
         def gee_worker():
             try:
-                result_box[0] = fc.getInfo()
-                count = len(result_box[0].get("features", []))
-                log.info(f"detect-fields: {count} fields, scale={seg_scale}m, area={area_km2:.0f}km²")
+                result = fc.getInfo()
+                count  = len(result.get("features", []))
+                log.info(f"detect-fields task {task_id[:8]}: {count} fields, scale={seg_scale}m")
+                _detect_tasks[task_id] = {"status": "done", "data": result}
             except Exception as ex:
-                error_box[0] = str(ex)
-                log.error(f"detect-fields GEE error: {ex}")
+                log.error(f"detect-fields task {task_id[:8]} error: {ex}")
+                _detect_tasks[task_id] = {"status": "error", "error": str(ex)}
 
-        t = threading.Thread(target=gee_worker, daemon=True)
-        t.start()
-
-        def generate():
-            while t.is_alive():
-                t.join(timeout=5)
-                if t.is_alive():
-                    yield '\n'          # keep-alive: resets Render's idle timer
-            if error_box[0]:
-                yield _json.dumps({"error": error_box[0]})
-            else:
-                yield _json.dumps(result_box[0] or {"type":"FeatureCollection","features":[]})
-
-        return Response(
-            generate(),
-            mimetype='application/json',
-            headers={
-                'Access-Control-Allow-Origin':  '*',
-                'Access-Control-Allow-Headers': 'Content-Type',
-                'X-Accel-Buffering':            'no',   # disable nginx buffering
-            }
-        )
+        threading.Thread(target=gee_worker, daemon=True).start()
+        return jsonify({"task_id": task_id, "status": "pending"})
 
     except Exception as e:
         log.error(f"/officer/detect-fields: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/officer/detect-fields/<task_id>", methods=["GET","OPTIONS"])
+def officer_detect_fields_poll(task_id):
+    """Poll for async field detection result."""
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    task = _detect_tasks.get(task_id)
+    if not task:
+        return jsonify({"status": "error", "error": "Task not found or expired"}), 404
+    if task["status"] == "pending":
+        return jsonify({"status": "pending"})
+    if task["status"] == "error":
+        _detect_tasks.pop(task_id, None)
+        return jsonify({"status": "error", "error": task["error"]}), 500
+    # done
+    data = task.get("data", {"type":"FeatureCollection","features":[]})
+    _detect_tasks.pop(task_id, None)
+    return jsonify({"status": "done", "data": data})
 
 
 @app.route("/officer/fields", methods=["GET"])

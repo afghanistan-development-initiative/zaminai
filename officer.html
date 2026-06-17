@@ -720,16 +720,29 @@ async function detectFields(){
   if(detectLayer){ map.removeLayer(detectLayer); detectLayer=null; }
   try{
     const coords = extractCoords(selFeat);
+
+    // Step 1: start the task (returns immediately with task_id)
     const r = await fetch(`${API}/officer/detect-fields`,{
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({coords, year:parseInt(year)})
     });
     if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.error||`HTTP ${r.status}`); }
-    const text = await r.text();
-    if(!text || !text.trim()) throw new Error('Empty response — server may have timed out. Try a smaller region.');
-    let geojson;
-    try { geojson = JSON.parse(text); } catch(pe){ throw new Error('Invalid response from server. Try a smaller region.'); }
-    if(geojson.error) throw new Error(geojson.error);
+    const start = await r.json();
+    if(start.error) throw new Error(start.error);
+    const taskId = start.task_id;
+
+    // Step 2: poll every 5 s until done (GEE takes 30-120 s)
+    let geojson = null;
+    for(let i=0; i<40 && !geojson; i++){
+      await new Promise(res=>setTimeout(res,5000));
+      const poll = await fetch(`${API}/officer/detect-fields/${taskId}`);
+      if(!poll.ok){ const e=await poll.json().catch(()=>({})); throw new Error(e.error||`Poll HTTP ${poll.status}`); }
+      const pd = await poll.json();
+      if(pd.status==='done')   geojson = pd.data;
+      else if(pd.status==='error') throw new Error(pd.error);
+      // 'pending' → keep polling
+    }
+    if(!geojson) throw new Error('Detection timed out after 3 minutes. Try a smaller region.');
     const count   = geojson.features?.length || 0;
 
     detectLayer = L.geoJSON(geojson,{
