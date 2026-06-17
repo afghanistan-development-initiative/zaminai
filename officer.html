@@ -101,6 +101,22 @@ body[dir=rtl] #results{left:0;right:330px}
 body[dir=rtl] #sidebar{border-right:none;border-left:1px solid #163352}
 body[dir=rtl] .ctrl{direction:rtl}
 
+/* ── Layer toggle panel ── */
+#layer-panel{position:absolute;top:60px;right:10px;width:210px;background:rgba(12,26,48,.96);border:1px solid #163352;border-radius:8px;z-index:950;backdrop-filter:blur(8px);font-size:12px;color:#dde4f0;box-shadow:0 4px 20px rgba(0,0,0,.5)}
+#layer-panel-hdr{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;cursor:pointer;border-bottom:1px solid #163352;font-weight:700;letter-spacing:.03em;user-select:none}
+#layer-panel-hdr:hover{background:rgba(255,255,255,.04)}
+#lp-chevron{font-size:10px;color:#5a7a9a;transition:transform .2s}
+#lp-chevron.open{transform:rotate(180deg)}
+#layer-panel-body{padding:6px 0;max-height:380px;overflow-y:auto}
+.lp-group-title{font-size:10px;font-weight:700;color:#5a7a9a;text-transform:uppercase;letter-spacing:.08em;padding:6px 12px 2px}
+.lp-item{display:flex;align-items:center;gap:7px;padding:5px 12px;cursor:pointer;transition:background .12s;border-radius:0}
+.lp-item:hover:not(.lp-off){background:rgba(255,255,255,.05)}
+.lp-item input[type=radio],.lp-item input[type=checkbox]{cursor:pointer;accent-color:#27ae60;flex-shrink:0}
+.lp-off{opacity:.38;cursor:not-allowed}
+.lp-off input{cursor:not-allowed}
+.lp-sep{height:1px;background:#163352;margin:5px 0}
+.lp-badge{margin-left:auto;font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(196,148,58,.18);color:#c4943a;font-weight:600;white-space:nowrap}
+
 /* ── Map legend ── */
 #map-legend{position:absolute;bottom:24px;right:10px;background:#0c1a30cc;border:1px solid #163352;padding:8px 11px;border-radius:6px;z-index:900;font-size:10px;pointer-events:none;backdrop-filter:blur(4px)}
 .leg-row{display:flex;align-items:center;gap:5px;margin:2px 0;color:#8aa8c0}
@@ -174,6 +190,45 @@ body[dir=rtl] .ctrl{direction:rtl}
     </div>
   </div>
   <div id="map">
+
+    <!-- ── Layer toggle panel ─────────────────────────────────────────── -->
+    <div id="layer-panel">
+      <div id="layer-panel-hdr" onclick="toggleLayerPanel()">
+        <span>🗂️ Layers</span>
+        <span id="lp-chevron">▼</span>
+      </div>
+      <div id="layer-panel-body" style="display:none">
+
+        <!-- Base Maps -->
+        <div class="lp-group-title">Base Map</div>
+        <label class="lp-item"><input type="radio" name="lp-base" value="esri" checked> 🛰️ Satellite (ESRI)</label>
+        <label class="lp-item"><input type="radio" name="lp-base" value="google"> 🌍 Google Satellite</label>
+        <label class="lp-item"><input type="radio" name="lp-base" value="osm"> 🗺️ OpenStreetMap</label>
+        <label class="lp-item"><input type="radio" name="lp-base" value="dark"> 🌑 Dark Map</label>
+        <label class="lp-item"><input type="checkbox" id="lp-labels" checked> 🏷️ Labels overlay</label>
+
+        <div class="lp-sep"></div>
+
+        <!-- Satellite Layers -->
+        <div class="lp-group-title">Satellite Layers</div>
+        <label class="lp-item"><input type="checkbox" id="lp-landcover"> 🌍 Land Cover</label>
+        <label class="lp-item lp-off"><input type="checkbox" id="lp-ndvi" disabled> 🟢 NDVI Health</label>
+        <label class="lp-item lp-off"><input type="checkbox" id="lp-water" disabled> 💧 Water Index</label>
+        <label class="lp-item lp-off"><input type="checkbox" id="lp-baresoil" disabled> 🏜️ Bare Soil</label>
+        <label class="lp-item lp-off"><input type="checkbox" id="lp-croptype" disabled> 🌾 Crop Type <span class="lp-badge">estimate</span></label>
+
+        <div class="lp-sep"></div>
+
+        <!-- Map Context -->
+        <div class="lp-group-title">Map Context</div>
+        <label class="lp-item lp-off"><input type="checkbox" id="lp-terrain" disabled> ⛰️ Terrain / Hillshade</label>
+        <label class="lp-item lp-off"><input type="checkbox" id="lp-forest" disabled> 🌲 Forest</label>
+        <label class="lp-item lp-off"><input type="checkbox" id="lp-roads" disabled> 🛣️ Roads</label>
+        <label class="lp-item lp-off"><input type="checkbox" id="lp-buildings" disabled> 🏘️ Buildings</label>
+        <label class="lp-item lp-off"><input type="checkbox" id="lp-rivers" disabled> 🌊 Rivers</label>
+      </div>
+    </div>
+
     <div id="map-legend">
       <div style="font-weight:700;color:#27ae60;margin-bottom:4px;letter-spacing:.05em" id="leg-title">NDVI</div>
       <div class="leg-row"><div class="leg-dot" style="background:#27ae60"></div><span>≥ 0.55 Good</span></div>
@@ -434,11 +489,22 @@ document.addEventListener('DOMContentLoaded', () => {
   esriSat.addTo(map);
   esriLabels.addTo(map);
 
-  L.control.layers(
-    {'🛰️ Satellite (ESRI)':esriSat,'🌍 Google Satellite':googleSat,'🗺️ OpenStreetMap':osmLayer,'🌑 Dark Map':darkLayer},
-    {'🏷️ Labels':esriLabels},
-    {position:'topright',collapsed:true}
-  ).addTo(map);
+  // ── Layer panel: base map switching ─────────────────────────────────
+  const _baseLayers = {esri:esriSat, google:googleSat, osm:osmLayer, dark:darkLayer};
+  let   _activeBase = esriSat;
+  document.querySelectorAll('input[name="lp-base"]').forEach(radio => {
+    radio.addEventListener('change', function(){
+      if(!this.checked) return;
+      map.removeLayer(_activeBase);
+      _activeBase = _baseLayers[this.value];
+      _activeBase.addTo(map);
+    });
+  });
+
+  // Labels overlay toggle
+  document.getElementById('lp-labels').addEventListener('change', function(){
+    this.checked ? esriLabels.addTo(map) : map.removeLayer(esriLabels);
+  });
 
   const ySel = document.getElementById('year-sel');
   const cur = new Date().getFullYear();
@@ -789,6 +855,7 @@ async function detectFields(){
     }).addTo(map);
 
     setStatus(`✓ ${count} ${t('detectedUnit')}`, 'ok');
+    syncLandCoverToggle(true);   // keep layer panel in sync
     const dc = document.getElementById('detect-count');
     if(dc){ dc.querySelector('.mc-val').textContent=count; dc.style.display=''; }
   }catch(e){
@@ -1254,6 +1321,29 @@ function drawTrend(trend){
 }
 
 function closeResults(){ document.getElementById('results').classList.remove('open'); }
+
+// ── Layer toggle panel ───────────────────────────────────────────────────────
+function toggleLayerPanel(){
+  const body = document.getElementById('layer-panel-body');
+  const chev = document.getElementById('lp-chevron');
+  const open = body.style.display === 'none';
+  body.style.display = open ? '' : 'none';
+  chev.classList.toggle('open', open);
+}
+
+// Land Cover toggle — shows/hides the detectLayer (Dynamic World result)
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('lp-landcover').addEventListener('change', function(){
+    if(!detectLayer) return;
+    this.checked ? detectLayer.addTo(map) : map.removeLayer(detectLayer);
+  });
+});
+
+// Called by detectFields() after a layer is created so the panel stays in sync
+function syncLandCoverToggle(added){
+  const cb = document.getElementById('lp-landcover');
+  if(cb) cb.checked = added;
+}
 </script>
 </body>
 </html>
