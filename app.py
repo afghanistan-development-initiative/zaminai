@@ -1916,13 +1916,7 @@ def officer_detect_fields():
 
         ndvi = s2.normalizedDifference(["B8","B4"]).rename("ndvi")
 
-        # Use S2's native UTM projection at working scale — forces connectedComponents
-        # and reduceToVectors to run at seg_scale metres in a metric CRS, avoiding
-        # the pixel-adjacency issues that arise with EPSG:4326 (degree-based units).
-        proj = s2.select("B4").projection().atScale(seg_scale)
-        ndvi_proj = ndvi.reproject(proj)
-
-        crop_mask = ndvi_proj.gt(0.15).And(ndvi_proj.lt(0.90))
+        crop_mask = ndvi.gt(0.15).And(ndvi.lt(0.90))
         components = (crop_mask.selfMask()
                       .connectedComponents(
                           connectedness=ee.Kernel.plus(1), maxSize=1024))
@@ -1931,7 +1925,7 @@ def officer_detect_fields():
         max_px =       int(4000000 / (seg_scale ** 2))
 
         fc = (components.select("labels").toInt()
-              .addBands(ndvi_proj)
+              .addBands(ndvi)
               .reduceToVectors(
                   geometry=poly, scale=seg_scale,
                   geometryType="polygon", eightConnected=False,
