@@ -194,40 +194,40 @@ body[dir=rtl] .ctrl{direction:rtl}
     <!-- ── Layer toggle panel ─────────────────────────────────────────── -->
     <div id="layer-panel">
       <div id="layer-panel-hdr" onclick="toggleLayerPanel()">
-        <span>🗂️ Layers</span>
+        <span id="lp-hdr-text">🗂️ Layers</span>
         <span id="lp-chevron">▼</span>
       </div>
       <div id="layer-panel-body" style="display:none">
 
-        <!-- Base Maps -->
-        <div class="lp-group-title">Base Map</div>
+        <!-- ① Base Maps -->
+        <div class="lp-group-title" id="lp-t-base">Base Map</div>
         <label class="lp-item"><input type="radio" name="lp-base" value="esri" checked> 🛰️ Satellite (ESRI)</label>
         <label class="lp-item"><input type="radio" name="lp-base" value="google"> 🌍 Google Satellite</label>
         <label class="lp-item"><input type="radio" name="lp-base" value="osm"> 🗺️ OpenStreetMap</label>
         <label class="lp-item"><input type="radio" name="lp-base" value="dark"> 🌑 Dark Map</label>
         <label class="lp-item"><input type="radio" name="lp-base" value="terrain"> ⛰️ Terrain / Hillshade</label>
-        <label class="lp-item"><input type="checkbox" id="lp-labels" checked> 🏷️ Labels overlay</label>
+        <label class="lp-item"><input type="checkbox" id="lp-labels" checked> <span id="lp-t-labels">🏷️ Labels overlay</span></label>
 
         <div class="lp-sep"></div>
 
-        <!-- Satellite Layers -->
-        <div class="lp-group-title">Satellite Layers</div>
-        <label class="lp-item"><input type="checkbox" id="lp-landcover"> 🌍 Land Cover</label>
-        <label class="lp-item lp-off"><input type="checkbox" id="lp-ndvi" disabled> 🟢 NDVI Health</label>
-        <label class="lp-item lp-off"><input type="checkbox" id="lp-water" disabled> 💧 Water Index</label>
-        <label class="lp-item lp-off"><input type="checkbox" id="lp-baresoil" disabled> 🏜️ Bare Soil</label>
-        <label class="lp-item lp-off"><input type="checkbox" id="lp-croptype" disabled> 🌾 Crop Type <span class="lp-badge">estimate</span></label>
+        <!-- ② Satellite Analysis (on-demand GEE layers) -->
+        <div class="lp-group-title" id="lp-t-sat">Satellite Analysis</div>
+        <div style="font-size:9px;color:#334a60;padding:0 12px 3px" id="lp-note-demand">loads on demand · ~30-60 s</div>
+        <label class="lp-item"><input type="checkbox" id="lp-landcover"> <span id="lp-t-landcover">🌍 Land Cover</span></label>
+        <label class="lp-item"><input type="checkbox" id="lp-ndvi"> <span id="lp-t-ndvi">🟢 NDVI Health</span></label>
+        <label class="lp-item"><input type="checkbox" id="lp-water"> <span id="lp-t-water">💧 Water Index</span></label>
+        <label class="lp-item"><input type="checkbox" id="lp-baresoil"> <span id="lp-t-baresoil">🏜️ Bare Soil</span></label>
+        <label class="lp-item"><input type="checkbox" id="lp-croptype"> <span id="lp-t-croptype">🌾 Crop Type</span> <span class="lp-badge" id="lp-est-badge">estimate</span></label>
+        <label class="lp-item"><input type="checkbox" id="lp-forest"> <span id="lp-t-forest">🌲 Forest</span></label>
 
         <div class="lp-sep"></div>
 
-        <!-- Map Context -->
-        <div class="lp-group-title">Map Context</div>
-        <label class="lp-item lp-off" id="lp-terrain-row"><input type="checkbox" id="lp-terrain" disabled> ⛰️ Terrain (see Base Map)</label>
-        <label class="lp-item"><input type="checkbox" id="lp-forest"> 🌲 Forest / Dense Vegetation</label>
-        <label class="lp-item"><input type="checkbox" id="lp-roads"> 🛣️ Roads</label>
-        <label class="lp-item"><input type="checkbox" id="lp-buildings"> 🏘️ Settlements</label>
-        <label class="lp-item"><input type="checkbox" id="lp-rivers"> 🌊 Rivers</label>
-        <div style="font-size:9px;color:#334a60;padding:3px 12px 4px;line-height:1.4">
+        <!-- ③ Map Context (OSM tiles — instant) -->
+        <div class="lp-group-title" id="lp-t-context">Map Context</div>
+        <label class="lp-item"><input type="checkbox" id="lp-roads"> <span id="lp-t-roads">🛣️ Roads</span></label>
+        <label class="lp-item"><input type="checkbox" id="lp-buildings"> <span id="lp-t-buildings">🏘️ Settlements</span></label>
+        <label class="lp-item"><input type="checkbox" id="lp-rivers"> <span id="lp-t-rivers">🌊 Rivers</span></label>
+        <div style="font-size:9px;color:#334a60;padding:3px 12px 5px;line-height:1.4" id="lp-osm-note">
           ⚠️ OSM coverage may be incomplete in remote rural areas
         </div>
       </div>
@@ -305,6 +305,15 @@ const OT = {
     cropIntel:'Crop Intelligence',
     months:{1:'Jan',2:'Feb',3:'Mar',4:'Apr',5:'May',6:'Jun',7:'Jul',8:'Aug',9:'Sep',10:'Oct',11:'Nov',12:'Dec'},
     insuffData:'Insufficient satellite data for recommendations.',
+    // Layer panel (Step 5)
+    lpTitle:'🗂️ Layers',
+    lpBaseMap:'Base Map',lpLabels:'🏷️ Labels overlay',
+    lpSatTitle:'Satellite Analysis',lpOnDemand:'loads on demand · ~30-60 s',
+    lpLandCover:'🌍 Land Cover',lpNdvi:'🟢 NDVI Health',lpWater:'💧 Water Index',
+    lpBareSoil:'🏜️ Bare Soil',lpCropType:'🌾 Crop Type',lpForest:'🌲 Forest',
+    lpEstimate:'estimate',lpContextTitle:'Map Context',
+    lpRoads:'🛣️ Roads',lpSettlements:'🏘️ Settlements',lpRivers:'🌊 Rivers',
+    lpOsmNote:'⚠️ OSM coverage may be incomplete in remote rural areas',
   },
   fa:{
     sub:'داشبورد افسر — اطلاعات منطقه‌ای',
@@ -354,6 +363,13 @@ const OT = {
     cropIntel:'اطلاعات محصول',
     months:{1:'ژانویه',2:'فوریه',3:'مارس',4:'آوریل',5:'مه',6:'ژوئن',7:'جولای',8:'اوت',9:'سپتامبر',10:'اکتبر',11:'نوامبر',12:'دسامبر'},
     insuffData:'داده‌های کافی ماهواره‌ای برای توصیه موجود نیست.',
+    lpTitle:'🗂️ لایه‌ها',lpBaseMap:'نقشه پایه',lpLabels:'🏷️ برچسب‌ها',
+    lpSatTitle:'تحلیل ماهواره‌ای',lpOnDemand:'درخواست در لحظه · ۳۰-۶۰ ثانیه',
+    lpLandCover:'🌍 پوشش زمین',lpNdvi:'🟢 صحت NDVI',lpWater:'💧 شاخص آب',
+    lpBareSoil:'🏜️ خاک برهنه',lpCropType:'🌾 نوع محصول',lpForest:'🌲 جنگل',
+    lpEstimate:'تخمینی',lpContextTitle:'زمینه نقشه',
+    lpRoads:'🛣️ جاده‌ها',lpSettlements:'🏘️ سکونتگاه‌ها',lpRivers:'🌊 رودخانه‌ها',
+    lpOsmNote:'⚠️ پوشش OSM در مناطق روستایی دور ممکن است ناقص باشد',
   },
   ps:{
     sub:'د افسر ډشبورډ — د سیمې معلومات',
@@ -403,6 +419,13 @@ const OT = {
     cropIntel:'د محصول معلومات',
     months:{1:'جنوري',2:'فبروري',3:'مارچ',4:'اپریل',5:'مې',6:'جون',7:'جولای',8:'اګست',9:'سپتامبر',10:'اکتوبر',11:'نومبر',12:'دسامبر'},
     insuffData:'د سپارښتنو لپاره کافي د ماهوارې معلومات نشته.',
+    lpTitle:'🗂️ پرده‌ونه',lpBaseMap:'اساسي نقشه',lpLabels:'🏷️ لیبلونه',
+    lpSatTitle:'د ماهوارې تحلیل',lpOnDemand:'د غوښتنې سره بار · ۳۰-۶۰ ثانیې',
+    lpLandCover:'🌍 د ځمکې پوښ',lpNdvi:'🟢 NDVI روغتیا',lpWater:'💧 د اوبو شاخص',
+    lpBareSoil:'🏜️ لوڅه خاوره',lpCropType:'🌾 د محصول ډول',lpForest:'🌲 ځنګل',
+    lpEstimate:'اټکل',lpContextTitle:'د نقشې سیاق',
+    lpRoads:'🛣️ لارې',lpSettlements:'🏘️ د ابادۍ ځایونه',lpRivers:'🌊 سیندونه',
+    lpOsmNote:'⚠️ د لرو کلیوالو سیمو کې د OSM پوښښ ممکن نامکمل وي',
   }
 };
 
@@ -655,13 +678,10 @@ document.addEventListener('DOMContentLoaded', () => {
     this.checked ? esriLabels.addTo(map) : map.removeLayer(esriLabels);
   });
 
-  // Enable + wire satellite layer checkboxes (Steps 2 + 4)
+  // Wire satellite layer checkboxes (Steps 2 + 4) — already enabled in HTML
   ['ndvi','water','baresoil','croptype','forest'].forEach(name => {
     const cb = document.getElementById(`lp-${name}`);
-    if(!cb) return;
-    cb.disabled = false;
-    cb.closest('.lp-item').classList.remove('lp-off');
-    cb.addEventListener('change', function(){ toggleSatLayer(name, this.checked); });
+    if(cb) cb.addEventListener('change', function(){ toggleSatLayer(name, this.checked); });
   });
 
   // ── OSM context layers (Step 3) ─────────────────────────────────────────
@@ -743,6 +763,29 @@ function applyLang(){
   document.getElementById('detect-btn').textContent = t('detectBtn');
   if (document.getElementById('results').classList.contains('open'))
     document.getElementById('res-title').textContent = t('resTitle');
+  // Layer panel translations (Step 5)
+  const _lp = {
+    'lp-hdr-text':   'lpTitle',
+    'lp-t-base':     'lpBaseMap',
+    'lp-t-labels':   'lpLabels',
+    'lp-t-sat':      'lpSatTitle',
+    'lp-note-demand':'lpOnDemand',
+    'lp-t-landcover':'lpLandCover',
+    'lp-t-ndvi':     'lpNdvi',
+    'lp-t-water':    'lpWater',
+    'lp-t-baresoil': 'lpBareSoil',
+    'lp-t-croptype': 'lpCropType',
+    'lp-t-forest':   'lpForest',
+    'lp-est-badge':  'lpEstimate',
+    'lp-t-context':  'lpContextTitle',
+    'lp-t-roads':    'lpRoads',
+    'lp-t-buildings':'lpSettlements',
+    'lp-t-rivers':   'lpRivers',
+    'lp-osm-note':   'lpOsmNote',
+  };
+  Object.entries(_lp).forEach(([id,key]) => {
+    const el = document.getElementById(id); if(el) el.textContent = t(key);
+  });
 }
 
 function setStatus(msg, cls=''){
