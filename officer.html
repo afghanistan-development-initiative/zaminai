@@ -86,6 +86,17 @@ body[dir=rtl] #results{left:0;right:330px}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spin{display:inline-block;width:13px;height:13px;border:2px solid #040d1a;border-top-color:transparent;border-radius:50%;animation:spin .65s linear infinite;vertical-align:middle;margin-right:5px}
 
+/* ── Land cover bar ── */
+.lc-bar{height:16px;border-radius:4px;overflow:hidden;display:flex;margin:8px 0 5px}
+.lc-seg{height:100%;transition:width .7s ease}
+.lc-grid{display:flex;flex-wrap:wrap;gap:5px 10px;margin-top:4px}
+.lc-item{display:flex;align-items:center;gap:4px;font-size:10px;color:#8aa8c0}
+.lc-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.crop-cal{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:6px}
+.cal-cell{text-align:center;padding:4px 2px;border-radius:3px;font-size:9px}
+.cal-mo{color:#5a7a9a;margin-bottom:2px;font-size:8px}
+.cal-v{font-weight:700;font-size:10px}
+
 /* ── RTL overrides ── */
 body[dir=rtl] #sidebar{border-right:none;border-left:1px solid #163352}
 body[dir=rtl] .ctrl{direction:rtl}
@@ -222,6 +233,18 @@ const OT = {
     detectedFields:'Satellite-Detected Fields',detectedUnit:'auto-mapped fields',
     farmers:'Registered Farmers',noFarmers:'No registered farmers yet in this region.',
     joined:'Joined',fields2:'fields',
+    population:'Population',popDens:'people / km²',popSrc:'WorldPop 100m',
+    landcover:'Land Cover Breakdown',cropArea:'Cropland',treeArea:'Forest / Trees',
+    builtArea:'Built-up / Urban',waterArea:'Water',bareArea:'Bare Ground',
+    grassArea:'Grass / Shrub',snowArea:'Snow / Ice',floodedArea:'Flooded Veg.',
+    terrain:'Terrain (Elevation)',elevMean:'Mean Elevation',elevRange:'Range',
+    slopeMean:'Avg. Slope',flatLand:'Flat — ideal for mechanized farming',
+    gentleSlope:'Gentle slope — suitable for most crops',
+    steepSlope:'Steep — terrace farming, erosion risk',
+    waterBodies:'Permanent Water Bodies',waterHa:'water ha',
+    cropCal:'NDVI Seasonal Profile (Crop Calendar)',
+    cropIntel:'Crop Intelligence',
+    months:{1:'Jan',2:'Feb',3:'Mar',4:'Apr',5:'May',6:'Jun',7:'Jul',8:'Aug',9:'Sep',10:'Oct',11:'Nov',12:'Dec'},
     insuffData:'Insufficient satellite data for recommendations.',
   },
   fa:{
@@ -259,6 +282,18 @@ const OT = {
     detectedFields:'زمین‌های شناسایی‌شده از ماهواره',detectedUnit:'زمین شناسایی‌شده',
     farmers:'کشاورزان ثبت‌شده',noFarmers:'هنوز هیچ کشاورزی در این منطقه ثبت نشده.',
     joined:'تاریخ ثبت',fields2:'مزرعه',
+    population:'جمعیت',popDens:'نفر/کیلومتر مربع',popSrc:'WorldPop 100m',
+    landcover:'پوشش زمین',cropArea:'زمین کشاورزی',treeArea:'جنگل/درخت',
+    builtArea:'مناطق شهری',waterArea:'آب',bareArea:'زمین بایر',
+    grassArea:'علفزار/بوته',snowArea:'برف/یخ',floodedArea:'پوشش آبگیر',
+    terrain:'ارتفاع',elevMean:'ارتفاع متوسط',elevRange:'محدوده',
+    slopeMean:'شیب متوسط',flatLand:'مسطح — مناسب برای کشاورزی مکانیزه',
+    gentleSlope:'شیب ملایم — مناسب برای اکثر محصولات',
+    steepSlope:'شیب تند — کشاورزی پله‌ای، خطر فرسایش',
+    waterBodies:'منابع آبی دائمی',waterHa:'هکتار آب',
+    cropCal:'پروفایل NDVI فصلی (تقویم کشاورزی)',
+    cropIntel:'اطلاعات محصول',
+    months:{1:'ژانویه',2:'فوریه',3:'مارس',4:'آوریل',5:'مه',6:'ژوئن',7:'جولای',8:'اوت',9:'سپتامبر',10:'اکتبر',11:'نوامبر',12:'دسامبر'},
     insuffData:'داده‌های کافی ماهواره‌ای برای توصیه موجود نیست.',
   },
   ps:{
@@ -296,6 +331,18 @@ const OT = {
     detectedFields:'د ماهوارې له لارې کشف‌شوي ځمکې',detectedUnit:'کشف‌شوې ځمکه',
     farmers:'ثبت‌شوي کروندګر',noFarmers:'لا د دې سیمې کروندګر ثبت نشوي.',
     joined:'د ثبت نیټه',fields2:'ځمکه',
+    population:'نفوس',popDens:'کس/مربع کیلومتر',popSrc:'WorldPop 100m',
+    landcover:'د ځمکې پوښ',cropArea:'د کرهڼې ځمکه',treeArea:'ځنګل/ونې',
+    builtArea:'ښاري سیمې',waterArea:'اوبه',bareArea:'بنجره ځمکه',
+    grassArea:'واښه/بوټي',snowArea:'واوره/یخ',floodedArea:'اوبه‌ناک پوښ',
+    terrain:'لوړوالی',elevMean:'منځني لوړوالی',elevRange:'سلسله',
+    slopeMean:'منځنی کج',flatLand:'مسطحه — د مکانیزه کرهڼې لپاره مناسبه',
+    gentleSlope:'ملایم کج — د ډیری محصولاتو لپاره مناسب',
+    steepSlope:'تیز کج — پله‌ایزه کرهڼه، د فرسایش خطر',
+    waterBodies:'دایمي اوبه',waterHa:'د اوبو هکتار',
+    cropCal:'د NDVI موسمي پروفایل (د کرهڼې تقویم)',
+    cropIntel:'د محصول معلومات',
+    months:{1:'جنوري',2:'فبروري',3:'مارچ',4:'اپریل',5:'مې',6:'جون',7:'جولای',8:'اګست',9:'سپتامبر',10:'اکتوبر',11:'نومبر',12:'دسامبر'},
     insuffData:'د سپارښتنو لپاره کافي د ماهوارې معلومات نشته.',
   }
 };
@@ -772,16 +819,118 @@ async function analyseAdmin(){
   }
 }
 
+// ── Land cover colour map ────────────────────────────────────────────────────
+const LC_COLORS = {
+  water:'#2980b9', trees:'#27ae60', grass:'#8bc34a',
+  flooded_veg:'#1abc9c', crops:'#f39c12', shrub_scrub:'#95a5a6',
+  built_up:'#e74c3c', bare_ground:'#a04000', snow_ice:'#ecf0f1'
+};
+const LC_LABELS = {
+  water:'waterArea', trees:'treeArea', grass:'grassArea',
+  flooded_veg:'floodedArea', crops:'cropArea', shrub_scrub:'grassArea',
+  built_up:'builtArea', bare_ground:'bareArea', snow_ice:'snowArea'
+};
+
+function lcBar(classes){
+  if(!classes||!Object.keys(classes).length) return '';
+  const order=['crops','trees','grass','shrub_scrub','water','flooded_veg','built_up','bare_ground','snow_ice'];
+  const segs = order.filter(k=>classes[k]>0).map(k=>{
+    const pct=classes[k]||0;
+    return `<div class="lc-seg" style="width:${pct}%;background:${LC_COLORS[k]||'#555'}" title="${t(LC_LABELS[k])||k}: ${pct}%"></div>`;
+  }).join('');
+  const legend = order.filter(k=>classes[k]>0).map(k=>{
+    const pct=classes[k]||0;
+    return `<div class="lc-item"><div class="lc-dot" style="background:${LC_COLORS[k]||'#555'}"></div>${t(LC_LABELS[k])||k}: <b>${pct}%</b></div>`;
+  }).join('');
+  return `<div class="lc-bar">${segs}</div><div class="lc-grid">${legend}</div>`;
+}
+
+function cropCalendar(monthly){
+  if(!monthly||!Object.keys(monthly).length) return '';
+  const months = [1,3,5,7,9,11];
+  const vals = months.map(m=>monthly[m]).filter(v=>v!==null&&v!==undefined);
+  if(!vals.length) return '';
+  const mx = Math.max(...vals)||0.7, mn = Math.min(...vals)||0;
+  const cells = months.map(m=>{
+    const v = monthly[m];
+    if(v===null||v===undefined) return `<div class="cal-cell"><div class="cal-mo">${(t('months')||{})[m]||m}</div><div class="cal-v" style="color:#334a60">—</div></div>`;
+    const pct = mx>mn ? (v-mn)/(mx-mn) : 0.5;
+    const r=Math.round(231-pct*200), g=Math.round(76+pct*102), b=Math.round(60+pct*0);
+    const bg=`rgba(${r},${g},${b},0.25)`, col=`rgb(${r},${g},${b})`;
+    return `<div class="cal-cell" style="background:${bg}"><div class="cal-mo">${(t('months')||{})[m]||m}</div><div class="cal-v" style="color:${col}">${v.toFixed(2)}</div></div>`;
+  }).join('');
+  return `<div class="crop-cal">${cells}</div>`;
+}
+
+function inferCrops(d){
+  const ndvi  = d.ndvi  ?? 0.3;
+  const rain  = d.rain  ?? 300;
+  const tmax  = d.modis?.summer_day_c ?? null;
+  const tmin  = d.modis?.winter_night_c ?? null;
+  const frost = d.modis?.frost_risk ?? null;
+  const elev  = d.terrain?.elev_mean_m ?? null;
+  const slope = d.terrain?.slope_deg ?? 0;
+  const crop_pct = d.landcover?.crop_pct ?? null;
+  const crop_ha  = d.landcover?.crop_ha  ?? null;
+
+  if(crop_pct !== null && crop_pct < 3 && ndvi < 0.15){
+    return `<div style="color:#5a7a9a;font-style:italic">Non-agricultural land — arid, barren, or forested region. Cropland < 3%.</div>`;
+  }
+
+  const lines = [];
+  const cs = v => `<b style="color:#27ae60">${v}</b>`;
+
+  // Crop area summary
+  if(crop_ha !== null) lines.push(`🌍 Estimated cropland: ${cs(Math.round(crop_ha).toLocaleString()+' ha')} (${crop_pct?.toFixed(1)}% of region)`);
+
+  // Rain-based crops
+  if(rain >= 1000 && (tmax===null || tmax >= 26)){
+    lines.push(`🌾 ${cs('Rice (paddy)')} — high rainfall + warm summers support wet-rice cultivation`);
+    lines.push(`🌴 ${cs('Tropical crops')} (banana, cassava, sugarcane) likely in lowland areas`);
+  } else if(rain >= 600){
+    lines.push(`🌽 ${cs('Maize (corn)')} — primary crop in this rainfall regime`);
+    lines.push(`🫘 ${cs('Soybeans / legumes')} — common rotation with maize`);
+    if(tmax && tmax >= 28) lines.push(`🍅 ${cs('Vegetables')} (tomato, pepper, eggplant) viable year-round`);
+  } else if(rain >= 280){
+    lines.push(`🌾 ${cs('Wheat & barley')} — dominant staple crops in 280–600 mm rainfall zones`);
+    if(!frost) lines.push(`🍈 ${cs('Melon / watermelon')} — common in dry summers with irrigation`);
+    if(ndvi >= 0.40) lines.push(`🌿 ${cs('Irrigated fields detected')} — cotton, orchards, or vegetables likely`);
+  } else {
+    lines.push(`🌵 ${cs('Dryland farming')} — millet, sorghum, or nomadic pastoralism`);
+    if(ndvi >= 0.30) lines.push(`🌿 ${cs('Irrigation pockets')} visible — oasis or canal-fed orchards`);
+  }
+
+  // Temperature / frost adjustments
+  if(frost === true) lines.push(`❄️ ${cs('Frost winters')} limit tropical crops — focus on cold-hardy varieties (winter wheat, potato)`);
+  if(tmax && tmax >= 35) lines.push(`☀️ Heat stress risk in summer — ${cs('drought-tolerant varieties')} advised`);
+
+  // Elevation adjustments
+  if(elev !== null){
+    if(elev > 3000) lines.push(`🏔️ High altitude (${Math.round(elev)}m) — ${cs('potato, buckwheat, medicinal herbs')}; short growing season`);
+    else if(elev > 1500) lines.push(`⛰️ Mid-altitude (${Math.round(elev)}m) — ${cs('apple, apricot, grape orchards')} common; cool nights improve fruit quality`);
+  }
+
+  // Slope
+  if(slope > 15) lines.push(`📐 Steep terrain (${slope.toFixed(1)}°) — ${cs('terraced farming')} or pastoral use; erosion control needed`);
+
+  return lines.map(l=>`<div style="margin:4px 0;font-size:11px;color:#b8d4c0;line-height:1.5">${l}</div>`).join('');
+}
+
 // ── Render results ──────────────────────────────────────────────────────────
 function renderResults(d, country, province, district, village){
   const body    = document.getElementById('res-body');
   const adminName = village || district || province || country;
   const adminLvl  = village ? t('village') : district ? t('district') : province ? t('province') : t('country2');
-  const ndvi  = d.ndvi  ?? null;
-  const evi   = d.evi   ?? null;
-  const savi  = d.savi  ?? null;
-  const mndwi = d.mndwi ?? d.water ?? null;
-  const rain  = d.rain  ?? null;
+  const ndvi    = d.ndvi  ?? null;
+  const evi     = d.evi   ?? null;
+  const savi    = d.savi  ?? null;
+  const mndwi   = d.mndwi ?? d.water ?? null;
+  const rain    = d.rain  ?? null;
+  const pop     = d.population ?? null;
+  const lc      = d.landcover  ?? null;
+  const ter     = d.terrain    ?? null;
+  const wb      = d.water_bodies ?? null;
+  const monthly = d.ndvi_monthly ?? {};
 
   // NDVI bar & badge
   const ndviPct = ndvi === null ? 0 : Math.max(0, Math.min(100, (ndvi/0.7)*100));
@@ -893,7 +1042,56 @@ function renderResults(d, country, province, district, village){
     ${sarHTML}
     ${modisHTML}
 
+    ${pop ? `<div class="mc">
+      <div class="mc-lbl">${t('population')}</div>
+      <div class="mc-val">${pop.total!=null?pop.total.toLocaleString():'—'}</div>
+      <div class="mc-unit">${pop.per_km2!=null?pop.per_km2.toLocaleString()+' '+t('popDens'):''}</div>
+      <div class="mc-note">${t('popSrc')} · ${pop.year||''}</div>
+    </div>` : ''}
+
+    ${ter ? `<div class="mc">
+      <div class="mc-lbl">${t('terrain')}</div>
+      <div class="mc-val">${ter.elev_mean_m!=null?Math.round(ter.elev_mean_m)+' m':'—'}</div>
+      <div class="sub-row"><span class="sub-k">${t('elevRange')}</span><span class="sub-v">${ter.elev_min_m!=null?Math.round(ter.elev_min_m):'—'} – ${ter.elev_max_m!=null?Math.round(ter.elev_max_m):'—'} m</span></div>
+      <div class="sub-row"><span class="sub-k">${t('slopeMean')}</span><span class="sub-v">${ter.slope_deg!=null?ter.slope_deg.toFixed(1)+'°':'—'}</span></div>
+      <div class="mc-note">${ter.slope_deg!=null?(ter.slope_deg<3?t('flatLand'):ter.slope_deg<12?t('gentleSlope'):t('steepSlope')):'SRTM 30m'}</div>
+    </div>` : ''}
+
+    ${wb ? `<div class="mc">
+      <div class="mc-lbl">${t('waterBodies')}</div>
+      <div class="mc-val">${wb.pct!=null?wb.pct.toFixed(1)+'%':'—'}</div>
+      <div class="mc-unit">${wb.ha!=null?wb.ha.toLocaleString()+' '+t('waterHa'):''}</div>
+      <div class="mc-note">JRC GSW · ≥50% occurrence</div>
+    </div>` : ''}
+
+    ${lc ? `<div class="full" style="background:#0a1f10;border-color:#1a3a18">
+      <h4>${t('landcover')} <span style="font-weight:400;color:#334a60;font-size:9px">${lc.source||''}</span></h4>
+      ${lcBar(lc.classes)}
+      <div class="sub-row" style="margin-top:6px">
+        <span class="sub-k">${t('cropArea')}</span>
+        <span class="sub-v" style="color:#f39c12">${lc.crop_pct!=null?lc.crop_pct.toFixed(1)+'%':' —'} · ${lc.crop_ha!=null?lc.crop_ha.toLocaleString()+' ha':'—'}</span>
+      </div>
+      <div class="sub-row">
+        <span class="sub-k">${t('treeArea')}</span>
+        <span class="sub-v" style="color:#27ae60">${lc.tree_pct!=null?lc.tree_pct.toFixed(1)+'%':'—'}</span>
+      </div>
+      <div class="sub-row">
+        <span class="sub-k">${t('builtArea')}</span>
+        <span class="sub-v" style="color:#e74c3c">${lc.built_pct!=null?lc.built_pct.toFixed(1)+'%':'—'}</span>
+      </div>
+    </div>` : ''}
+
+    ${Object.keys(monthly).length ? `<div class="full">
+      <h4>${t('cropCal')}</h4>
+      ${cropCalendar(monthly)}
+    </div>` : ''}
+
     ${hasTrend?`<div class="full" id="trend-wrap"><h4>${t('trend')}</h4><svg id="trend-svg"></svg></div>`:''}
+
+    <div class="full" style="background:#071a0f;border-color:#1a4a1a">
+      <h4 style="color:#f39c12">${t('cropIntel')}</h4>
+      ${inferCrops(d)}
+    </div>
 
     <div class="full" style="background:#0b1e0e;border-color:#1a4a1a">
       <h4 style="color:#27ae60">${t('recommend')}</h4>

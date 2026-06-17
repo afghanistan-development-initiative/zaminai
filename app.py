@@ -1658,10 +1658,125 @@ def gee_analyse_officer(coords, year, clat, clon, scale=500):
     except Exception as e:
         log.warning(f"Officer MODIS failed: {e}")
 
+    area_ha  = calc_area_ha(coords)
+    area_km2 = area_ha / 100.0
+
+    # ── WorldPop population (global 100 m, 2000-2020) ──────────────────────────
+    pop_data = None
+    try:
+        pop_yr = min(year, 2020)
+        pop_img = (ee.ImageCollection("WorldPop/GP/100m/pop")
+                   .filterBounds(poly)
+                   .filter(ee.Filter.calendarRange(pop_yr, pop_yr, "year"))
+                   .first())
+        total_pop = (pop_img.clip(poly)
+                     .reduceRegion(ee.Reducer.sum(), poly, 100, maxPixels=1e10, bestEffort=True)
+                     .get("population").getInfo())
+        if total_pop is not None:
+            density = round(float(total_pop) / max(area_km2, 0.01), 1)
+            pop_data = {"total": int(round(float(total_pop))), "per_km2": density,
+                        "source": f"WorldPop_{pop_yr}"}
+    except Exception as e:
+        log.warning(f"WorldPop failed: {e}")
+
+    # ── Dynamic World land cover (global 10 m, 2015+) ─────────────────────────
+    landcover_data = None
+    try:
+        lc_scale = 10 if area_km2 < 100 else 30 if area_km2 < 1000 else 100 if area_km2 < 10000 else 300
+        dw_mode = (ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1")
+                   .filterBounds(poly)
+                   .filterDate(f"{year}-04-01", end_date)
+                   .select("label")
+                   .mode()
+                   .clip(poly))
+        CLASS_NAMES = ["water","trees","grass","flooded_veg","crops",
+                       "shrub_scrub","built_up","bare_ground","snow_ice"]
+        hist = (dw_mode.reduceRegion(
+            ee.Reducer.frequencyHistogram(), poly, lc_scale,
+            maxPixels=1e10, bestEffort=True
+        ).get("label").getInfo()) or {}
+        total_px = sum(hist.values()) or 1
+        lc_pct = {}
+        for k, v in hist.items():
+            idx  = int(float(k))
+            name = CLASS_NAMES[idx] if idx < len(CLASS_NAMES) else f"class_{idx}"
+            lc_pct[name] = round(v / total_px * 100, 1)
+        crop_pct = lc_pct.get("crops", 0)
+        landcover_data = {
+            "classes":   lc_pct,
+            "crop_pct":  crop_pct,
+            "crop_ha":   round(area_ha * crop_pct / 100, 1),
+            "tree_pct":  lc_pct.get("trees", 0),
+            "grass_pct": lc_pct.get("grass", 0),
+            "built_pct": lc_pct.get("built_up", 0),
+            "water_pct": lc_pct.get("water", 0),
+            "bare_pct":  lc_pct.get("bare_ground", 0),
+            "source":    f"DynamicWorld_v1_{lc_scale}m"
+        }
+    except Exception as e:
+        log.warning(f"DynamicWorld failed: {e}")
+
+    # ── Terrain — SRTM 30 m ───────────────────────────────────────────────────
+    terrain_data = None
+    try:
+        ter_scale = max(30, scale)
+        dem   = ee.Image("USGS/SRTMGL1_003").clip(poly)
+        slope = ee.Terrain.slope(dem)
+        aspect = ee.Terrain.aspect(dem)
+        def ter_stat(img, band, reducer):
+            v = img.reduceRegion(reducer, poly, ter_scale, maxPixels=1e9).get(band).getInfo()
+            return round(float(v), 1) if v is not None else None
+        terrain_data = {
+            "elev_mean_m": ter_stat(dem,   "elevation", ee.Reducer.mean()),
+            "elev_min_m":  ter_stat(dem,   "elevation", ee.Reducer.min()),
+            "elev_max_m":  ter_stat(dem,   "elevation", ee.Reducer.max()),
+            "slope_deg":   ter_stat(slope, "slope",     ee.Reducer.mean()),
+            "source": "SRTM_30m"
+        }
+    except Exception as e:
+        log.warning(f"SRTM terrain failed: {e}")
+
+    # ── JRC Global Surface Water (permanent water bodies) ─────────────────────
+    water_bodies = None
+    try:
+        gsw   = ee.Image("JRC/GSW1_4/GlobalSurfaceWater").select("occurrence").clip(poly)
+        perm  = gsw.gte(50)
+        w_px  = perm.reduceRegion(ee.Reducer.sum(),   poly, 30, maxPixels=1e10, bestEffort=True).get("occurrence").getInfo()
+        t_px  = perm.reduceRegion(ee.Reducer.count(), poly, 30, maxPixels=1e10, bestEffort=True).get("occurrence").getInfo()
+        w_pct = round(float(w_px) / float(t_px) * 100, 2) if (w_px and t_px) else 0
+        water_bodies = {
+            "pct": w_pct,
+            "ha":  round(area_ha * w_pct / 100, 1),
+            "source": "JRC_GSW_1.4"
+        }
+    except Exception as e:
+        log.warning(f"JRC surface water failed: {e}")
+
+    # ── Monthly NDVI profile (crop calendar proxy, bi-monthly) ────────────────
+    ndvi_monthly = {}
+    try:
+        months = [1, 3, 5, 7, 9, 11]
+        for mo in months:
+            mo_end = f"{year}-{mo+1:02d}-01" if mo < 12 else f"{year}-12-31"
+            mc = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+                  .filterBounds(poly).filterDate(f"{year}-{mo:02d}-01", mo_end)
+                  .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 35)).median().clip(poly))
+            v = mc.normalizedDifference(["B8","B4"]).reduceRegion(
+                    ee.Reducer.mean(), poly, max(scale, 300), maxPixels=1e9
+                ).get("nd").getInfo()
+            ndvi_monthly[mo] = round(float(v), 3) if v else None
+    except Exception as e:
+        log.warning(f"Monthly NDVI profile failed: {e}")
+
     return {
         "ndvi":ndvi,"evi":evi,"savi":savi,"mndwi":mndwi,"water":mndwi,"rain":rain,
         "trend":s2_trend,"ndvi_trend":s2_trend,"landsat_trend":ls_trend,"combined_trend":combined_trend,
         "sar":sar_data,"modis":modis_data,
+        "population":   pop_data,
+        "landcover":    landcover_data,
+        "terrain":      terrain_data,
+        "water_bodies": water_bodies,
+        "ndvi_monthly": ndvi_monthly,
         "lat":round(clat,5),"lon":round(clon,5),
         "source":"gee_live","image_date":end_date,"analysis_scale_m":scale
     }
@@ -1827,6 +1942,7 @@ def officer_analyse():
         country  = data.get("country", "")
         province = data.get("province", "")
         district = data.get("district", "")
+        village  = data.get("village", "")
 
         if len(coords) < 3:
             return jsonify({"error": "Need ≥3 coordinate points"}), 400
@@ -1853,7 +1969,6 @@ def officer_analyse():
                 log.error(f"Officer GEE failed: {e}")
 
         if not result:
-            # Fallback uses Afghan provincial data for known provinces, else zeros
             reg = get_regional_data(clat, clon)
             result = {
                 "ndvi":reg["ndvi"],"evi":reg["evi"],"savi":reg["savi"],
@@ -1861,9 +1976,11 @@ def officer_analyse():
                 "trend":reg.get("trend",{}),"ndvi_trend":reg.get("trend",{}),
                 "landsat_trend":{},"combined_trend":reg.get("trend",{}),
                 "lat":round(clat,5),"lon":round(clon,5),
-                "source":reg.get("source","regional_fallback"),
+                "source":reg.get("source","climate_zone_fallback"),
                 "image_date":f"{year}-05-15","analysis_scale_m":None,
-                "sar":None,"modis":None
+                "sar":None,"modis":None,
+                "population":None,"landcover":None,"terrain":None,
+                "water_bodies":None,"ndvi_monthly":{}
             }
 
         result.update({
@@ -1872,7 +1989,8 @@ def officer_analyse():
             "country":  country,
             "province": province,
             "district": district,
-            "admin_level": "district" if district else "province" if province else "country",
+            "village":  village,
+            "admin_level": "village" if village else "district" if district else "province" if province else "country",
             "year": year,
         })
 
