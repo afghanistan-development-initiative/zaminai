@@ -2062,6 +2062,170 @@ def gadm_proxy(iso, level):
         return jsonify({"error": str(e)}), 500
 
 
+# ── Async satellite layer tasks (Step 2) ─────────────────────────────────────
+# Same async-task pattern as detect-fields: POST starts the GEE job,
+# GET /<task_id> polls for the result.  Each layer is computed on demand.
+_layer_tasks = {}
+
+@app.route("/officer/layer/<layer_name>", methods=["POST","OPTIONS"])
+def officer_layer(layer_name):
+    """Start async computation of a named satellite layer.
+    Supported: ndvi, water, baresoil, croptype
+    Returns {task_id} immediately; poll GET /officer/layer-result/<task_id>.
+    """
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    if not gee_ok:
+        return jsonify({"error": "Satellite analysis not available"}), 503
+    if layer_name not in ("ndvi", "water", "baresoil", "croptype"):
+        return jsonify({"error": f"Unknown layer: {layer_name}"}), 400
+    try:
+        import ee
+        data   = request.get_json(force=True)
+        coords = data.get("coords", [])
+        year   = int(data.get("year", datetime.now().year))
+        if len(coords) < 3:
+            return jsonify({"error": "Need ≥3 coordinate points"}), 400
+
+        poly     = ee.Geometry.Polygon([[[c[1], c[0]] for c in coords]])
+        area_km2 = calc_area_ha(coords) / 100.0
+        today    = datetime.now().strftime("%Y-%m-%d")
+        clat     = sum(c[0] for c in coords) / len(coords)
+
+        # Hemisphere-aware season
+        if clat >= 10:
+            s_start = f"{year}-04-01"; s_end = min(f"{year}-09-30", today)
+        elif clat <= -10:
+            s_start = f"{year-1}-10-01"; s_end = min(f"{year}-04-30", today)
+        else:
+            s_start = f"{year}-01-01"; s_end = min(f"{year}-12-31", today)
+        if s_start > today:
+            s_start = f"{year-1}{s_start[4:]}"; s_end = f"{year-1}{s_end[4:]}"
+
+        seg_scale = 20 if area_km2 < 50 else (30 if area_km2 < 300 else 50)
+
+        def _mask_s2(img):
+            qa = img.select("QA60")
+            return img.updateMask(
+                qa.bitwiseAnd(1 << 10).eq(0).And(qa.bitwiseAnd(1 << 11).eq(0))
+            )
+        s2 = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+              .filterBounds(poly).filterDate(s_start, s_end)
+              .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 80))
+              .sort("CLOUDY_PIXEL_PERCENTAGE").limit(10)
+              .map(_mask_s2).median().clip(poly))
+
+        if layer_name == "ndvi":
+            # NDVI: (B8−B4)/(B8+B4), quantised to 0.05 classes, cropped to 0.10–0.95
+            index = s2.normalizedDifference(["B8","B4"]).rename("ndvi")
+            label_img = (index.multiply(20).floor().int()
+                         .updateMask(index.gt(0.10).And(index.lt(0.95))))
+            label_prop = "ndvi_class"
+            def feat_props(f):
+                return f  # mean already in properties
+
+        elif layer_name == "water":
+            # MNDWI: (B3−B11)/(B3+B11) — positive = water/moisture
+            mndwi = s2.normalizedDifference(["B3","B11"]).rename("mndwi")
+            # Also compute NDWI (B3−B8)/(B3+B8) as secondary confirmation
+            ndwi  = s2.normalizedDifference(["B3","B8"]).rename("ndwi")
+            # Keep pixels where MNDWI > −0.1 (water, flooded, moist soil)
+            water_mask = mndwi.gt(-0.10)
+            index       = mndwi
+            label_img  = (index.multiply(20).floor().int()
+                          .updateMask(water_mask))
+            label_prop = "mndwi_class"
+
+        elif layer_name == "baresoil":
+            # BSI: ((B11+B4)−(B8+B2))/((B11+B4)+(B8+B2))
+            bsi = s2.expression(
+                "((SWIR+RED)-(NIR+BLUE))/((SWIR+RED)+(NIR+BLUE))",
+                {"SWIR":s2.select("B11"),"RED":s2.select("B4"),
+                 "NIR":s2.select("B8"),"BLUE":s2.select("B2")}
+            ).rename("bsi")
+            # Bare soil: BSI > 0  (positive = exposed soil/sand)
+            index     = bsi
+            label_img = (index.multiply(20).floor().int()
+                         .updateMask(index.gt(0.0)))
+            label_prop = "bsi_class"
+
+        elif layer_name == "croptype":
+            # Pixel-level crop classification using the same rules as detect_crop().
+            # Encoded as integer: 1=wheat 2=vegetables 3=orchard 4=bare_fallow
+            ndvi  = s2.normalizedDifference(["B8","B4"])
+            evi   = s2.expression(
+                "2.5*((NIR-RED)/(NIR+6*RED-7.5*BLUE+1))",
+                {"NIR":s2.select("B8"),"RED":s2.select("B4"),"BLUE":s2.select("B2")})
+            lswi  = s2.normalizedDifference(["B8","B11"])
+            month = datetime.now().month
+
+            # Rule-based classification (mirrors detect_crop scalar logic as raster)
+            is_bare  = ndvi.lt(0.12)
+            is_wheat = (ndvi.gte(0.25).And(ndvi.lte(0.60))
+                        .And(evi.lt(0.38))
+                        .And(ee.Image(1).multiply(1 if month in range(3,8) else 0).eq(1)))
+            is_veg   = ndvi.gte(0.38).And(evi.gte(0.28)).And(lswi.gte(-0.10))
+            is_orch  = ndvi.gte(0.42).And(evi.gte(0.30))
+
+            crop_map = (ee.Image(4).where(is_orch, 3)
+                                   .where(is_veg,  2)
+                                   .where(is_wheat,1)
+                                   .where(is_bare, 4))
+            # Only show pixels with some vegetation signal
+            label_img = crop_map.updateMask(ndvi.gt(0.05))
+            index     = ndvi  # use NDVI for the mean reducer
+            label_prop = "crop_class"
+
+        task_id = str(uuid.uuid4())
+        _layer_tasks[task_id] = {"status": "pending", "layer": layer_name}
+
+        ndvi_safe = s2.normalizedDifference(["B8","B4"]).rename("ndvi").unmask(ee.Image(0).rename("ndvi"))
+        label_with_ndvi = label_img.toInt().addBands(ndvi_safe)
+
+        def _worker():
+            try:
+                fc = (label_with_ndvi
+                      .reduceToVectors(
+                          geometry=poly, scale=seg_scale,
+                          geometryType="polygon", eightConnected=True,
+                          reducer=ee.Reducer.mean(),
+                          labelProperty=label_prop,
+                          maxPixels=1e10, bestEffort=True, tileScale=4)
+                      .limit(500))
+                result = fc.getInfo()
+                count  = len(result.get("features", []))
+                log.info(f"layer/{layer_name} task {task_id[:8]}: {count} polygons")
+                _layer_tasks[task_id] = {"status": "done", "data": result, "layer": layer_name}
+            except Exception as ex:
+                log.error(f"layer/{layer_name} task {task_id[:8]} error: {ex}")
+                _layer_tasks[task_id] = {"status": "error", "error": str(ex), "layer": layer_name}
+
+        threading.Thread(target=_worker, daemon=True).start()
+        return jsonify({"task_id": task_id, "status": "pending", "layer": layer_name})
+
+    except Exception as e:
+        log.error(f"/officer/layer/{layer_name}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/officer/layer-result/<task_id>", methods=["GET","OPTIONS"])
+def officer_layer_result(task_id):
+    """Poll for async satellite layer result."""
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    task = _layer_tasks.get(task_id)
+    if not task:
+        return jsonify({"status": "error", "error": "Task not found"}), 404
+    if task["status"] == "pending":
+        return jsonify({"status": "pending", "layer": task["layer"]})
+    if task["status"] == "error":
+        _layer_tasks.pop(task_id, None)
+        return jsonify({"status": "error", "error": task["error"]}), 500
+    data = task.get("data", {"type":"FeatureCollection","features":[]})
+    _layer_tasks.pop(task_id, None)
+    return jsonify({"status": "done", "layer": task["layer"], "data": data})
+
+
 @app.route("/officer/analyse", methods=["POST","OPTIONS"])
 def officer_analyse():
     if request.method == "OPTIONS":

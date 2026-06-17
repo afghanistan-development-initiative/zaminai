@@ -460,6 +460,137 @@ let selFeat = null;
 let curISO = null;
 const API = 'https://zaminai.onrender.com';
 
+// ── Satellite layer state (Step 2) ──────────────────────────────────────────
+const _satLayers   = {};   // name → Leaflet layer (or null if not yet loaded)
+const _satLoading  = {};   // name → true while GEE task in flight
+
+// Colour helpers for each layer type
+function _ndviClassColor(v){
+  // v = floor(ndvi*20), i.e. class 2 = NDVI 0.10-0.15, class 14 = 0.70-0.75
+  const ndvi = v / 20;
+  return ndviToColor(ndvi);
+}
+const _waterColors  = ['#c0392b','#e67e22','#f1c40f','#2ecc71','#2980b9','#1a5276'];
+const _bsiColors    = ['#f9e79f','#f0b27a','#e59866','#ca6f1e','#784212','#4a235a'];
+const _cropColors   = {1:'#f39c12',2:'#27ae60',3:'#1a7a40',4:'#a04000'};
+const _cropLabels   = {1:'Wheat',2:'Vegetables',3:'Orchard/Trees',4:'Bare/Fallow'};
+const _cropLabelsFA = {1:'گندم',2:'سبزیجات',3:'باغ',4:'بایر'};
+const _cropLabelsPS = {1:'غنم',2:'سبزیجات',3:'باغ',4:'بایره ځمکه'};
+
+function _satLayerStyle(layerName, feat){
+  const ndvi = feat.properties?.mean ?? null;
+  switch(layerName){
+    case 'ndvi': {
+      const col = ndviToColor(ndvi);
+      return {color:'#fff',weight:.7,fillColor:col,fillOpacity:.6};
+    }
+    case 'water': {
+      // MNDWI class: higher class = wetter
+      const cls = feat.properties?.mndwi_class ?? 0;
+      const idx = Math.min(Math.max(cls + 2, 0), _waterColors.length-1);
+      return {color:'#fff',weight:.7,fillColor:_waterColors[idx],fillOpacity:.6};
+    }
+    case 'baresoil': {
+      const cls = feat.properties?.bsi_class ?? 0;
+      const idx = Math.min(Math.max(cls + 2, 0), _bsiColors.length-1);
+      return {color:'#fff',weight:.7,fillColor:_bsiColors[idx],fillOpacity:.6};
+    }
+    case 'croptype': {
+      const cc = feat.properties?.crop_class ?? 4;
+      return {color:'#fff',weight:.7,fillColor:_cropColors[cc]||'#888',fillOpacity:.65};
+    }
+    default: return {color:'#fff',weight:.7,fillColor:'#888',fillOpacity:.55};
+  }
+}
+
+function _satLayerPopup(layerName, feat){
+  const ndvi  = feat.properties?.mean ?? null;
+  const ndviStr = ndvi !== null ? ndvi.toFixed(3) : '—';
+  switch(layerName){
+    case 'ndvi':
+      return `<div class="pop-title">🟢 NDVI Health</div>
+              <div class="pop-row"><span class="pop-k">NDVI</span><span class="pop-v">${ndviStr}</span></div>
+              <div class="mc-note">Sentinel-2 · growing season composite</div>`;
+    case 'water':{
+      const cls = feat.properties?.mndwi_class ?? '—';
+      return `<div class="pop-title">💧 Water / Moisture Index (MNDWI)</div>
+              <div class="pop-row"><span class="pop-k">MNDWI class</span><span class="pop-v">${cls}</span></div>
+              <div class="pop-row"><span class="pop-k">NDVI</span><span class="pop-v">${ndviStr}</span></div>
+              <div class="mc-note">Positive = surface water · negative = dry soil</div>`;}
+    case 'baresoil':{
+      const cls = feat.properties?.bsi_class ?? '—';
+      return `<div class="pop-title">🏜️ Bare Soil Index (BSI)</div>
+              <div class="pop-row"><span class="pop-k">BSI class</span><span class="pop-v">${cls}</span></div>
+              <div class="pop-row"><span class="pop-k">NDVI</span><span class="pop-v">${ndviStr}</span></div>
+              <div class="mc-note">Higher = more exposed soil / less vegetation</div>`;}
+    case 'croptype':{
+      const cc = feat.properties?.crop_class ?? 4;
+      const lbl = lang==='fa'? (_cropLabelsFA[cc]||'—') : lang==='ps'? (_cropLabelsPS[cc]||'—') : (_cropLabels[cc]||'—');
+      return `<div class="pop-title">🌾 Crop Type <span style="font-weight:400;opacity:.7">(estimate)</span></div>
+              <div class="pop-row"><span class="pop-k">Type</span><span class="pop-v">${lbl}</span></div>
+              <div class="pop-row"><span class="pop-k">NDVI</span><span class="pop-v">${ndviStr}</span></div>
+              <div class="mc-note">Rule-based estimate · verify in field</div>`;}
+    default: return `<div class="pop-title">${layerName}</div>`;
+  }
+}
+
+async function toggleSatLayer(layerName, show){
+  if(!show){
+    if(_satLayers[layerName]){ map.removeLayer(_satLayers[layerName]); }
+    return;
+  }
+  // Already loaded — just re-add
+  if(_satLayers[layerName]){ _satLayers[layerName].addTo(map); return; }
+  // Already loading — ignore double-click
+  if(_satLoading[layerName]) return;
+  if(!selFeat){ setStatus('Select a region first','err'); return; }
+
+  _satLoading[layerName] = true;
+  setStatus(`Loading ${layerName}…`);
+
+  const coords = extractCoords(selFeat);
+  const year   = parseInt(document.getElementById('year-sel').value);
+
+  try{
+    // Start GEE task
+    const r = await fetch(`${API}/officer/layer/${layerName}`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({coords, year})
+    });
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    const start = await r.json();
+    if(start.error) throw new Error(start.error);
+    const taskId = start.task_id;
+
+    // Poll
+    let geojson = null;
+    for(let i=0; i<40 && !geojson; i++){
+      await new Promise(res=>setTimeout(res,5000));
+      const poll = await fetch(`${API}/officer/layer-result/${taskId}`);
+      const pd   = await poll.json();
+      if(pd.status==='done')  geojson = pd.data;
+      if(pd.status==='error') throw new Error(pd.error);
+    }
+    if(!geojson) throw new Error('Layer timed out. Try a smaller area.');
+
+    const lyr = L.geoJSON(geojson,{
+      style: feat => _satLayerStyle(layerName, feat),
+      onEachFeature:(feat,layer)=>{
+        layer.bindPopup(_satLayerPopup(layerName, feat),{maxWidth:240});
+      }
+    }).addTo(map);
+    _satLayers[layerName] = lyr;
+    setStatus(`✓ ${layerName} loaded`, 'ok');
+  }catch(e){
+    setStatus(e.message||'Layer failed','err');
+    // Uncheck the toggle if it failed
+    const cb = document.getElementById(`lp-${layerName}`);
+    if(cb) cb.checked = false;
+  }finally{
+    _satLoading[layerName] = false;
+  }
+}
+
 // ── Init ────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   map = L.map('map', {zoomControl:true}).setView([30, 50], 3);
@@ -504,6 +635,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // Labels overlay toggle
   document.getElementById('lp-labels').addEventListener('change', function(){
     this.checked ? esriLabels.addTo(map) : map.removeLayer(esriLabels);
+  });
+
+  // Enable + wire satellite layer checkboxes (Step 2)
+  ['ndvi','water','baresoil','croptype'].forEach(name => {
+    const cb = document.getElementById(`lp-${name}`);
+    if(!cb) return;
+    cb.disabled = false;
+    cb.closest('.lp-item').classList.remove('lp-off');
+    cb.addEventListener('change', function(){ toggleSatLayer(name, this.checked); });
   });
 
   const ySel = document.getElementById('year-sel');
