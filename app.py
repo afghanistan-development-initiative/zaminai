@@ -1916,36 +1916,40 @@ def officer_detect_fields():
 
         ndvi = s2.normalizedDifference(["B8","B4"]).rename("ndvi")
 
-        # Reproject to UTM at working scale BEFORE connectedComponents.
-        # Without this, connectedComponents runs at S2 native 10 m:
-        # maxSize=1024 → max patch = 1024×100 m² = 10.24 ha, which cuts all
-        # large continuous cropland (e.g. Punjab plains) → 0 detected fields.
-        # At 50 m: maxSize=1024 → 256 ha, which covers realistic farm patches.
-        # UTM uses metres as native units, avoiding EPSG:4326 degree ambiguity.
-        clon_c = sum(c[1] for c in coords) / len(coords)
+        # ── Grid-based crop detection ─────────────────────────────────────────
+        # connectedComponents(maxSize=1024) is limited to 1024 pixels max patch.
+        # Dense agricultural landscapes (Punjab plains, Rift Valley) have
+        # continuous cropland spanning 1000+ ha — all cut → 0 results.
+        #
+        # Grid approach: divide the region into regular cells, compute mean NDVI
+        # per cell, return cells where NDVI indicates active crops.
+        # No maxSize constraint. Works globally at any scale.
+        grid_scale = 100 if area_km2 < 50 else (200 if area_km2 < 300 else 500)
+
+        clon_c   = sum(c[1] for c in coords) / len(coords)
         utm_zone = int((clon_c + 180) / 6) + 1
         utm_epsg = f"EPSG:{32600 + utm_zone}" if clat >= 0 else f"EPSG:{32700 + utm_zone}"
-        ndvi = ndvi.reproject(crs=utm_epsg, scale=seg_scale)
 
-        crop_mask = ndvi.gt(0.15).And(ndvi.lt(0.90))
-        components = (crop_mask.selfMask()
-                      .connectedComponents(
-                          connectedness=ee.Kernel.plus(1), maxSize=1024))
+        ndvi_g  = ndvi.reproject(crs=utm_epsg, scale=grid_scale)
+        crop_g  = ndvi_g.gt(0.15).And(ndvi_g.lt(0.90))
 
-        min_px = max(5, int(5000  / (seg_scale ** 2)))
-        max_px =       int(4000000 / (seg_scale ** 2))
+        # Unique integer ID per grid cell from pixel coordinates
+        proj_g    = ee.Projection(utm_epsg).atScale(grid_scale)
+        px_coords = ee.Image.pixelCoordinates(proj_g)
+        cell_id   = (px_coords.select("x").divide(grid_scale).floor().int()
+                     .multiply(1000000)
+                     .add(px_coords.select("y").divide(grid_scale).floor().int()))
 
-        fc = (components.select("labels").toInt()
-              .addBands(ndvi)
+        fc = (cell_id.updateMask(crop_g)
+              .addBands(ndvi_g.rename("ndvi"))
               .reduceToVectors(
-                  geometry=poly, scale=seg_scale,
+                  geometry=poly, scale=grid_scale,
                   geometryType="polygon", eightConnected=False,
-                  labelProperty="field", reducer=ee.Reducer.mean(),
-                  maxPixels=1e10, bestEffort=True, tileScale=16)
-              .filter(ee.Filter.And(
-                  ee.Filter.gte("count", min_px),
-                  ee.Filter.lte("count", max_px)))
-              .limit(300))
+                  reducer=ee.Reducer.mean(),
+                  labelProperty="cell",
+                  maxPixels=1e10, bestEffort=True, tileScale=4)
+              .filter(ee.Filter.gte("mean", 0.15))
+              .limit(500))
 
         task_id = str(uuid.uuid4())
         _detect_tasks[task_id] = {"status": "pending"}
