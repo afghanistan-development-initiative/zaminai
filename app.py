@@ -1947,28 +1947,22 @@ def officer_detect_fields():
             # must still produce polygons. addBands(masked_image) would mask the
             # entire pixel so DW features would disappear. unmask(0) keeps them.
             ndvi_safe = ndvi.unmask(ee.Image(0).rename("ndvi"))
-            fc = (dw_label.toInt()
-                  .addBands(ndvi_safe)
-                  .reduceToVectors(
-                      geometry=poly, scale=seg_scale,
-                      geometryType="polygon", eightConnected=True,
-                      reducer=ee.Reducer.mean(),
-                      labelProperty="lc",
-                      maxPixels=1e10, bestEffort=True, tileScale=4))
-            # No .limit() — DW has only 9 classes, so full-district coverage
-            # produces at most a few hundred polygons naturally.
+            fc = dw_label.toInt().addBands(ndvi_safe).reduceToVectors(
+                geometry=poly, scale=seg_scale,
+                geometryType="polygon", eightConnected=True,
+                reducer=ee.Reducer.mean(),
+                labelProperty="lc",
+                maxPixels=1e10, bestEffort=True, tileScale=4)
         else:
-            # Pre-DW fallback: NDVI zones (vegetation only)
             ndvi_q = (ndvi.multiply(20).floor().int()
                       .updateMask(ndvi.gt(0.10).And(ndvi.lt(0.95))))
-            fc = (ndvi_q
-                  .reduceToVectors(
-                      geometry=poly, scale=seg_scale,
-                      geometryType="polygon", eightConnected=True,
-                      reducer=ee.Reducer.mean(),
-                      labelProperty="field",
-                      maxPixels=1e10, bestEffort=True, tileScale=4)
-                  .filter(ee.Filter.gte("mean", 0.10)))
+            fc = (ndvi_q.reduceToVectors(
+                geometry=poly, scale=seg_scale,
+                geometryType="polygon", eightConnected=True,
+                reducer=ee.Reducer.mean(),
+                labelProperty="field",
+                maxPixels=1e10, bestEffort=True, tileScale=4)
+                .filter(ee.Filter.gte("mean", 0.10)))
 
         task_id = str(uuid.uuid4())
         _detect_tasks[task_id] = {"status": "pending"}
@@ -2209,17 +2203,12 @@ def officer_layer(layer_name):
 
         def _worker():
             try:
-                # 3000 limit: enough to cover any district/province fully.
-                # Scale is already adaptive (100m for large areas) so total
-                # polygon count stays manageable at this limit.
-                fc = (label_with_ndvi
-                      .reduceToVectors(
-                          geometry=poly, scale=seg_scale,
-                          geometryType="polygon", eightConnected=True,
-                          reducer=ee.Reducer.mean(),
-                          labelProperty=label_prop,
-                          maxPixels=1e10, bestEffort=True, tileScale=4)
-                      .limit(3000))
+                fc = label_with_ndvi.reduceToVectors(
+                    geometry=poly, scale=seg_scale,
+                    geometryType="polygon", eightConnected=True,
+                    reducer=ee.Reducer.mean(),
+                    labelProperty=label_prop,
+                    maxPixels=1e10, bestEffort=True, tileScale=4)
                 result = fc.getInfo()
                 count  = len(result.get("features", []))
                 log.info(f"layer/{layer_name} task {task_id[:8]}: {count} polygons")
