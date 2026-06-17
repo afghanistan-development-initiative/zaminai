@@ -1908,11 +1908,21 @@ def officer_detect_fields():
         elif area_km2 < 300: seg_scale = 30
         else:                 seg_scale = 50
 
+        # Per-pixel QA60 cloud masking — keeps valid pixels even from cloudy images.
+        # Critical for Netherlands, UK, tropical monsoon regions where no image
+        # passes a strict CLOUDY_PIXEL_PERCENTAGE < 35 filter.
+        def _mask_s2(img):
+            qa = img.select("QA60")
+            return img.updateMask(
+                qa.bitwiseAnd(1 << 10).eq(0).And(qa.bitwiseAnd(1 << 11).eq(0))
+            )
         s2 = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
               .filterBounds(poly)
               .filterDate(s_start, s_end)
-              .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 35))
-              .sort("CLOUDY_PIXEL_PERCENTAGE").limit(6).median().clip(poly))
+              .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 80))
+              .sort("CLOUDY_PIXEL_PERCENTAGE").limit(10)
+              .map(_mask_s2)
+              .median().clip(poly))
 
         # ── SNIC superpixel segmentation ──────────────────────────────────────
         # connectedComponents(maxSize=1024) cuts large connected patches → 0 results
