@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZaminAI — Officer Dashboard</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Tahoma,sans-serif;background:#080f1e;color:#dde4f0;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+
+/* ── Top bar ── */
+#topbar{display:flex;align-items:center;gap:12px;padding:9px 16px;background:#0c1a30;border-bottom:2px solid #163352;flex-shrink:0;z-index:1000}
+.logo{font-size:19px;font-weight:800;color:#27ae60;letter-spacing:.5px}
+.logo span{color:#dde4f0}
+.logo-sub{font-size:11px;color:#5a7a9a;margin-top:1px}
+.spacer{flex:1}
+.lang-toggle{display:flex;gap:3px}
+.lang-btn{background:#112030;border:1px solid #1e3a5f;color:#7090b0;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;transition:all .15s}
+.lang-btn.active{background:#27ae60;color:#040d1a;border-color:#27ae60}
+.farmer-link{color:#7090b0;font-size:12px;text-decoration:none;padding:4px 10px;border:1px solid #1e3a5f;border-radius:4px;background:#112030;margin-left:4px}
+.farmer-link:hover{color:#27ae60;border-color:#27ae60}
+
+/* ── Main layout ── */
+#main{display:flex;flex:1;overflow:hidden;position:relative}
+
+/* ── Sidebar ── */
+#sidebar{width:330px;background:#0c1a30;border-right:1px solid #163352;display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;z-index:900}
+#sidebar-inner{padding:14px;display:flex;flex-direction:column;gap:11px}
+.lbl{font-size:10px;font-weight:700;color:#5a7a9a;text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px}
+.sw{display:flex;flex-direction:column;gap:3px}
+.ctrl{width:100%;background:#112030;border:1px solid #1e3a5f;color:#dde4f0;padding:7px 10px;border-radius:5px;font-size:13px;outline:none;transition:border-color .15s}
+.ctrl:focus{border-color:#27ae60}
+.ctrl:disabled{opacity:.4;cursor:not-allowed}
+select.ctrl option{background:#112030}
+#analyse-btn{width:100%;padding:10px;background:#27ae60;color:#040d1a;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;margin-top:2px;transition:all .15s}
+#analyse-btn:hover:not(:disabled){background:#219a52}
+#analyse-btn:disabled{background:#0d2a1a;color:#2a5a3a;cursor:not-allowed}
+#status{font-size:11px;color:#5a7a9a;text-align:center;padding:3px;min-height:17px}
+#status.err{color:#e74c3c}
+#status.ok{color:#27ae60}
+.sidebar-foot{border-top:1px solid #163352;padding-top:10px;font-size:10px;color:#334a60;line-height:1.7}
+
+/* ── Map ── */
+#map{flex:1;z-index:1}
+.leaflet-tooltip-dark{background:#0c1a30;border:1px solid #27ae60;color:#dde4f0;font-size:12px;padding:3px 7px;border-radius:3px}
+
+/* ── Results panel (slides up over map) ── */
+#results{position:absolute;bottom:0;left:330px;right:0;background:#0c1a30;border-top:2px solid #27ae60;z-index:800;transform:translateY(100%);transition:transform .35s ease;max-height:58vh;overflow-y:auto;overflow-x:hidden}
+body[dir=rtl] #results{left:0;right:330px}
+#results.open{transform:translateY(0)}
+#res-head{display:flex;align-items:center;padding:9px 14px;border-bottom:1px solid #163352;gap:8px;position:sticky;top:0;background:#0c1a30;z-index:2}
+#res-title{font-size:13px;font-weight:700;color:#27ae60;flex:1}
+#res-close{background:none;border:none;color:#5a7a9a;cursor:pointer;font-size:16px;padding:2px 6px;line-height:1}
+#res-body{padding:12px 14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:9px}
+
+/* ── Metric cards ── */
+.mc{background:#112030;border:1px solid #1e3a5f;border-radius:7px;padding:11px;display:flex;flex-direction:column;gap:3px}
+.mc-lbl{font-size:10px;color:#5a7a9a;font-weight:700;text-transform:uppercase;letter-spacing:.6px}
+.mc-val{font-size:21px;font-weight:700;color:#dde4f0;line-height:1.1}
+.mc-unit{font-size:10px;color:#5a7a9a}
+.bar{height:4px;background:#163352;border-radius:2px;margin-top:5px;overflow:hidden}
+.bar-fill{height:100%;border-radius:2px;transition:width .6s}
+.badge{font-size:10px;padding:2px 7px;border-radius:3px;font-weight:700;margin-top:4px;display:inline-block}
+.g{background:#0b2a15;color:#27ae60}
+.m{background:#2a2000;color:#f39c12}
+.r{background:#2a0a0a;color:#e74c3c}
+.b{background:#04192e;color:#3498db}
+.sub-row{display:flex;justify-content:space-between;margin-top:3px;font-size:11px}
+.sub-k{color:#5a7a9a}
+.sub-v{color:#3498db;font-weight:600}
+.mc-note{font-size:9px;color:#334a60;margin-top:3px}
+
+/* ── Full-width sections ── */
+.full{grid-column:1/-1;background:#112030;border:1px solid #1e3a5f;border-radius:7px;padding:11px}
+.full h4{font-size:10px;color:#5a7a9a;text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px;font-weight:700}
+#trend-svg{width:100%;height:80px;overflow:visible}
+#rec-text{font-size:12px;color:#b8d4c0;line-height:1.65}
+.admin-row{display:flex;gap:20px;flex-wrap:wrap}
+.ai{display:flex;flex-direction:column;gap:2px}
+.ak{font-size:9px;color:#5a7a9a;text-transform:uppercase;letter-spacing:.6px;font-weight:700}
+.av{font-size:12px;color:#dde4f0;font-weight:600}
+
+/* ── Spinner ── */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid #040d1a;border-top-color:transparent;border-radius:50%;animation:spin .65s linear infinite;vertical-align:middle;margin-right:5px}
+
+/* ── RTL overrides ── */
+body[dir=rtl] #sidebar{border-right:none;border-left:1px solid #163352}
+body[dir=rtl] .ctrl{direction:rtl}
+</style>
+</head>
+<body>
+<div id="topbar">
+  <div>
+    <div class="logo">Zamin<span>AI</span></div>
+    <div class="logo-sub" id="tb-sub">Officer Dashboard — Regional Intelligence</div>
+  </div>
+  <div class="spacer"></div>
+  <div class="lang-toggle">
+    <button class="lang-btn active" onclick="setLang('en')">EN</button>
+    <button class="lang-btn" onclick="setLang('fa')">FA</button>
+    <button class="lang-btn" onclick="setLang('ps')">PS</button>
+  </div>
+  <a href="index.html" class="farmer-link" id="lnk-farmer">Farmer App</a>
+</div>
+
+<div id="main">
+  <div id="sidebar">
+    <div id="sidebar-inner">
+      <div class="sw">
+        <div class="lbl" id="lbl-country">Country</div>
+        <input type="text" id="country-in" class="ctrl" list="country-dl" autocomplete="off">
+        <datalist id="country-dl"></datalist>
+      </div>
+      <div class="sw">
+        <div class="lbl" id="lbl-prov">Province / Region</div>
+        <select id="prov-sel" class="ctrl" disabled>
+          <option value="">— select country first —</option>
+        </select>
+      </div>
+      <div class="sw">
+        <div class="lbl" id="lbl-dist">District (optional)</div>
+        <select id="dist-sel" class="ctrl" disabled>
+          <option value="">— select province first —</option>
+        </select>
+      </div>
+      <div class="sw">
+        <div class="lbl" id="lbl-year">Analysis Year</div>
+        <select id="year-sel" class="ctrl"></select>
+      </div>
+      <button id="analyse-btn" onclick="analyseAdmin()" disabled>Analyse Region</button>
+      <div id="status"></div>
+      <div class="sidebar-foot">
+        Boundaries: GADM 4.1 · worldwide<br>
+        Satellite: Sentinel-2 / Landsat 8-9 / SAR<br>
+        Resolution: adaptive 100–1000 m
+      </div>
+    </div>
+  </div>
+  <div id="map"></div>
+</div>
+
+<div id="results">
+  <div id="res-head">
+    <div id="res-title">Regional Analysis Results</div>
+    <button id="res-close" onclick="closeResults()">✕</button>
+  </div>
+  <div id="res-body"></div>
+</div>
+
+<script>
+// ── Translations ────────────────────────────────────────────────────────────
+const OT = {
+  en:{
+    sub:'Officer Dashboard — Regional Intelligence',
+    farmerLink:'Farmer App',
+    country:'Country',ph:'Search country...',
+    prov:'Province / Region',dist:'District (optional)',
+    year:'Analysis Year',btn:'Analyse Region',
+    loading:'Loading boundary data...',analysing:'Running satellite analysis...',
+    needCountry:'Please select a country first',
+    needProv:'Please select a province or district first',
+    noData:'No satellite data for this region / year',
+    errBoundary:'Could not load boundary data — check country name',
+    resTitle:'Regional Analysis Results',
+    ndvi:'Vegetation Health (NDVI)',evi:'Enhanced Vegetation (EVI)',
+    mndwi:'Water Index (MNDWI)',rain:'Annual Rainfall',
+    sar:'Radar (SAR)',modis:'Temperature (MODIS)',
+    trend:'NDVI Trend (2013 – present)',recommend:'Recommendations',
+    area:'Area',coords:'Center Coordinates',farmerCount:'Registered Farmers',
+    adminLevel:'Admin Level',source:'Data Source',
+    mm:'mm / year',km2:'km²',
+    soilMoist:'Soil Moisture (VV)',vegDens:'Veg. Density (VH)',
+    sumT:'Summer Temp (day)',winT:'Winter Temp (night)',
+    frost:'Frost Risk',frostY:'Yes — frost likely',frostN:'No frost risk',
+    good:'Good',mod:'Moderate',low:'Low',
+    water:'Water Present',drought:'Drought Risk',
+    district:'District',province:'Province',country2:'Country',
+    insuffData:'Insufficient satellite data for recommendations.',
+  },
+  fa:{
+    sub:'داشبورد افسر — اطلاعات منطقه‌ای',
+    farmerLink:'برنامه کشاورز',
+    country:'کشور',ph:'جستجوی کشور...',
+    prov:'ولایت / منطقه',dist:'ولسوالی (اختیاری)',
+    year:'سال تحلیل',btn:'تحلیل منطقه',
+    loading:'بارگذاری داده‌های مرز...',analysing:'اجرای تحلیل ماهواره‌ای...',
+    needCountry:'لطفاً ابتدا یک کشور انتخاب کنید',
+    needProv:'لطفاً ولایت یا ولسوالی انتخاب کنید',
+    noData:'داده‌های ماهواره‌ای برای این منطقه/سال موجود نیست',
+    errBoundary:'بارگذاری داده‌های مرز ناموفق — نام کشور را بررسی کنید',
+    resTitle:'نتایج تحلیل منطقه‌ای',
+    ndvi:'سلامت پوشش گیاهی (NDVI)',evi:'پوشش گیاهی پیشرفته (EVI)',
+    mndwi:'شاخص آب (MNDWI)',rain:'بارندگی سالانه',
+    sar:'رادار (SAR)',modis:'دما (MODIS)',
+    trend:'روند NDVI (۲۰۱۳ تا کنون)',recommend:'توصیه‌ها',
+    area:'مساحت',coords:'مختصات مرکزی',farmerCount:'کشاورزان ثبت‌شده',
+    adminLevel:'سطح اداری',source:'منبع داده',
+    mm:'میلی‌متر/سال',km2:'کیلومتر مربع',
+    soilMoist:'رطوبت خاک (VV)',vegDens:'تراکم پوشش (VH)',
+    sumT:'دمای تابستان (روز)',winT:'دمای زمستان (شب)',
+    frost:'خطر یخبندان',frostY:'بله — یخبندان محتمل',frostN:'بدون خطر یخبندان',
+    good:'خوب',mod:'متوسط',low:'کم',
+    water:'آب موجود',drought:'خطر خشکسالی',
+    district:'ولسوالی',province:'ولایت',country2:'کشور',
+    insuffData:'داده‌های کافی ماهواره‌ای برای توصیه موجود نیست.',
+  },
+  ps:{
+    sub:'د افسر ډشبورډ — د سیمې معلومات',
+    farmerLink:'د کروندګر اپلیکیشن',
+    country:'هیواد',ph:'د هیواد لټون...',
+    prov:'ولایت / سیمه',dist:'ولسوالۍ (اختیاري)',
+    year:'د تحلیل کال',btn:'سیمه تحلیل کړئ',
+    loading:'د سرحد معلومات ډاونلوډ کیږي...',analysing:'د ماهوارې تحلیل روان دی...',
+    needCountry:'مهرباني وکړئ لومړی یو هیواد وټاکئ',
+    needProv:'مهرباني وکړئ ولایت یا ولسوالۍ وټاکئ',
+    noData:'د دې سیمې/کال لپاره د ماهوارې معلومات شتون نلري',
+    errBoundary:'د سرحد معلومات پورته نشول — د هیواد نوم وګورئ',
+    resTitle:'د سیمې د تحلیل پایلې',
+    ndvi:'د نباتاتو روغتیا (NDVI)',evi:'پرمختللي نباتات (EVI)',
+    mndwi:'د اوبو شاخص (MNDWI)',rain:'کلني باران',
+    sar:'رادار (SAR)',modis:'تودوخه (MODIS)',
+    trend:'د NDVI رجحان (۲۰۱۳ تر اوسه)',recommend:'سپارښتنې',
+    area:'ساحه',coords:'د مرکز مختصات',farmerCount:'ثبت شوي کروندګر',
+    adminLevel:'اداري کچه',source:'د معلوماتو سرچینه',
+    mm:'ملیمتر/کال',km2:'مربع کیلومتر',
+    soilMoist:'د خاورې لندوالی (VV)',vegDens:'د نباتاتو کثافت (VH)',
+    sumT:'د اوړي تودوخه (ورځ)',winT:'د ژمي تودوخه (شپه)',
+    frost:'د یخ خطر',frostY:'هو — یخ احتمالي دی',frostN:'د یخ خطر نشته',
+    good:'ښه',mod:'منځنی',low:'کم',
+    water:'اوبه شتون لري',drought:'د وچکالۍ خطر',
+    district:'ولسوالۍ',province:'ولایت',country2:'هیواد',
+    insuffData:'د سپارښتنو لپاره کافي د ماهوارې معلومات نشته.',
+  }
+};
+
+// ── Country list (ISO-3) ────────────────────────────────────────────────────
+const COUNTRIES = [
+  {n:'Afghanistan',iso:'AFG'},{n:'Albania',iso:'ALB'},{n:'Algeria',iso:'DZA'},
+  {n:'Angola',iso:'AGO'},{n:'Argentina',iso:'ARG'},{n:'Armenia',iso:'ARM'},
+  {n:'Australia',iso:'AUS'},{n:'Austria',iso:'AUT'},{n:'Azerbaijan',iso:'AZE'},
+  {n:'Bangladesh',iso:'BGD'},{n:'Belarus',iso:'BLR'},{n:'Belgium',iso:'BEL'},
+  {n:'Benin',iso:'BEN'},{n:'Bolivia',iso:'BOL'},{n:'Bosnia and Herzegovina',iso:'BIH'},
+  {n:'Botswana',iso:'BWA'},{n:'Brazil',iso:'BRA'},{n:'Bulgaria',iso:'BGR'},
+  {n:'Burkina Faso',iso:'BFA'},{n:'Burundi',iso:'BDI'},{n:'Cambodia',iso:'KHM'},
+  {n:'Cameroon',iso:'CMR'},{n:'Canada',iso:'CAN'},{n:'Chad',iso:'TCD'},
+  {n:'Chile',iso:'CHL'},{n:'China',iso:'CHN'},{n:'Colombia',iso:'COL'},
+  {n:'Congo',iso:'COG'},{n:'Costa Rica',iso:'CRI'},{n:'Croatia',iso:'HRV'},
+  {n:'Cuba',iso:'CUB'},{n:'Czech Republic',iso:'CZE'},{n:'DR Congo',iso:'COD'},
+  {n:'Denmark',iso:'DNK'},{n:'Ecuador',iso:'ECU'},{n:'Egypt',iso:'EGY'},
+  {n:'El Salvador',iso:'SLV'},{n:'Ethiopia',iso:'ETH'},{n:'Finland',iso:'FIN'},
+  {n:'France',iso:'FRA'},{n:'Gabon',iso:'GAB'},{n:'Georgia',iso:'GEO'},
+  {n:'Germany',iso:'DEU'},{n:'Ghana',iso:'GHA'},{n:'Greece',iso:'GRC'},
+  {n:'Guatemala',iso:'GTM'},{n:'Guinea',iso:'GIN'},{n:'Honduras',iso:'HND'},
+  {n:'Hungary',iso:'HUN'},{n:'India',iso:'IND'},{n:'Indonesia',iso:'IDN'},
+  {n:'Iran',iso:'IRN'},{n:'Iraq',iso:'IRQ'},{n:'Ireland',iso:'IRL'},
+  {n:'Israel',iso:'ISR'},{n:'Italy',iso:'ITA'},{n:'Ivory Coast',iso:'CIV'},
+  {n:'Japan',iso:'JPN'},{n:'Jordan',iso:'JOR'},{n:'Kazakhstan',iso:'KAZ'},
+  {n:'Kenya',iso:'KEN'},{n:'Kuwait',iso:'KWT'},{n:'Kyrgyzstan',iso:'KGZ'},
+  {n:'Laos',iso:'LAO'},{n:'Lebanon',iso:'LBN'},{n:'Libya',iso:'LBY'},
+  {n:'Lithuania',iso:'LTU'},{n:'Madagascar',iso:'MDG'},{n:'Malawi',iso:'MWI'},
+  {n:'Malaysia',iso:'MYS'},{n:'Mali',iso:'MLI'},{n:'Mauritania',iso:'MRT'},
+  {n:'Mexico',iso:'MEX'},{n:'Moldova',iso:'MDA'},{n:'Mongolia',iso:'MNG'},
+  {n:'Morocco',iso:'MAR'},{n:'Mozambique',iso:'MOZ'},{n:'Myanmar',iso:'MMR'},
+  {n:'Namibia',iso:'NAM'},{n:'Nepal',iso:'NPL'},{n:'Netherlands',iso:'NLD'},
+  {n:'New Zealand',iso:'NZL'},{n:'Nicaragua',iso:'NIC'},{n:'Niger',iso:'NER'},
+  {n:'Nigeria',iso:'NGA'},{n:'North Korea',iso:'PRK'},{n:'North Macedonia',iso:'MKD'},
+  {n:'Norway',iso:'NOR'},{n:'Oman',iso:'OMN'},{n:'Pakistan',iso:'PAK'},
+  {n:'Palestine',iso:'PSE'},{n:'Panama',iso:'PAN'},{n:'Paraguay',iso:'PRY'},
+  {n:'Peru',iso:'PER'},{n:'Philippines',iso:'PHL'},{n:'Poland',iso:'POL'},
+  {n:'Portugal',iso:'PRT'},{n:'Qatar',iso:'QAT'},{n:'Romania',iso:'ROU'},
+  {n:'Russia',iso:'RUS'},{n:'Rwanda',iso:'RWA'},{n:'Saudi Arabia',iso:'SAU'},
+  {n:'Senegal',iso:'SEN'},{n:'Serbia',iso:'SRB'},{n:'Sierra Leone',iso:'SLE'},
+  {n:'Somalia',iso:'SOM'},{n:'South Africa',iso:'ZAF'},{n:'South Korea',iso:'KOR'},
+  {n:'South Sudan',iso:'SSD'},{n:'Spain',iso:'ESP'},{n:'Sri Lanka',iso:'LKA'},
+  {n:'Sudan',iso:'SDN'},{n:'Sweden',iso:'SWE'},{n:'Switzerland',iso:'CHE'},
+  {n:'Syria',iso:'SYR'},{n:'Tajikistan',iso:'TJK'},{n:'Tanzania',iso:'TZA'},
+  {n:'Thailand',iso:'THA'},{n:'Togo',iso:'TGO'},{n:'Tunisia',iso:'TUN'},
+  {n:'Turkey',iso:'TUR'},{n:'Turkmenistan',iso:'TKM'},{n:'Uganda',iso:'UGA'},
+  {n:'Ukraine',iso:'UKR'},{n:'United Arab Emirates',iso:'ARE'},
+  {n:'United Kingdom',iso:'GBR'},{n:'United States',iso:'USA'},
+  {n:'Uruguay',iso:'URY'},{n:'Uzbekistan',iso:'UZB'},{n:'Venezuela',iso:'VEN'},
+  {n:'Vietnam',iso:'VNM'},{n:'Yemen',iso:'YEM'},{n:'Zambia',iso:'ZMB'},
+  {n:'Zimbabwe',iso:'ZWE'}
+];
+
+// ── State ───────────────────────────────────────────────────────────────────
+let lang = 'en';
+let map, bndLayer, hlLayer;
+let l1Data = null, l2Data = null;
+let selFeat = null;
+let curISO = null;
+const API = 'https://zaminai.onrender.com';
+
+// ── Init ────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  map = L.map('map', {zoomControl:true}).setView([30, 50], 3);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+    attribution:'&copy; OSM contributors &copy; CARTO', maxZoom:18
+  }).addTo(map);
+
+  const ySel = document.getElementById('year-sel');
+  const cur = new Date().getFullYear();
+  for (let y = cur; y >= 2015; y--) {
+    const o = document.createElement('option'); o.value = y; o.textContent = y; ySel.appendChild(o);
+  }
+
+  const dl = document.getElementById('country-dl');
+  COUNTRIES.forEach(c => { const o = document.createElement('option'); o.value = c.n; dl.appendChild(o); });
+
+  applyLang();
+});
+
+// ── Language ────────────────────────────────────────────────────────────────
+function t(k){ return OT[lang][k] || OT.en[k] || k; }
+
+function setLang(l){
+  lang = l;
+  const rtl = l === 'fa' || l === 'ps';
+  document.documentElement.lang = l;
+  document.body.dir = rtl ? 'rtl' : 'ltr';
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.textContent.toLowerCase() === l));
+  applyLang();
+}
+
+function applyLang(){
+  document.getElementById('tb-sub').textContent = t('sub');
+  document.getElementById('lnk-farmer').textContent = t('farmerLink');
+  document.getElementById('lbl-country').textContent = t('country');
+  document.getElementById('lbl-prov').textContent = t('prov');
+  document.getElementById('lbl-dist').textContent = t('dist');
+  document.getElementById('lbl-year').textContent = t('year');
+  document.getElementById('analyse-btn').textContent = t('btn');
+  document.getElementById('country-in').placeholder = t('ph');
+  if (document.getElementById('results').classList.contains('open'))
+    document.getElementById('res-title').textContent = t('resTitle');
+}
+
+function setStatus(msg, cls=''){
+  const el = document.getElementById('status');
+  el.textContent = msg; el.className = cls;
+}
+
+// ── Country input ───────────────────────────────────────────────────────────
+const cIn = document.getElementById('country-in');
+cIn.addEventListener('change', onCountryInput);
+cIn.addEventListener('input', function(){
+  const m = COUNTRIES.find(c => c.n.toLowerCase() === this.value.trim().toLowerCase());
+  if (m) onCountrySelected(m);
+});
+
+function onCountryInput(){
+  const m = COUNTRIES.find(c => c.n.toLowerCase() === cIn.value.trim().toLowerCase());
+  if (m) onCountrySelected(m);
+}
+
+async function onCountrySelected(country){
+  curISO = country.iso;
+  selFeat = null; l1Data = null; l2Data = null;
+  const ps = document.getElementById('prov-sel');
+  const ds = document.getElementById('dist-sel');
+  ps.disabled = true; ps.innerHTML = '<option>Loading…</option>';
+  ds.disabled = true; ds.innerHTML = `<option>— ${t('prov')} first —</option>`;
+  document.getElementById('analyse-btn').disabled = true;
+  setStatus(t('loading'));
+  if (bndLayer){ map.removeLayer(bndLayer); bndLayer = null; }
+  if (hlLayer) { map.removeLayer(hlLayer);  hlLayer  = null; }
+  closeResults();
+  try {
+    const url = `https://geodata.ucdavis.edu/gadm/gadm4.1/json/gadm41_${country.iso}_1.json`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    l1Data = await r.json();
+    const names = [...new Set(l1Data.features.map(f => f.properties.NAME_1).filter(Boolean))].sort();
+    ps.innerHTML = `<option value="">— select —</option>`;
+    names.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; ps.appendChild(o); });
+    ps.disabled = false;
+    bndLayer = L.geoJSON(l1Data, {
+      style:{ color:'#27ae60', weight:1, fillColor:'#27ae60', fillOpacity:.07 },
+      onEachFeature:(f,layer) => {
+        layer.on('click', () => { ps.value = f.properties.NAME_1; onProvClicked(f); });
+        layer.bindTooltip(f.properties.NAME_1, {sticky:true, className:'leaflet-tooltip-dark'});
+      }
+    }).addTo(map);
+    map.fitBounds(bndLayer.getBounds(), {padding:[20,20]});
+    setStatus('');
+  } catch(e){
+    setStatus(t('errBoundary'), 'err');
+    ps.innerHTML = `<option value="">— error —</option>`;
+  }
+}
+
+// ── Province select ─────────────────────────────────────────────────────────
+document.getElementById('prov-sel').addEventListener('change', function(){
+  if (!this.value || !l1Data) return;
+  const f = l1Data.features.find(f => f.properties.NAME_1 === this.value);
+  if (f) onProvClicked(f);
+});
+
+function onProvClicked(feat){
+  selFeat = feat;
+  highlight(feat);
+  document.getElementById('analyse-btn').disabled = false;
+  // reset district
+  const ds = document.getElementById('dist-sel');
+  ds.disabled = true; ds.innerHTML = `<option value="">Loading districts…</option>`;
+  loadDistricts(curISO, feat.properties.GID_1);
+}
+
+async function loadDistricts(iso, gid1){
+  const ds = document.getElementById('dist-sel');
+  try {
+    if (!l2Data){
+      const url = `https://geodata.ucdavis.edu/gadm/gadm4.1/json/gadm41_${iso}_2.json`;
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      l2Data = await r.json();
+    }
+    const feats = l2Data.features.filter(f => f.properties.GID_1 === gid1);
+    if (!feats.length){ ds.innerHTML = '<option value="">No district data</option>'; return; }
+    const names = feats.map(f => f.properties.NAME_2).sort();
+    ds.innerHTML = `<option value="">— whole province —</option>`;
+    names.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; ds.appendChild(o); });
+    ds.disabled = false;
+  } catch(e){
+    ds.innerHTML = '<option value="">District data unavailable</option>';
+  }
+}
+
+document.getElementById('dist-sel').addEventListener('change', function(){
+  if (!this.value || !l2Data) return;
+  const f = l2Data.features.find(f => f.properties.NAME_2 === this.value);
+  if (f){ selFeat = f; highlight(f); }
+});
+
+function highlight(feat){
+  if (hlLayer){ map.removeLayer(hlLayer); hlLayer = null; }
+  hlLayer = L.geoJSON(feat, {
+    style:{ color:'#f39c12', weight:2.5, fillColor:'#27ae60', fillOpacity:.18 }
+  }).addTo(map);
+  map.fitBounds(hlLayer.getBounds(), {padding:[30,30]});
+}
+
+// ── Coordinate extraction ───────────────────────────────────────────────────
+function extractCoords(feat){
+  const g = feat.geometry, coords = [];
+  const ring = r => r.forEach(([lon,lat]) => coords.push([lat,lon]));
+  if (g.type === 'Polygon') ring(g.coordinates[0]);
+  else if (g.type === 'MultiPolygon'){
+    let big = g.coordinates[0];
+    g.coordinates.forEach(p => { if (p[0].length > big[0].length) big = p; });
+    ring(big[0]);
+  }
+  return coords;
+}
+
+// ── Main analyse ────────────────────────────────────────────────────────────
+async function analyseAdmin(){
+  if (!selFeat){ setStatus(t('needProv'), 'err'); return; }
+  const year = document.getElementById('year-sel').value;
+  const btn  = document.getElementById('analyse-btn');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spin"></span>${t('analysing')}`;
+  setStatus(t('analysing'));
+  closeResults();
+  try {
+    const coords   = extractCoords(selFeat);
+    const p        = selFeat.properties;
+    const country  = cIn.value.trim();
+    const province = p.NAME_1 || '';
+    const district = p.NAME_2 || '';
+    const resp = await fetch(`${API}/officer/analyse`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ coords, year:parseInt(year), country, province, district, lang })
+    });
+    if (!resp.ok){ const e = await resp.json().catch(()=>({})); throw new Error(e.error || `HTTP ${resp.status}`); }
+    const data = await resp.json();
+    renderResults(data, country, province, district);
+    setStatus('', 'ok');
+  } catch(e){
+    setStatus(e.message || t('noData'), 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = t('btn');
+  }
+}
+
+// ── Render results ──────────────────────────────────────────────────────────
+function renderResults(d, country, province, district){
+  const body    = document.getElementById('res-body');
+  const adminName = district || province || country;
+  const adminLvl  = district ? t('district') : province ? t('province') : t('country2');
+  const ndvi  = d.ndvi  ?? null;
+  const evi   = d.evi   ?? null;
+  const mndwi = d.mndwi ?? d.water ?? null;
+  const rain  = d.rain  ?? null;
+
+  // NDVI bar & badge
+  const ndviPct = ndvi === null ? 0 : Math.max(0, Math.min(100, (ndvi/0.7)*100));
+  const eviPct  = evi  === null ? 0 : Math.max(0, Math.min(100, (evi /0.6)*100));
+  const ndviBadge = ndvi === null ? '' : ndvi>=0.40
+    ? `<span class="badge g">${t('good')}</span>`
+    : ndvi>=0.25 ? `<span class="badge m">${t('mod')}</span>`
+    : `<span class="badge r">${t('low')}</span>`;
+
+  // MNDWI colour & label
+  const wColor = mndwi===null?'#888':mndwi>=0.1?'#3498db':mndwi>=-0.1?'#f39c12':'#e74c3c';
+  const wLabel = mndwi===null?'—':mndwi>=0.1?t('water'):mndwi>=-0.1?t('mod'):t('drought');
+
+  // SAR card
+  let sarHTML = '';
+  if (d.sar){
+    sarHTML = `<div class="mc">
+      <div class="mc-lbl">${t('sar')}</div>
+      <div class="sub-row"><span class="sub-k">${t('soilMoist')}</span><span class="sub-v">${d.sar.vv_db??'—'} dB</span></div>
+      <div class="sub-row"><span class="sub-k">${t('vegDens')}</span><span class="sub-v">${d.sar.vh_db??'—'} dB</span></div>
+      <div class="mc-note">Sentinel-1 · cloud-free radar · 10 m</div>
+    </div>`;
+  }
+
+  // MODIS card
+  let modisHTML = '';
+  if (d.modis){
+    const fr = d.modis.frost_risk;
+    const frT = fr===true?t('frostY'):fr===false?t('frostN'):'—';
+    const frC = fr===true?'#e74c3c':'#27ae60';
+    modisHTML = `<div class="mc">
+      <div class="mc-lbl">${t('modis')}</div>
+      <div class="sub-row"><span class="sub-k">${t('sumT')}</span><span class="sub-v">${d.modis.summer_day_c??'—'}°C</span></div>
+      <div class="sub-row"><span class="sub-k">${t('winT')}</span><span class="sub-v">${d.modis.winter_night_c??'—'}°C</span></div>
+      <div class="sub-row"><span class="sub-k">${t('frost')}</span><span class="sub-v" style="color:${frC}">${frT}</span></div>
+      <div class="mc-note">MODIS MOD11A2 · 1 km LST</div>
+    </div>`;
+  }
+
+  const trendData = d.combined_trend || d.trend || {};
+  const hasTrend  = Object.values(trendData).some(v=>v!==null);
+
+  const farmerRow = d.farmer_count!=null
+    ? `<div class="ai"><div class="ak">${t('farmerCount')}</div><div class="av">${d.farmer_count}</div></div>` : '';
+
+  body.innerHTML = `
+    <div class="full">
+      <div class="admin-row">
+        <div class="ai"><div class="ak">${t('adminLevel')}</div><div class="av">${adminLvl}: ${adminName}</div></div>
+        <div class="ai"><div class="ak">${t('area')}</div><div class="av">${d.area_km2?Math.round(d.area_km2).toLocaleString():'—'} ${t('km2')}</div></div>
+        <div class="ai"><div class="ak">${t('coords')}</div><div class="av">${d.lat??'—'}°, ${d.lon??'—'}°</div></div>
+        ${farmerRow}
+        <div class="ai"><div class="ak">${t('source')}</div><div class="av" style="font-size:10px">${d.source||'—'} · ${d.image_date||''} · ${d.analysis_scale_m?d.analysis_scale_m+'m':'—'}</div></div>
+      </div>
+    </div>
+
+    <div class="mc">
+      <div class="mc-lbl">${t('ndvi')}</div>
+      <div class="mc-val">${ndvi!==null?ndvi.toFixed(3):'—'}</div>
+      <div class="bar"><div class="bar-fill" style="width:${ndviPct}%;background:#27ae60"></div></div>
+      ${ndviBadge}
+    </div>
+
+    <div class="mc">
+      <div class="mc-lbl">${t('evi')}</div>
+      <div class="mc-val">${evi!==null?evi.toFixed(3):'—'}</div>
+      <div class="bar"><div class="bar-fill" style="width:${eviPct}%;background:#219a52"></div></div>
+    </div>
+
+    <div class="mc">
+      <div class="mc-lbl">${t('mndwi')}</div>
+      <div class="mc-val" style="color:${wColor}">${mndwi!==null?mndwi.toFixed(3):'—'}</div>
+      <div style="font-size:11px;color:${wColor};margin-top:4px">${wLabel}</div>
+    </div>
+
+    <div class="mc">
+      <div class="mc-lbl">${t('rain')}</div>
+      <div class="mc-val">${rain!==null?Math.round(rain):'—'}</div>
+      <div class="mc-unit">${t('mm')}</div>
+    </div>
+
+    ${sarHTML}
+    ${modisHTML}
+
+    ${hasTrend?`<div class="full" id="trend-wrap"><h4>${t('trend')}</h4><svg id="trend-svg"></svg></div>`:''}
+
+    <div class="full" style="background:#0b1e0e;border-color:#1a4a1a">
+      <h4 style="color:#27ae60">${t('recommend')}</h4>
+      <div id="rec-text">${buildRec(d)}</div>
+    </div>
+  `;
+
+  document.getElementById('res-title').textContent = t('resTitle');
+  document.getElementById('results').classList.add('open');
+
+  if (hasTrend) setTimeout(()=>drawTrend(trendData), 60);
+}
+
+// ── Recommendations ─────────────────────────────────────────────────────────
+function buildRec(d){
+  const ndvi = d.ndvi, rain = d.rain, mndwi = d.mndwi ?? d.water;
+  if (ndvi === null) return t('insuffData');
+  const lines = [];
+  if (lang === 'fa'){
+    if (ndvi>=0.40) lines.push('پوشش گیاهی خوب — منطقه برای محصولات متراکم مناسب است.');
+    else if (ndvi>=0.25) lines.push('پوشش گیاهی متوسط — محصولات مقاوم به خشکی پیشنهاد می‌شود.');
+    else lines.push('پوشش گیاهی ضعیف — زمین ممکن است شور، خشک یا رها شده باشد.');
+    if (rain!=null){
+      if (rain<200) lines.push(`بارندگی کم (${Math.round(rain)} mm) — آبیاری تکمیلی برای اکثر محصولات ضروری است.`);
+      else if (rain>600) lines.push(`بارندگی زیاد (${Math.round(rain)} mm) — زهکشی مناسب برای جلوگیری از پوسیدگی ریشه مهم است.`);
+      else lines.push(`بارندگی متوسط (${Math.round(rain)} mm) — مناسب برای گندم، جو و حبوبات.`);
+    }
+    if (mndwi!=null && mndwi<-0.2) lines.push('شاخص آب پایین — خطر خشکسالی. نظارت بر رطوبت خاک توصیه می‌شود.');
+    if (d.modis?.frost_risk) lines.push('خطر یخبندان در زمستان — از کشت زودهنگام محصولات حساس به سرما پرهیز شود.');
+    if (d.sar?.vv_db != null && d.sar.vv_db < -15) lines.push('رادار SAR نشان‌دهنده رطوبت کم خاک است — مدیریت آبیاری را مرور کنید.');
+  } else if (lang === 'ps'){
+    if (ndvi>=0.40) lines.push('ښه د نباتاتو پوښښ — سیمه د متراکمو محصولاتو لپاره مناسبه ده.');
+    else if (ndvi>=0.25) lines.push('منځنی د نباتاتو پوښښ — د وچکالۍ مقاوم محصولات سپارل کیږي.');
+    else lines.push('کمزوری د نباتاتو پوښښ — ځمکه ممکن مالګینه، وچه یا پریښودل شوې وي.');
+    if (rain!=null){
+      if (rain<200) lines.push(`لږ باران (${Math.round(rain)} mm) — د ډیری محصولاتو لپاره اضافي اوبه اړین دي.`);
+      else if (rain>600) lines.push(`زیات باران (${Math.round(rain)} mm) — د ریښې پوسیدو د مخنیوي لپاره ښه ناوه اړینه ده.`);
+      else lines.push(`منځنی باران (${Math.round(rain)} mm) — د غنمو، جوارو او لوبیا لپاره مناسب.`);
+    }
+    if (mndwi!=null && mndwi<-0.2) lines.push('ټیټ د اوبو شاخص — د وچکالۍ خطر. د خاورې لندوالي نظارت سپارل کیږي.');
+    if (d.modis?.frost_risk) lines.push('د ژمي د یخ خطر — د یخ حساسو محصولاتو ژر کرل مه کوئ.');
+    if (d.sar?.vv_db != null && d.sar.vv_db < -15) lines.push('SAR رادار د خاورې لږ لندوالی ښيي — د اوبو مدیریت بیاکتنه وکړئ.');
+  } else {
+    if (ndvi>=0.40) lines.push('Good vegetation cover — region suitable for intensive cropping.');
+    else if (ndvi>=0.25) lines.push('Moderate vegetation — drought-tolerant crops recommended.');
+    else lines.push('Low vegetation cover — land may be saline, degraded, or fallow.');
+    if (rain!=null){
+      if (rain<200) lines.push(`Low rainfall (${Math.round(rain)} mm) — supplemental irrigation essential for most crops.`);
+      else if (rain>600) lines.push(`High rainfall (${Math.round(rain)} mm) — good drainage important to prevent root rot.`);
+      else lines.push(`Moderate rainfall (${Math.round(rain)} mm) — suitable for wheat, barley, and pulses.`);
+    }
+    if (mndwi!=null && mndwi<-0.2) lines.push('Low water index — drought risk. Soil moisture monitoring advised.');
+    if (d.modis?.frost_risk) lines.push('Frost risk in winter — avoid early planting of cold-sensitive crops.');
+    if (d.sar?.vv_db != null && d.sar.vv_db < -15) lines.push('SAR radar shows low soil moisture — review irrigation management.');
+  }
+  return lines.map(l=>`• ${l}`).join('<br>') || '—';
+}
+
+// ── SVG Trend chart ─────────────────────────────────────────────────────────
+function drawTrend(trend){
+  const svg = document.getElementById('trend-svg');
+  if (!svg) return;
+  const entries = Object.entries(trend).filter(([,v])=>v!==null).sort(([a],[b])=>+a-+b);
+  if (entries.length < 2){
+    svg.innerHTML = `<text x="10" y="40" fill="#334a60" font-size="11">Insufficient trend data</text>`;
+    return;
+  }
+  const W = svg.parentElement.clientWidth - 22 || 400, H = 72;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const vals = entries.map(([,v])=>v);
+  const minV = Math.min(...vals), maxV = Math.max(...vals);
+  const rng  = maxV - minV || 0.01;
+  const px = i => (i/(entries.length-1))*(W-24)+12;
+  const py = v => H - 12 - ((v-minV)/rng)*(H-22);
+  let grid='', labels='';
+  [minV,(minV+maxV)/2,maxV].forEach(v=>{
+    const y=py(v);
+    grid += `<line x1="12" y1="${y.toFixed(1)}" x2="${W-12}" y2="${y.toFixed(1)}" stroke="#163352" stroke-width="1"/>`;
+    grid += `<text x="12" y="${(y-2).toFixed(1)}" fill="#334a60" font-size="9">${v.toFixed(2)}</text>`;
+  });
+  const step = Math.max(1, Math.floor(entries.length/7));
+  entries.forEach(([yr],i)=>{
+    if (i%step===0 || i===entries.length-1)
+      labels += `<text x="${px(i).toFixed(1)}" y="${H}" fill="#334a60" font-size="9" text-anchor="middle">${yr}</text>`;
+  });
+  const pts = entries.map(([,v],i)=>`${px(i).toFixed(1)},${py(v).toFixed(1)}`).join(' ');
+  const dots = entries.map(([,v],i)=>`<circle cx="${px(i).toFixed(1)}" cy="${py(v).toFixed(1)}" r="3" fill="#27ae60"/>`).join('');
+  svg.innerHTML = `${grid}<polyline points="${pts}" fill="none" stroke="#27ae60" stroke-width="2" stroke-linejoin="round"/>${dots}${labels}`;
+}
+
+function closeResults(){ document.getElementById('results').classList.remove('open'); }
+</script>
+</body>
+</html>

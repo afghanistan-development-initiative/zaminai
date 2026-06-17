@@ -1523,6 +1523,185 @@ def weather_forecast():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
+# ════════════════════════════════════════════════════════════════════════════════
+# OFFICER DASHBOARD — worldwide regional analysis
+# ════════════════════════════════════════════════════════════════════════════════
+
+def gee_analyse_officer(coords, year, clat, clon, scale=500):
+    """Regional GEE analysis at coarser resolution for large admin polygons."""
+    import ee
+    poly     = ee.Geometry.Polygon([[[c[1], c[0]] for c in coords]])
+    end_date = min(f"{year}-07-31", datetime.now().strftime("%Y-%m-%d"))
+
+    s2 = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+          .filterBounds(poly).filterDate(f"{year}-04-01", end_date)
+          .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 20))
+          .sort("CLOUDY_PIXEL_PERCENTAGE").limit(5).median().clip(poly))
+
+    def s2m(img, band):
+        v = img.reduceRegion(ee.Reducer.mean(), poly, scale, maxPixels=1e9).get(band).getInfo()
+        return round(float(v), 4) if v is not None else None
+
+    ndvi  = s2m(s2.normalizedDifference(["B8","B4"]).rename("nd"), "nd")
+    evi   = s2m(s2.expression("2.5*((NIR-RED)/(NIR+6*RED-7.5*BLUE+1))",
+                {"NIR":s2.select("B8"),"RED":s2.select("B4"),"BLUE":s2.select("B2")}).rename("evi"), "evi")
+    savi  = s2m(s2.expression("((NIR-RED)/(NIR+RED+0.5))*1.5",
+                {"NIR":s2.select("B8"),"RED":s2.select("B4")}).rename("savi"), "savi")
+    mndwi = s2m(s2.normalizedDifference(["B3","B11"]).rename("nd"), "nd")
+    rain  = s2m(ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY").filterBounds(poly)
+                .filterDate(f"{year}-01-01", f"{year}-12-31")
+                .select("precipitation").sum().clip(poly), "precipitation")
+
+    # NDVI trend S2 (2019-present)
+    s2_trend = {}
+    for yr in range(2019, datetime.now().year + 1):
+        try:
+            yr_end = min(f"{yr}-07-31", datetime.now().strftime("%Y-%m-%d"))
+            c2 = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED").filterBounds(poly)
+                  .filterDate(f"{yr}-05-01", yr_end)
+                  .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 25)).median().clip(poly))
+            v  = c2.normalizedDifference(["B8","B4"]).reduceRegion(
+                     ee.Reducer.mean(), poly, scale, maxPixels=1e9).get("nd").getInfo()
+            s2_trend[yr] = round(float(v), 4) if v else None
+        except:
+            s2_trend[yr] = None
+
+    # NDVI trend Landsat (2013-2018 pre-Sentinel era)
+    ls_trend = {}
+    for yr in range(2013, 2019):
+        try:
+            yr_end = min(f"{yr}-07-31", datetime.now().strftime("%Y-%m-%d"))
+            lc    = (ee.ImageCollection("LANDSAT/LC08/C02/T1_L2")
+                     .filterBounds(poly).filterDate(f"{yr}-04-01", yr_end)
+                     .filter(ee.Filter.lt("CLOUD_COVER", 25)).median().clip(poly))
+            lc_sc = lc.select("SR_B.*").multiply(0.0000275).add(-0.2)
+            v     = lc_sc.normalizedDifference(["SR_B5","SR_B4"]).reduceRegion(
+                        ee.Reducer.mean(), poly, max(scale, 100), maxPixels=1e9).get("nd").getInfo()
+            ls_trend[yr] = round(float(v), 4) if v else None
+        except:
+            ls_trend[yr] = None
+
+    combined_trend = {**ls_trend, **s2_trend}
+
+    # Sentinel-1 SAR
+    sar_data = None
+    try:
+        s1 = (ee.ImageCollection("COPERNICUS/S1_GRD")
+              .filterBounds(poly).filterDate(f"{year}-04-01", end_date)
+              .filter(ee.Filter.eq("instrumentMode", "IW"))
+              .filter(ee.Filter.listContains("transmitterReceiverPolarisation", "VV"))
+              .filter(ee.Filter.listContains("transmitterReceiverPolarisation", "VH"))
+              .select(["VV","VH"]).median().clip(poly))
+        def sarm(img, band):
+            v = img.reduceRegion(ee.Reducer.mean(), poly, max(scale,100), maxPixels=1e9).get(band).getInfo()
+            return round(float(v), 3) if v is not None else None
+        vv = sarm(s1, "VV"); vh = sarm(s1, "VH")
+        sar_data = {"vv_db":vv, "vh_db":vh, "vh_vv_db":round(vh-vv,3) if (vv and vh) else None,
+                    "source":"sentinel1_SAR_IW", "cloud_free":True}
+    except Exception as e:
+        log.warning(f"Officer SAR failed: {e}")
+
+    # MODIS LST
+    modis_data = None
+    try:
+        lst = ee.ImageCollection("MODIS/061/MOD11A2").filterBounds(poly)
+        def modt(col):
+            img = col.mean()
+            def mv(b):
+                v = img.reduceRegion(ee.Reducer.mean(), poly, 1000, maxPixels=1e9).get(b).getInfo()
+                return round(float(v)*0.02-273.15,1) if v is not None else None
+            return mv("LST_Day_1km"), mv("LST_Night_1km")
+        td, tn = modt(lst.filterDate(f"{year}-06-01", f"{year}-08-31"))
+        wd, wn = modt(lst.filterDate(f"{year}-01-01", f"{year}-03-31"))
+        modis_data = {"summer_day_c":td,"summer_night_c":tn,"winter_day_c":wd,"winter_night_c":wn,
+                      "frost_risk":(wn<0) if wn is not None else None,"source":"modis_MOD11A2"}
+    except Exception as e:
+        log.warning(f"Officer MODIS failed: {e}")
+
+    return {
+        "ndvi":ndvi,"evi":evi,"savi":savi,"mndwi":mndwi,"water":mndwi,"rain":rain,
+        "trend":s2_trend,"ndvi_trend":s2_trend,"landsat_trend":ls_trend,"combined_trend":combined_trend,
+        "sar":sar_data,"modis":modis_data,
+        "lat":round(clat,5),"lon":round(clon,5),
+        "source":"gee_live","image_date":end_date,"analysis_scale_m":scale
+    }
+
+
+@app.route("/officer/analyse", methods=["POST","OPTIONS"])
+def officer_analyse():
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    try:
+        data     = request.get_json(force=True)
+        coords   = data.get("coords", [])
+        year     = int(data.get("year", datetime.now().year))
+        country  = data.get("country", "")
+        province = data.get("province", "")
+        district = data.get("district", "")
+
+        if len(coords) < 3:
+            return jsonify({"error": "Need ≥3 coordinate points"}), 400
+
+        lats = [c[0] for c in coords]; lons = [c[1] for c in coords]
+        clat = sum(lats)/len(lats);     clon  = sum(lons)/len(lons)
+
+        area_ha  = calc_area_ha(coords)
+        area_km2 = area_ha / 100.0
+
+        # Choose scale based on polygon size so GEE doesn't time out
+        if area_km2 < 100:   scale = 100
+        elif area_km2 < 1000: scale = 300
+        elif area_km2 < 10000: scale = 500
+        else:                   scale = 1000
+
+        result = {}
+        if gee_ok:
+            try:
+                result = gee_analyse_officer(coords, year, clat, clon, scale=scale)
+                log.info(f"Officer GEE ok — {country}/{province}/{district} {area_km2:.0f}km² scale={scale}m")
+            except Exception as e:
+                log.error(f"Officer GEE failed: {e}")
+
+        if not result:
+            # Fallback uses Afghan provincial data for known provinces, else zeros
+            reg = get_regional_data(clat, clon)
+            result = {
+                "ndvi":reg["ndvi"],"evi":reg["evi"],"savi":reg["savi"],
+                "mndwi":reg["mndwi"],"water":reg["mndwi"],"rain":reg["rain"],
+                "trend":reg.get("trend",{}),"ndvi_trend":reg.get("trend",{}),
+                "landsat_trend":{},"combined_trend":reg.get("trend",{}),
+                "lat":round(clat,5),"lon":round(clon,5),
+                "source":reg.get("source","regional_fallback"),
+                "image_date":f"{year}-05-15","analysis_scale_m":None,
+                "sar":None,"modis":None
+            }
+
+        result.update({
+            "area_km2": round(area_km2, 1),
+            "area_ha":  round(area_ha, 1),
+            "country":  country,
+            "province": province,
+            "district": district,
+            "admin_level": "district" if district else "province" if province else "country",
+            "year": year,
+        })
+
+        # Farmer count from Supabase — Afghanistan only
+        farmer_count = None
+        if sb_ok and province and country.strip().lower() in ("afghanistan","افغانستان"):
+            try:
+                r = sb.table("farmers").select("id", count="exact").eq("province", province).execute()
+                farmer_count = r.count
+            except Exception as e:
+                log.warning(f"Officer farmer count failed: {e}")
+        result["farmer_count"] = farmer_count
+
+        return jsonify(result)
+    except Exception as e:
+        log.error(f"/officer/analyse: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__=="__main__":
     port=int(os.environ.get("PORT",5000))
     log.info(f"ZaminAI API v7.0 starting on port {port}")
