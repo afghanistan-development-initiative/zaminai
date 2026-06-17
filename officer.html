@@ -1179,12 +1179,29 @@ async function analyseAdmin(){
     const province = p.NAME_1 || '';
     const district = p.NAME_2 || '';
     const village  = p.NAME_3 || '';
+
+    // Step 1: start async task (returns immediately)
     const resp = await fetch(`${API}/officer/analyse`, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ coords, year:parseInt(year), country, province, district, village, lang })
     });
     if (!resp.ok){ const e = await resp.json().catch(()=>({})); throw new Error(e.error || `HTTP ${resp.status}`); }
-    const data = await resp.json();
+    const start = await resp.json();
+    if (start.error) throw new Error(start.error);
+    const taskId = start.task_id;
+
+    // Step 2: poll every 5 s until done (GEE takes 60-180 s)
+    let data = null;
+    for (let i = 0; i < 60 && !data; i++){
+      await new Promise(res => setTimeout(res, 5000));
+      const poll = await fetch(`${API}/officer/analyse-result/${taskId}`);
+      if (!poll.ok){ const e = await poll.json().catch(()=>({})); throw new Error(e.error || `Poll HTTP ${poll.status}`); }
+      const pd = await poll.json();
+      if (pd.status === 'done')  data = pd.data;
+      if (pd.status === 'error') throw new Error(pd.error);
+    }
+    if (!data) throw new Error('Analysis timed out after 5 minutes. Try a smaller region or district.');
+
     renderResults(data, country, province, district, village);
     setStatus('', 'ok');
     loadRegionFields(province);

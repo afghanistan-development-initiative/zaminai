@@ -2243,8 +2243,14 @@ def officer_layer_result(task_id):
     return jsonify({"status": "done", "layer": task["layer"], "data": data})
 
 
+# In-memory task store for async officer/analyse (same pattern as detect-fields)
+_analyse_tasks = {}
+
 @app.route("/officer/analyse", methods=["POST","OPTIONS"])
 def officer_analyse():
+    """Start async regional analysis. Returns {task_id} immediately.
+    Client polls GET /officer/analyse-result/<task_id> for the result.
+    """
     if request.method == "OPTIONS":
         return jsonify({}), 200
     try:
@@ -2261,65 +2267,89 @@ def officer_analyse():
 
         lats = [c[0] for c in coords]; lons = [c[1] for c in coords]
         clat = sum(lats)/len(lats);     clon  = sum(lons)/len(lons)
-
         area_ha  = calc_area_ha(coords)
         area_km2 = area_ha / 100.0
 
-        # Choose scale based on polygon size so GEE stays within 300s budget
         if area_km2 < 100:    scale = 100
         elif area_km2 < 1000:  scale = 300
         elif area_km2 < 10000: scale = 500
         elif area_km2 < 30000: scale = 1000
         else:                   scale = 2000
 
-        result = {}
-        if gee_ok:
+        task_id = str(uuid.uuid4())
+        _analyse_tasks[task_id] = {"status": "pending"}
+
+        def _worker():
             try:
-                result = gee_analyse_officer(coords, year, clat, clon, scale=scale)
-                log.info(f"Officer GEE ok — {country}/{province}/{district} {area_km2:.0f}km² scale={scale}m")
-            except Exception as e:
-                log.error(f"Officer GEE failed: {e}")
+                result = {}
+                if gee_ok:
+                    try:
+                        result = gee_analyse_officer(coords, year, clat, clon, scale=scale)
+                        log.info(f"Officer GEE ok — {country}/{province}/{district} {area_km2:.0f}km² scale={scale}m")
+                    except Exception as e:
+                        log.error(f"Officer GEE failed: {e}")
 
-        if not result:
-            reg = get_regional_data(clat, clon)
-            result = {
-                "ndvi":reg["ndvi"],"evi":reg["evi"],"savi":reg["savi"],
-                "mndwi":reg["mndwi"],"water":reg["mndwi"],"rain":reg["rain"],
-                "trend":reg.get("trend",{}),"ndvi_trend":reg.get("trend",{}),
-                "landsat_trend":{},"combined_trend":reg.get("trend",{}),
-                "lat":round(clat,5),"lon":round(clon,5),
-                "source":reg.get("source","climate_zone_fallback"),
-                "image_date":f"{year}-05-15","analysis_scale_m":None,
-                "sar":None,"modis":None,
-                "population":None,"landcover":None,"terrain":None,
-                "water_bodies":None,"ndvi_monthly":{}
-            }
+                if not result:
+                    reg = get_regional_data(clat, clon)
+                    result = {
+                        "ndvi":reg["ndvi"],"evi":reg["evi"],"savi":reg["savi"],
+                        "mndwi":reg["mndwi"],"water":reg["mndwi"],"rain":reg["rain"],
+                        "trend":reg.get("trend",{}),"ndvi_trend":reg.get("trend",{}),
+                        "landsat_trend":{},"combined_trend":reg.get("trend",{}),
+                        "lat":round(clat,5),"lon":round(clon,5),
+                        "source":reg.get("source","climate_zone_fallback"),
+                        "image_date":f"{year}-05-15","analysis_scale_m":None,
+                        "sar":None,"modis":None,
+                        "population":None,"landcover":None,"terrain":None,
+                        "water_bodies":None,"ndvi_monthly":{}
+                    }
 
-        result.update({
-            "area_km2": round(area_km2, 1),
-            "area_ha":  round(area_ha, 1),
-            "country":  country,
-            "province": province,
-            "district": district,
-            "village":  village,
-            "admin_level": "village" if village else "district" if district else "province" if province else "country",
-            "year": year,
-        })
+                result.update({
+                    "area_km2": round(area_km2, 1),
+                    "area_ha":  round(area_ha, 1),
+                    "country":  country, "province": province,
+                    "district": district, "village":  village,
+                    "admin_level": "village" if village else "district" if district else "province" if province else "country",
+                    "year": year,
+                })
 
-        # Farmer count from Supabase — works for any country
-        farmer_count = None
-        if sb_ok and province:
-            try:
-                r = sb.table("farmers").select("id", count="exact").eq("province", province).execute()
-                farmer_count = r.count
-            except Exception as e:
-                log.warning(f"Officer farmer count failed: {e}")
-        result["farmer_count"] = farmer_count
+                farmer_count = None
+                if sb_ok and province:
+                    try:
+                        r = sb.table("farmers").select("id", count="exact").eq("province", province).execute()
+                        farmer_count = r.count
+                    except Exception as e:
+                        log.warning(f"Officer farmer count failed: {e}")
+                result["farmer_count"] = farmer_count
 
-        return jsonify(result)
+                _analyse_tasks[task_id] = {"status": "done", "data": result}
+            except Exception as ex:
+                log.error(f"officer_analyse task {task_id[:8]} error: {ex}")
+                _analyse_tasks[task_id] = {"status": "error", "error": str(ex)}
+
+        threading.Thread(target=_worker, daemon=True).start()
+        return jsonify({"task_id": task_id, "status": "pending"})
     except Exception as e:
         log.error(f"/officer/analyse: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/officer/analyse-result/<task_id>", methods=["GET","OPTIONS"])
+def officer_analyse_result(task_id):
+    """Poll for async officer/analyse result."""
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    task = _analyse_tasks.get(task_id)
+    if not task:
+        return jsonify({"status": "error", "error": "Task not found"}), 404
+    if task["status"] == "pending":
+        return jsonify({"status": "pending"})
+    if task["status"] == "error":
+        _analyse_tasks.pop(task_id, None)
+        return jsonify({"status": "error", "error": task["error"]}), 500
+    data = task.get("data", {})
+    _analyse_tasks.pop(task_id, None)
+    return jsonify({"status": "done", "data": data})
 
 
 if __name__=="__main__":
