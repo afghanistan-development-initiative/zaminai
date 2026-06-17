@@ -1643,6 +1643,40 @@ def gee_analyse_officer(coords, year, clat, clon, scale=500):
     }
 
 
+@app.route("/officer/fields", methods=["GET"])
+def officer_fields():
+    """Return all farmer fields for a province with their latest satellite analysis."""
+    province = request.args.get("province", "")
+    if not sb_ok:
+        return jsonify({"fields": [], "count": 0})
+    if not province:
+        return jsonify({"error": "province required"}), 400
+    try:
+        res = (sb.table("fields")
+                 .select("id,label,coords,province,area_ha,area_jereb,created_at")
+                 .eq("province", province)
+                 .execute())
+        fields = res.data or []
+        for f in fields:
+            if isinstance(f.get("coords"), str):
+                try: f["coords"] = json.loads(f["coords"])
+                except: f["coords"] = []
+            try:
+                a = (sb.table("analyses")
+                       .select("ndvi,evi,mndwi,rain,savi")
+                       .eq("field_id", f["id"])
+                       .order("analysed_at", desc=True)
+                       .limit(1)
+                       .execute())
+                f["analysis"] = a.data[0] if a.data else None
+            except:
+                f["analysis"] = None
+        return jsonify({"fields": fields, "count": len(fields)})
+    except Exception as e:
+        log.error(f"/officer/fields: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/gadm/<iso>/<int:level>", methods=["GET"])
 def gadm_proxy(iso, level):
     """Proxy GADM GeoJSON to avoid browser CORS restrictions."""

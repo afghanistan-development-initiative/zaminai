@@ -89,6 +89,20 @@ body[dir=rtl] #results{left:0;right:330px}
 /* ── RTL overrides ── */
 body[dir=rtl] #sidebar{border-right:none;border-left:1px solid #163352}
 body[dir=rtl] .ctrl{direction:rtl}
+
+/* ── Map legend ── */
+#map-legend{position:absolute;bottom:24px;right:10px;background:#0c1a30cc;border:1px solid #163352;padding:8px 11px;border-radius:6px;z-index:900;font-size:10px;pointer-events:none;backdrop-filter:blur(4px)}
+.leg-row{display:flex;align-items:center;gap:5px;margin:2px 0;color:#8aa8c0}
+.leg-dot{width:11px;height:11px;border-radius:2px;flex-shrink:0}
+
+/* ── Plot popups ── */
+.leaflet-popup-content-wrapper{background:#0c1a30!important;border:1px solid #27ae60!important;border-radius:6px!important;color:#dde4f0!important;box-shadow:0 4px 20px rgba(0,0,0,.6)!important}
+.leaflet-popup-tip{background:#0c1a30!important}
+.leaflet-popup-content{margin:10px 12px!important}
+.pop-title{font-size:13px;font-weight:700;color:#27ae60;margin-bottom:6px}
+.pop-row{display:flex;justify-content:space-between;font-size:11px;padding:2px 0;border-bottom:1px solid #163352}
+.pop-k{color:#5a7a9a}.pop-v{color:#dde4f0;font-weight:600}
+.pop-badge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:3px;margin-top:5px;font-weight:700}
 </style>
 </head>
 <body>
@@ -145,7 +159,18 @@ body[dir=rtl] .ctrl{direction:rtl}
       </div>
     </div>
   </div>
-  <div id="map"></div>
+  <div id="map">
+    <div id="map-legend">
+      <div style="font-weight:700;color:#27ae60;margin-bottom:4px;letter-spacing:.05em" id="leg-title">NDVI</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#27ae60"></div><span>≥ 0.55 Good</span></div>
+      <div class="leg-row"><div class="leg-dot" style="background:#8bc34a"></div><span>0.40 – 0.55</span></div>
+      <div class="leg-row"><div class="leg-dot" style="background:#f39c12"></div><span>0.25 – 0.40</span></div>
+      <div class="leg-row"><div class="leg-dot" style="background:#e67e22"></div><span>0.10 – 0.25</span></div>
+      <div class="leg-row"><div class="leg-dot" style="background:#e74c3c"></div><span>< 0.10 Low</span></div>
+      <div class="leg-row" style="margin-top:5px;border-top:1px solid #163352;padding-top:5px"><div class="leg-dot" style="background:#3498db;border:1px solid #3498db"></div><span id="leg-vil">Villages</span></div>
+      <div class="leg-row"><div class="leg-dot" style="background:#163352;border:1px solid #27ae60"></div><span id="leg-prov">Provinces</span></div>
+    </div>
+  </div>
 </div>
 
 <div id="results">
@@ -185,6 +210,10 @@ const OT = {
     water:'Water Present',drought:'Drought Risk',
     district:'District',province:'Province',country2:'Country',village:'Village',
     vil:'Village (optional)',
+    savi:'Soil-Adj. Vegetation (SAVI)',
+    registeredPlots:'Registered Farmer Plots',fieldUnit:'fields in DB',
+    legVil:'Villages',legProv:'Provinces',
+    noPlots:'No registered plots found',loadingPlots:'Loading field plots…',
     insuffData:'Insufficient satellite data for recommendations.',
   },
   fa:{
@@ -213,6 +242,10 @@ const OT = {
     water:'آب موجود',drought:'خطر خشکسالی',
     district:'ولسوالی',province:'ولایت',country2:'کشور',village:'قریه',
     vil:'قریه (اختیاری)',
+    savi:'پوشش گیاهی تعدیل‌شده (SAVI)',
+    registeredPlots:'زمین‌های ثبت‌شده',fieldUnit:'مزرعه در DB',
+    legVil:'قریه‌ها',legProv:'ولایت‌ها',
+    noPlots:'هیچ زمینی ثبت نشده',loadingPlots:'بارگذاری زمین‌ها…',
     insuffData:'داده‌های کافی ماهواره‌ای برای توصیه موجود نیست.',
   },
   ps:{
@@ -241,6 +274,10 @@ const OT = {
     water:'اوبه شتون لري',drought:'د وچکالۍ خطر',
     district:'ولسوالۍ',province:'ولایت',country2:'هیواد',village:'کلی',
     vil:'کلی (اختیاري)',
+    savi:'د خاورې پوښ (SAVI)',
+    registeredPlots:'ثبت‌شوي ځمکې',fieldUnit:'مزرعه DB کې',
+    legVil:'کلي',legProv:'ولایتونه',
+    noPlots:'هیڅ ثبت‌شوې ځمکه نشته',loadingPlots:'د ځمکو ډاونلوډ…',
     insuffData:'د سپارښتنو لپاره کافي د ماهوارې معلومات نشته.',
   }
 };
@@ -297,7 +334,7 @@ const COUNTRIES = [
 
 // ── State ───────────────────────────────────────────────────────────────────
 let lang = 'en';
-let map, bndLayer, hlLayer;
+let map, bndLayer, hlLayer, vilBndLayer, plotLayer;
 let l1Data = null, l2Data = null, l3Data = null;
 let selFeat = null;
 let curISO = null;
@@ -344,6 +381,8 @@ function applyLang(){
   document.getElementById('lbl-year').textContent = t('year');
   document.getElementById('analyse-btn').textContent = t('btn');
   document.getElementById('country-in').placeholder = t('ph');
+  document.getElementById('leg-vil').textContent  = t('legVil');
+  document.getElementById('leg-prov').textContent = t('legProv');
   if (document.getElementById('results').classList.contains('open'))
     document.getElementById('res-title').textContent = t('resTitle');
 }
@@ -377,8 +416,10 @@ async function onCountrySelected(country){
   vs.disabled = true; vs.innerHTML = `<option>— select district first —</option>`;
   document.getElementById('analyse-btn').disabled = true;
   setStatus(t('loading'));
-  if (bndLayer){ map.removeLayer(bndLayer); bndLayer = null; }
-  if (hlLayer) { map.removeLayer(hlLayer);  hlLayer  = null; }
+  if (bndLayer)    { map.removeLayer(bndLayer);    bndLayer    = null; }
+  if (hlLayer)     { map.removeLayer(hlLayer);     hlLayer     = null; }
+  if (vilBndLayer) { map.removeLayer(vilBndLayer); vilBndLayer = null; }
+  if (plotLayer)   { map.removeLayer(plotLayer);   plotLayer   = null; }
   closeResults();
   try {
     const url = `${API}/gadm/${country.iso}/1`;
@@ -419,6 +460,8 @@ function onProvClicked(feat){
   ds.disabled = true; ds.innerHTML = `<option value="">Loading districts…</option>`;
   const vs = document.getElementById('vil-sel');
   vs.disabled = true; vs.innerHTML = `<option value="">— select district first —</option>`;
+  if (vilBndLayer) { map.removeLayer(vilBndLayer); vilBndLayer = null; }
+  if (plotLayer)   { map.removeLayer(plotLayer);   plotLayer   = null; }
   l3Data = null;
   loadDistricts(curISO, feat.properties.GID_1);
 }
@@ -446,6 +489,7 @@ async function loadDistricts(iso, gid1){
 document.getElementById('dist-sel').addEventListener('change', function(){
   const vs = document.getElementById('vil-sel');
   vs.disabled = true; vs.innerHTML = `<option value="">Loading villages…</option>`;
+  if (vilBndLayer) { map.removeLayer(vilBndLayer); vilBndLayer = null; }
   l3Data = null;
   if (!this.value || !l2Data){
     vs.innerHTML = `<option value="">— select district first —</option>`;
@@ -467,6 +511,7 @@ async function loadVillages(iso, gid2){
     }
     const feats = l3Data.features.filter(f => f.properties.GID_2 === gid2);
     if (!feats.length){ vs.innerHTML = '<option value="">No village data</option>'; return; }
+    drawVillageBoundaries(feats);
     const names = feats.map(f => f.properties.NAME_3).sort();
     vs.innerHTML = `<option value="">— whole district —</option>`;
     names.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; vs.appendChild(o); });
@@ -475,6 +520,21 @@ async function loadVillages(iso, gid2){
     vs.innerHTML = '<option value="">Village data unavailable</option>';
     setStatus('');
   }
+}
+
+function drawVillageBoundaries(feats){
+  if (vilBndLayer){ map.removeLayer(vilBndLayer); vilBndLayer = null; }
+  vilBndLayer = L.geoJSON({type:'FeatureCollection', features:feats},{
+    style:{ color:'#3498db', weight:1, fillColor:'#1a5276', fillOpacity:0.08 },
+    onEachFeature:(f, layer) => {
+      layer.bindTooltip(f.properties.NAME_3||'', {sticky:true, className:'leaflet-tooltip-dark'});
+      layer.on('click', () => {
+        const vs = document.getElementById('vil-sel');
+        vs.value = f.properties.NAME_3;
+        selFeat = f; highlight(f);
+      });
+    }
+  }).addTo(map);
 }
 
 document.getElementById('vil-sel').addEventListener('change', function(){
@@ -492,6 +552,62 @@ function highlight(feat){
     style:{ color:'#f39c12', weight:2.5, fillColor:'#27ae60', fillOpacity:.18 }
   }).addTo(map);
   map.fitBounds(hlLayer.getBounds(), {padding:[30,30]});
+}
+
+// ── NDVI colour scale ───────────────────────────────────────────────────────
+function ndviToColor(v){
+  if(v===null||v===undefined) return '#556677';
+  if(v>=0.55) return '#27ae60';
+  if(v>=0.40) return '#8bc34a';
+  if(v>=0.25) return '#f39c12';
+  if(v>=0.10) return '#e67e22';
+  return '#e74c3c';
+}
+
+// ── Load & draw all farmer plots in a province ──────────────────────────────
+async function loadRegionFields(province){
+  if(plotLayer){ map.removeLayer(plotLayer); plotLayer=null; }
+  const card = document.getElementById('plots-card');
+  if(card) card.querySelector('.mc-val').textContent = t('loadingPlots');
+  if(!province) return;
+  try{
+    const r = await fetch(`${API}/officer/fields?province=${encodeURIComponent(province)}`);
+    if(!r.ok) return;
+    const data = await r.json();
+    const fields = data.fields||[];
+    if(card){
+      card.querySelector('.mc-val').textContent = fields.length;
+      card.querySelector('.mc-note').textContent = fields.length
+        ? `${fields.filter(f=>f.analysis).length} with satellite data`
+        : t('noPlots');
+    }
+    if(!fields.length) return;
+    plotLayer = L.layerGroup().addTo(map);
+    fields.forEach(f=>{
+      let coords = f.coords;
+      if(!coords||coords.length<3) return;
+      const ndvi = f.analysis?.ndvi ?? null;
+      const col  = ndviToColor(ndvi);
+      const badge = ndvi===null ? '' : ndvi>=0.40
+        ? `<span class="pop-badge" style="background:#0b2a15;color:#27ae60">Good</span>`
+        : ndvi>=0.25 ? `<span class="pop-badge" style="background:#2a2000;color:#f39c12">Moderate</span>`
+        : `<span class="pop-badge" style="background:#2a0a0a;color:#e74c3c">Low</span>`;
+      const popHtml = `
+        <div class="pop-title">${f.label||'Field'}</div>
+        <div class="pop-row"><span class="pop-k">NDVI</span><span class="pop-v" style="color:${col}">${ndvi!==null?ndvi.toFixed(3):'—'}</span></div>
+        <div class="pop-row"><span class="pop-k">EVI</span><span class="pop-v">${f.analysis?.evi!=null?f.analysis.evi.toFixed(3):'—'}</span></div>
+        <div class="pop-row"><span class="pop-k">Water (MNDWI)</span><span class="pop-v">${f.analysis?.mndwi!=null?f.analysis.mndwi.toFixed(3):'—'}</span></div>
+        <div class="pop-row"><span class="pop-k">Rain</span><span class="pop-v">${f.analysis?.rain!=null?Math.round(f.analysis.rain)+' mm':'—'}</span></div>
+        <div class="pop-row"><span class="pop-k">Area</span><span class="pop-v">${f.area_ha?f.area_ha.toFixed(2)+' ha':'—'} · ${f.area_jereb?f.area_jereb.toFixed(1)+' jer':'—'}</span></div>
+        ${badge}`;
+      const poly = L.polygon(coords.map(c=>[c[0],c[1]]),{
+        color:col, weight:1.8, fillColor:col, fillOpacity:0.45
+      });
+      poly.bindTooltip(`${f.label||'Field'} · NDVI ${ndvi!==null?ndvi.toFixed(2):'—'}`,{sticky:true,className:'leaflet-tooltip-dark'});
+      poly.bindPopup(popHtml,{maxWidth:240});
+      poly.addTo(plotLayer);
+    });
+  }catch(e){ console.error('loadRegionFields:',e); }
 }
 
 // ── Coordinate extraction ───────────────────────────────────────────────────
@@ -531,6 +647,7 @@ async function analyseAdmin(){
     const data = await resp.json();
     renderResults(data, country, province, district, village);
     setStatus('', 'ok');
+    loadRegionFields(province);
   } catch(e){
     setStatus(e.message || t('noData'), 'err');
   } finally {
@@ -546,12 +663,15 @@ function renderResults(d, country, province, district, village){
   const adminLvl  = village ? t('village') : district ? t('district') : province ? t('province') : t('country2');
   const ndvi  = d.ndvi  ?? null;
   const evi   = d.evi   ?? null;
+  const savi  = d.savi  ?? null;
   const mndwi = d.mndwi ?? d.water ?? null;
   const rain  = d.rain  ?? null;
 
   // NDVI bar & badge
   const ndviPct = ndvi === null ? 0 : Math.max(0, Math.min(100, (ndvi/0.7)*100));
   const eviPct  = evi  === null ? 0 : Math.max(0, Math.min(100, (evi /0.6)*100));
+  const saviPct = savi === null ? 0 : Math.max(0, Math.min(100, (savi/0.7)*100));
+  const ndviCol = ndviToColor(ndvi);
   const ndviBadge = ndvi === null ? '' : ndvi>=0.40
     ? `<span class="badge g">${t('good')}</span>`
     : ndvi>=0.25 ? `<span class="badge m">${t('mod')}</span>`
@@ -606,27 +726,45 @@ function renderResults(d, country, province, district, village){
 
     <div class="mc">
       <div class="mc-lbl">${t('ndvi')}</div>
-      <div class="mc-val">${ndvi!==null?ndvi.toFixed(3):'—'}</div>
-      <div class="bar"><div class="bar-fill" style="width:${ndviPct}%;background:#27ae60"></div></div>
+      <div class="mc-val" style="color:${ndviCol}">${ndvi!==null?ndvi.toFixed(3):'—'}</div>
+      <div class="bar"><div class="bar-fill" style="width:${ndviPct}%;background:${ndviCol}"></div></div>
       ${ndviBadge}
+      <div class="mc-note">Sentinel-2 B8/B4 · normalized</div>
     </div>
 
     <div class="mc">
       <div class="mc-lbl">${t('evi')}</div>
       <div class="mc-val">${evi!==null?evi.toFixed(3):'—'}</div>
       <div class="bar"><div class="bar-fill" style="width:${eviPct}%;background:#219a52"></div></div>
+      <div class="mc-note">Enhanced · canopy background corrected</div>
+    </div>
+
+    <div class="mc">
+      <div class="mc-lbl">${t('savi')}</div>
+      <div class="mc-val">${savi!==null?savi.toFixed(3):'—'}</div>
+      <div class="bar"><div class="bar-fill" style="width:${saviPct}%;background:#1a9e5a"></div></div>
+      <div class="mc-note">Soil-adjusted · L=0.5</div>
     </div>
 
     <div class="mc">
       <div class="mc-lbl">${t('mndwi')}</div>
       <div class="mc-val" style="color:${wColor}">${mndwi!==null?mndwi.toFixed(3):'—'}</div>
       <div style="font-size:11px;color:${wColor};margin-top:4px">${wLabel}</div>
+      <div class="mc-note">Green/SWIR · water & moisture</div>
     </div>
 
     <div class="mc">
       <div class="mc-lbl">${t('rain')}</div>
       <div class="mc-val">${rain!==null?Math.round(rain):'—'}</div>
       <div class="mc-unit">${t('mm')}</div>
+      <div class="mc-note">CHIRPS daily · annual sum</div>
+    </div>
+
+    <div class="mc" id="plots-card">
+      <div class="mc-lbl">${t('registeredPlots')}</div>
+      <div class="mc-val">—</div>
+      <div class="mc-unit">${t('fieldUnit')}</div>
+      <div class="mc-note">Click any plot on map for detail</div>
     </div>
 
     ${sarHTML}
