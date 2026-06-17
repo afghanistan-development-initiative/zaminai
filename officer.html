@@ -305,6 +305,8 @@ const OT = {
     cropIntel:'Crop Intelligence',
     months:{1:'Jan',2:'Feb',3:'Mar',4:'Apr',5:'May',6:'Jun',7:'Jul',8:'Aug',9:'Sep',10:'Oct',11:'Nov',12:'Dec'},
     insuffData:'Insufficient satellite data for recommendations.',
+    shrubArea:'Shrub / Scrub', lcDominant:'Dominant land use',
+    lcTotal:'of total area',
     // Layer panel (Step 5)
     lpTitle:'🗂️ Layers',
     lpBaseMap:'Base Map',lpLabels:'🏷️ Labels overlay',
@@ -363,6 +365,8 @@ const OT = {
     cropIntel:'اطلاعات محصول',
     months:{1:'ژانویه',2:'فوریه',3:'مارس',4:'آوریل',5:'مه',6:'ژوئن',7:'جولای',8:'اوت',9:'سپتامبر',10:'اکتبر',11:'نوامبر',12:'دسامبر'},
     insuffData:'داده‌های کافی ماهواره‌ای برای توصیه موجود نیست.',
+    shrubArea:'بوته‌زار', lcDominant:'غالب‌ترین کاربری زمین',
+    lcTotal:'از کل مساحت',
     lpTitle:'🗂️ لایه‌ها',lpBaseMap:'نقشه پایه',lpLabels:'🏷️ برچسب‌ها',
     lpSatTitle:'تحلیل ماهواره‌ای',lpOnDemand:'درخواست در لحظه · ۳۰-۶۰ ثانیه',
     lpLandCover:'🌍 پوشش زمین',lpNdvi:'🟢 صحت NDVI',lpWater:'💧 شاخص آب',
@@ -419,6 +423,8 @@ const OT = {
     cropIntel:'د محصول معلومات',
     months:{1:'جنوري',2:'فبروري',3:'مارچ',4:'اپریل',5:'مې',6:'جون',7:'جولای',8:'اګست',9:'سپتامبر',10:'اکتوبر',11:'نومبر',12:'دسامبر'},
     insuffData:'د سپارښتنو لپاره کافي د ماهوارې معلومات نشته.',
+    shrubArea:'بوټي', lcDominant:'لومړنۍ د ځمکې کارونه',
+    lcTotal:'د ټول ساحې',
     lpTitle:'🗂️ پرده‌ونه',lpBaseMap:'اساسي نقشه',lpLabels:'🏷️ لیبلونه',
     lpSatTitle:'د ماهوارې تحلیل',lpOnDemand:'د غوښتنې سره بار · ۳۰-۶۰ ثانیې',
     lpLandCover:'🌍 د ځمکې پوښ',lpNdvi:'🟢 NDVI روغتیا',lpWater:'💧 د اوبو شاخص',
@@ -1191,6 +1197,60 @@ async function analyseAdmin(){
   }
 }
 
+// ── Full land cover breakdown (all 9 DW classes) ────────────────────────────
+const _LC_DEF = {
+  water:       {icon:'💧', col:'#2980b9', key:'waterArea'},
+  trees:       {icon:'🌲', col:'#1a7a40', key:'treeArea'},
+  grass:       {icon:'🌿', col:'#8bc34a', key:'grassArea'},
+  flooded_veg: {icon:'🌊', col:'#1abc9c', key:'floodedArea'},
+  crops:       {icon:'🌾', col:'#f39c12', key:'cropArea'},
+  shrub_scrub: {icon:'🌱', col:'#95a5a6', key:'shrubArea'},
+  built_up:    {icon:'🏘️', col:'#e74c3c', key:'builtArea'},
+  bare_ground: {icon:'🏜️', col:'#a04000', key:'bareArea'},
+  snow_ice:    {icon:'❄️', col:'#dce7f3', key:'snowArea'},
+};
+
+function lcBreakdown(classes, area_ha){
+  if(!classes||!Object.keys(classes).length) return '';
+  const total_ha = area_ha || 0;
+  const sorted = Object.entries(classes)
+    .filter(([,v])=>v>0.1)
+    .sort(([,a],[,b])=>b-a);
+  if(!sorted.length) return '';
+
+  // Dominant class line
+  const [topName, topPct] = sorted[0];
+  const topDef  = _LC_DEF[topName]||{icon:'•',col:'#888',key:null};
+  const topLbl  = topDef.key ? t(topDef.key) : topName.replace(/_/g,' ');
+  const domLine = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;padding:6px 8px;background:rgba(255,255,255,.04);border-radius:5px">
+    <span style="font-size:15px">${topDef.icon}</span>
+    <div>
+      <div style="font-size:11px;color:#5a7a9a;text-transform:uppercase;letter-spacing:.05em">${t('lcDominant')}</div>
+      <div style="font-size:13px;font-weight:700;color:${topDef.col}">${topLbl} · ${topPct.toFixed(1)}%</div>
+    </div>
+  </div>`;
+
+  const rows = sorted.map(([name, pct])=>{
+    const def = _LC_DEF[name]||{icon:'•',col:'#888',key:null};
+    const lbl = def.key ? t(def.key) : name.replace(/_/g,' ');
+    const ha  = total_ha ? Math.round(total_ha * pct / 100).toLocaleString() : null;
+    const km2 = total_ha ? (total_ha * pct / 100 / 100).toFixed(0) : null;
+    return `<div style="margin:5px 0">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        <span style="font-size:11px;color:#dde4f0">${def.icon} ${lbl}</span>
+        <span style="font-size:11px;font-weight:700;color:${def.col}">
+          ${pct.toFixed(1)}%${ha?' · '+ha+' ha':''}
+        </span>
+      </div>
+      <div style="height:5px;background:#163352;border-radius:3px;overflow:hidden">
+        <div style="width:${Math.min(pct,100)}%;height:100%;background:${def.col};border-radius:3px;transition:width .6s"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return domLine + rows;
+}
+
 // ── Land cover colour map ────────────────────────────────────────────────────
 const LC_COLORS = {
   water:'#2980b9', trees:'#27ae60', grass:'#8bc34a',
@@ -1437,20 +1497,14 @@ function renderResults(d, country, province, district, village){
     </div>` : ''}
 
     ${lc ? `<div class="full" style="background:#0a1f10;border-color:#1a3a18">
-      <h4>${t('landcover')} <span style="font-weight:400;color:#334a60;font-size:9px">${lc.source||''}</span></h4>
+      <h4 style="display:flex;justify-content:space-between;align-items:center">
+        <span>${t('landcover')}</span>
+        <span style="font-weight:400;color:#5a7a9a;font-size:10px">
+          ${d.area_km2?Math.round(d.area_km2).toLocaleString()+' '+t('km2'):''} · ${lc.source||'DynamicWorld'}
+        </span>
+      </h4>
       ${lcBar(lc.classes)}
-      <div class="sub-row" style="margin-top:6px">
-        <span class="sub-k">${t('cropArea')}</span>
-        <span class="sub-v" style="color:#f39c12">${lc.crop_pct!=null?lc.crop_pct.toFixed(1)+'%':' —'} · ${lc.crop_ha!=null?lc.crop_ha.toLocaleString()+' ha':'—'}</span>
-      </div>
-      <div class="sub-row">
-        <span class="sub-k">${t('treeArea')}</span>
-        <span class="sub-v" style="color:#27ae60">${lc.tree_pct!=null?lc.tree_pct.toFixed(1)+'%':'—'}</span>
-      </div>
-      <div class="sub-row">
-        <span class="sub-k">${t('builtArea')}</span>
-        <span class="sub-v" style="color:#e74c3c">${lc.built_pct!=null?lc.built_pct.toFixed(1)+'%':'—'}</span>
-      </div>
+      <div style="margin-top:12px">${lcBreakdown(lc.classes, d.area_ha)}</div>
     </div>` : ''}
 
     ${Object.keys(monthly).length ? `<div class="full">
