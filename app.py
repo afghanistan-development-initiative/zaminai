@@ -1882,9 +1882,10 @@ def officer_detect_fields():
         area_km2 = calc_area_ha(coords) / 100.0
         end_date = min(f"{year}-07-31", datetime.now().strftime("%Y-%m-%d"))
 
-        # Resolution: finer for small areas, coarser for large provinces
-        if area_km2 < 50:    seg_scale = 10
-        elif area_km2 < 200: seg_scale = 20
+        # Resolution: adaptive by area.
+        # Minimum 20 m — connectedComponents caps maxSize at 1024 px.
+        # At 20 m: 1024 px = 41 ha, covers >99% of global farm sizes.
+        if area_km2 < 200:   seg_scale = 20
         elif area_km2 < 800: seg_scale = 30
         else:                 seg_scale = 50
 
@@ -1927,11 +1928,12 @@ def officer_detect_fields():
                      .focal_max(radius=1, units="pixels", iterations=1))
 
         # Connected components — each contiguous crop patch = one field candidate.
-        # maxSize: 65536 px covers ~650 ha at 10 m; large enough for any real field.
+        # GEE hard-caps maxSize at 1024. At 20 m scale 1024 px = 41 ha which
+        # covers virtually all farms globally.
         components = (veg_clean.selfMask()
                       .connectedComponents(
                           connectedness=ee.Kernel.plus(1),
-                          maxSize=65536))
+                          maxSize=1024))
 
         # Size filters in pixels
         min_px = max(5, int(400   / (seg_scale ** 2)))  # ~400 m²  minimum field
