@@ -1897,61 +1897,58 @@ def officer_detect_fields():
 
         ndvi = s2.normalizedDifference(["B8","B4"]).rename("ndvi")
 
-        # ── Crop mask ────────────────────────────────────────────────────────
-        # Dynamic World (V1) classifies every Sentinel-2 pixel into 10 classes.
-        # Class 4 = crops.  Using it as a pre-filter stops forests, jungles and
-        # dense shrubland (all NDVI > 0.15) from being detected as fields —
-        # critical for tropical regions (SE Asia, Congo, Amazon, etc.).
-        # Fall back to NDVI-only mask when DW has no data for the area/date.
-        dw_col = (ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1")
-                  .filterBounds(poly)
-                  .filterDate(f"{year}-01-01", end_date))
-        dw_size = dw_col.size().getInfo()
-
-        if dw_size > 0:
-            # DW classes: 0=water 1=trees 2=grass 3=flooded_veg 4=crops
-            #             5=shrub 6=built 7=bare 8=snow 9=clouds
-            # Accept crops(4) AND flooded_vegetation(3) for paddy fields
-            dw_label = dw_col.select("label").mode().clip(poly)
-            crop_prior = dw_label.eq(4).Or(dw_label.eq(3))
-            veg_mask = ndvi.gt(0.15).And(ndvi.lt(0.90)).And(crop_prior)
-            log.info(f"detect-fields: using Dynamic World crop mask ({dw_size} scenes)")
-        else:
-            # No DW coverage — NDVI-only (works well for arid/semi-arid regions)
-            veg_mask = ndvi.gt(0.15).And(ndvi.lt(0.90))
-            log.info("detect-fields: no Dynamic World data, falling back to NDVI mask")
-
-        # Morphological opening: erode then dilate removes isolated noise pixels
-        # while keeping real field interiors intact
-        veg_clean = (veg_mask
-                     .focal_min(radius=1, units="pixels", iterations=1)
-                     .focal_max(radius=1, units="pixels", iterations=1))
-
-        # Connected components — each contiguous crop patch = one field candidate.
-        # GEE hard-caps maxSize at 1024. At 20 m scale 1024 px = 41 ha which
-        # covers virtually all farms globally.
-        components = (veg_clean.selfMask()
-                      .connectedComponents(
-                          connectedness=ee.Kernel.plus(1),
-                          maxSize=1024))
-
         # Size filters in pixels
-        min_px = max(5, int(400   / (seg_scale ** 2)))  # ~400 m²  minimum field
-        max_px =       int(4000000 / (seg_scale ** 2))  # ~400 ha  maximum field
+        min_px = max(5, int(400   / (seg_scale ** 2)))   # ~400 m²  min
+        max_px =       int(4000000 / (seg_scale ** 2))   # ~400 ha  max
 
-        fields = (components.select("labels").toInt()
-                  .addBands(ndvi)
-                  .reduceToVectors(
-                      geometry=poly, scale=seg_scale,
-                      geometryType="polygon", eightConnected=False,
-                      labelProperty="field", reducer=ee.Reducer.mean(),
-                      maxPixels=1e10, bestEffort=True, tileScale=4)
-                  .filter(ee.Filter.And(
-                      ee.Filter.gte("count", min_px),
-                      ee.Filter.lte("count", max_px)))
-                  .limit(500))
+        # ── Helper: run connected-components → vectors ────────────────────────
+        def _detect(mask):
+            # ee.Kernel.square(1) = 1-pixel radius; correct syntax for focal ops
+            k = ee.Kernel.square(radius=1, units='pixels')
+            clean = mask.focal_min(kernel=k).focal_max(kernel=k)
+            comps = (clean.selfMask()
+                     .connectedComponents(
+                         connectedness=ee.Kernel.plus(1), maxSize=1024))
+            return (comps.select("labels").toInt()
+                    .addBands(ndvi)
+                    .reduceToVectors(
+                        geometry=poly, scale=seg_scale,
+                        geometryType="polygon", eightConnected=False,
+                        labelProperty="field", reducer=ee.Reducer.mean(),
+                        maxPixels=1e10, bestEffort=True, tileScale=4)
+                    .filter(ee.Filter.And(
+                        ee.Filter.gte("count", min_px),
+                        ee.Filter.lte("count", max_px)))
+                    .limit(500))
 
-        geojson = fields.getInfo()
+        # ── Crop mask ─────────────────────────────────────────────────────────
+        # For years with Dynamic World coverage (2017+) exclude pixels that DW
+        # confidently classifies as forest/trees (class 1) — prevents tropical
+        # forests showing as fields.  We exclude only class 1 (not require class 4)
+        # so crops that DW mis-labels as grass/shrub are still detected.
+        # No size().getInfo() needed — year guard avoids the empty-collection
+        # problem. If DW still fails at compute time, retry with NDVI-only.
+        geojson = None
+        ndvi_mask = ndvi.gt(0.15).And(ndvi.lt(0.90))
+
+        if year >= 2017:
+            try:
+                dw_mode = (ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1")
+                           .filterBounds(poly)
+                           .filterDate(f"{year}-01-01", end_date)
+                           .select("label").limit(500).mode().clip(poly))
+                # Exclude confirmed forest; keep crops/grass/shrub/bare
+                forest_mask = dw_mode.eq(1)
+                dw_mask = ndvi_mask.And(forest_mask.Not())
+                geojson = _detect(dw_mask).getInfo()
+                log.info(f"detect-fields: DW forest-exclusion mask used")
+            except Exception as dw_err:
+                log.warning(f"detect-fields: DW failed ({dw_err}), retrying NDVI-only")
+                geojson = None
+
+        if geojson is None:
+            geojson = _detect(ndvi_mask).getInfo()
+            log.info("detect-fields: NDVI-only mask used")
         count   = len(geojson.get("features", []))
         log.info(f"detect-fields: {count} fields, scale={seg_scale}m, area={area_km2:.0f}km²")
         return jsonify(geojson)
