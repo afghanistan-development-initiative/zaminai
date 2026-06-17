@@ -1926,64 +1926,36 @@ def officer_detect_fields():
               .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 35))
               .sort("CLOUDY_PIXEL_PERCENTAGE").limit(8).median().clip(poly))
 
-        # Force all downstream ops (focal_min, connectedComponents, reduceToVectors)
-        # to run at seg_scale — without reproject they default to S2's native
-        # 10 m, causing the "output > 80 MiB" error on any region > ~50 km².
+        # Force computation at seg_scale — prevents native 10 m S2 resolution
+        # blowing the 80 MiB tile limit on regions larger than ~50 km².
+        proj = s2.select("B4").projection()
         ndvi = (s2.normalizedDifference(["B8","B4"]).rename("ndvi")
-                .reproject(crs='EPSG:4326', scale=seg_scale))
+                .reproject(proj.atScale(seg_scale)))
 
-        # Size filters in pixels
-        min_px = max(5, int(400   / (seg_scale ** 2)))   # ~400 m²  min
-        max_px =       int(4000000 / (seg_scale ** 2))   # ~400 ha  max
+        # Crop mask: active vegetation, not dense forest
+        crop_mask = ndvi.gt(0.20).And(ndvi.lt(0.85))
 
-        # ── Helper: run connected-components → vectors ────────────────────────
-        def _detect(mask):
-            # ee.Kernel.square(1) = 1-pixel radius; correct syntax for focal ops
-            k = ee.Kernel.square(radius=1, units='pixels')
-            clean = mask.focal_min(kernel=k).focal_max(kernel=k)
-            comps = (clean.selfMask()
-                     .connectedComponents(
-                         connectedness=ee.Kernel.plus(1), maxSize=1024))
-            return (comps.select("labels").toInt()
-                    .addBands(ndvi)
-                    .reduceToVectors(
-                        geometry=poly, scale=seg_scale,
-                        geometryType="polygon", eightConnected=False,
-                        labelProperty="field", reducer=ee.Reducer.mean(),
-                        maxPixels=1e10, bestEffort=True, tileScale=16)
-                    .filter(ee.Filter.And(
-                        ee.Filter.gte("count", min_px),
-                        ee.Filter.lte("count", max_px)))
-                    .limit(500))
+        # Connected components at working scale
+        components = (crop_mask.selfMask()
+                      .connectedComponents(
+                          connectedness=ee.Kernel.plus(1), maxSize=1024))
 
-        # ── Crop mask ─────────────────────────────────────────────────────────
-        # For years with Dynamic World coverage (2017+) exclude pixels that DW
-        # confidently classifies as forest/trees (class 1) — prevents tropical
-        # forests showing as fields.  We exclude only class 1 (not require class 4)
-        # so crops that DW mis-labels as grass/shrub are still detected.
-        # No size().getInfo() needed — year guard avoids the empty-collection
-        # problem. If DW still fails at compute time, retry with NDVI-only.
-        geojson = None
-        ndvi_mask = ndvi.gt(0.15).And(ndvi.lt(0.90))
+        # Size filters: 0.5 ha min, 400 ha max
+        min_px = max(5, int(5000  / (seg_scale ** 2)))
+        max_px =       int(4000000 / (seg_scale ** 2))
 
-        if year >= 2017:
-            try:
-                dw_mode = (ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1")
-                           .filterBounds(poly)
-                           .filterDate(s_start, s_end)
-                           .select("label").limit(500).mode().clip(poly))
-                # Exclude confirmed forest; keep crops/grass/shrub/bare
-                forest_mask = dw_mode.eq(1)
-                dw_mask = ndvi_mask.And(forest_mask.Not())
-                geojson = _detect(dw_mask).getInfo()
-                log.info(f"detect-fields: DW forest-exclusion mask used")
-            except Exception as dw_err:
-                log.warning(f"detect-fields: DW failed ({dw_err}), retrying NDVI-only")
-                geojson = None
-
-        if geojson is None:
-            geojson = _detect(ndvi_mask).getInfo()
-            log.info("detect-fields: NDVI-only mask used")
+        geojson = (components.select("labels").toInt()
+                   .addBands(ndvi)
+                   .reduceToVectors(
+                       geometry=poly, scale=seg_scale,
+                       geometryType="polygon", eightConnected=False,
+                       labelProperty="field", reducer=ee.Reducer.mean(),
+                       maxPixels=1e10, bestEffort=True, tileScale=16)
+                   .filter(ee.Filter.And(
+                       ee.Filter.gte("count", min_px),
+                       ee.Filter.lte("count", max_px)))
+                   .limit(300)
+                   .getInfo())
         count   = len(geojson.get("features", []))
         log.info(f"detect-fields: {count} fields, scale={seg_scale}m, area={area_km2:.0f}km²")
         return jsonify(geojson)
