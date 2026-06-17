@@ -1453,9 +1453,12 @@ WEATHER_CODE_MAP = {
     71: {"icon": "🌨️", "en": "Light snow",          "dr": "برف سبک",     "ps": "سپک واوره"},
     73: {"icon": "🌨️", "en": "Snow",                "dr": "برف",         "ps": "واوره"},
     75: {"icon": "❄️", "en": "Heavy snow",          "dr": "برف شدید",    "ps": "سخت واوره"},
-    80: {"icon": "🌧️", "en": "Rain showers",        "dr": "رگبار",       "ps": "بارانونه"},
-    81: {"icon": "🌧️", "en": "Heavy showers",       "dr": "رگبار شدید",  "ps": "سخت بارانونه"},
-    95: {"icon": "⛈️", "en": "Thunderstorm",        "dr": "طوفان رعد",    "ps": "د تندر طوفان"},
+    80: {"icon": "🌧️", "en": "Rain showers",         "dr": "رگبار",        "ps": "بارانونه"},
+    81: {"icon": "🌧️", "en": "Heavy showers",        "dr": "رگبار شدید",   "ps": "سخت بارانونه"},
+    82: {"icon": "⛈️", "en": "Violent showers",      "dr": "رگبار شدید",   "ps": "ډیر سخت بارانونه"},
+    85: {"icon": "🌨️", "en": "Snow showers",         "dr": "برف رگبار",    "ps": "د واورې بارانونه"},
+    86: {"icon": "❄️", "en": "Heavy snow showers",   "dr": "برف شدید",     "ps": "سخت د واورې بارانونه"},
+    95: {"icon": "⛈️", "en": "Thunderstorm",         "dr": "طوفان رعد",    "ps": "د تندر طوفان"},
     96: {"icon": "⛈️", "en": "Thunderstorm + hail", "dr": "طوفان + ژاله", "ps": "طوفان + ږلۍ"},
 }
 
@@ -1493,7 +1496,7 @@ def weather_forecast():
             "longitude": lon,
             "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode,windspeed_10m_max",
             "current_weather": "true",
-            "timezone": "Asia/Kabul",
+            "timezone": "auto",
             "forecast_days": 7
         }
 
@@ -1694,7 +1697,7 @@ def gee_analyse_officer(coords, year, clat, clon, scale=500):
         if total_pop is not None:
             density = round(float(total_pop) / max(area_km2, 0.01), 1)
             pop_data = {"total": int(round(float(total_pop))), "per_km2": density,
-                        "source": f"WorldPop_{pop_yr}"}
+                        "year": pop_yr, "source": "WorldPop"}
     except Exception as e:
         log.warning(f"WorldPop failed: {e}")
 

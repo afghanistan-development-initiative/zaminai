@@ -1150,9 +1150,9 @@ function buildRec(d){
     else if (ndvi>=0.25) lines.push('پوشش گیاهی متوسط — محصولات مقاوم به خشکی پیشنهاد می‌شود.');
     else lines.push('پوشش گیاهی ضعیف — زمین ممکن است شور، خشک یا رها شده باشد.');
     if (rain!=null){
-      if (rain<200) lines.push(`بارندگی کم (${Math.round(rain)} mm) — آبیاری تکمیلی برای اکثر محصولات ضروری است.`);
-      else if (rain>600) lines.push(`بارندگی زیاد (${Math.round(rain)} mm) — زهکشی مناسب برای جلوگیری از پوسیدگی ریشه مهم است.`);
-      else lines.push(`بارندگی متوسط (${Math.round(rain)} mm) — مناسب برای گندم، جو و حبوبات.`);
+      if (rain<200) lines.push(`باران کم (${Math.round(rain)} mm) — آبیاری تکمیلی برای اکثر محصولات ضروری است.`);
+      else if (rain>600) lines.push(`باران زیاد (${Math.round(rain)} mm) — زهکشی مناسب برای جلوگیری از پوسیدگی ریشه مهم است.`);
+      else lines.push(`باران متوسط (${Math.round(rain)} mm) — مناسب برای گندم، جو و حبوبات.`);
     }
     if (mndwi!=null && mndwi<-0.2) lines.push('شاخص آب پایین — خطر خشکسالی. نظارت بر رطوبت خاک توصیه می‌شود.');
     if (d.modis?.frost_risk) lines.push('خطر یخبندان در زمستان — از کشت زودهنگام محصولات حساس به سرما پرهیز شود.');
