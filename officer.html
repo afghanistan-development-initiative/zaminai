@@ -151,6 +151,9 @@ body[dir=rtl] .ctrl{direction:rtl}
         <select id="year-sel" class="ctrl"></select>
       </div>
       <button id="analyse-btn" onclick="analyseAdmin()" disabled>Analyse Region</button>
+      <button id="detect-btn" onclick="detectFields()" disabled style="width:100%;padding:8px;background:#0d2233;color:#3498db;border:1px solid #1e3a5f;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;margin-top:4px;transition:all .15s;letter-spacing:.03em">
+        🛰️ Auto-detect Fields from Satellite
+      </button>
       <div id="status"></div>
       <div class="sidebar-foot">
         Boundaries: GADM 4.1 · worldwide<br>
@@ -214,6 +217,11 @@ const OT = {
     registeredPlots:'Registered Farmer Plots',fieldUnit:'fields in DB',
     legVil:'Villages',legProv:'Provinces',
     noPlots:'No registered plots found',loadingPlots:'Loading field plots…',
+    detectBtn:'🛰️ Auto-detect Fields from Satellite',
+    detecting:'🛰️ Detecting fields…',
+    detectedFields:'Satellite-Detected Fields',detectedUnit:'auto-mapped fields',
+    farmers:'Registered Farmers',noFarmers:'No registered farmers yet in this region.',
+    joined:'Joined',fields2:'fields',
     insuffData:'Insufficient satellite data for recommendations.',
   },
   fa:{
@@ -246,6 +254,11 @@ const OT = {
     registeredPlots:'زمین‌های ثبت‌شده',fieldUnit:'مزرعه در DB',
     legVil:'قریه‌ها',legProv:'ولایت‌ها',
     noPlots:'هیچ زمینی ثبت نشده',loadingPlots:'بارگذاری زمین‌ها…',
+    detectBtn:'🛰️ شناسایی خودکار زمین‌ها از ماهواره',
+    detecting:'🛰️ شناسایی زمین‌ها…',
+    detectedFields:'زمین‌های شناسایی‌شده از ماهواره',detectedUnit:'زمین شناسایی‌شده',
+    farmers:'کشاورزان ثبت‌شده',noFarmers:'هنوز هیچ کشاورزی در این منطقه ثبت نشده.',
+    joined:'تاریخ ثبت',fields2:'مزرعه',
     insuffData:'داده‌های کافی ماهواره‌ای برای توصیه موجود نیست.',
   },
   ps:{
@@ -278,6 +291,11 @@ const OT = {
     registeredPlots:'ثبت‌شوي ځمکې',fieldUnit:'مزرعه DB کې',
     legVil:'کلي',legProv:'ولایتونه',
     noPlots:'هیڅ ثبت‌شوې ځمکه نشته',loadingPlots:'د ځمکو ډاونلوډ…',
+    detectBtn:'🛰️ د ماهوارې له لارې د ځمکو اتوماتیک کشف',
+    detecting:'🛰️ ځمکې کشفیږي…',
+    detectedFields:'د ماهوارې له لارې کشف‌شوي ځمکې',detectedUnit:'کشف‌شوې ځمکه',
+    farmers:'ثبت‌شوي کروندګر',noFarmers:'لا د دې سیمې کروندګر ثبت نشوي.',
+    joined:'د ثبت نیټه',fields2:'ځمکه',
     insuffData:'د سپارښتنو لپاره کافي د ماهوارې معلومات نشته.',
   }
 };
@@ -334,7 +352,7 @@ const COUNTRIES = [
 
 // ── State ───────────────────────────────────────────────────────────────────
 let lang = 'en';
-let map, bndLayer, hlLayer, vilBndLayer, plotLayer;
+let map, bndLayer, hlLayer, vilBndLayer, plotLayer, detectLayer;
 let l1Data = null, l2Data = null, l3Data = null;
 let selFeat = null;
 let curISO = null;
@@ -383,6 +401,7 @@ function applyLang(){
   document.getElementById('country-in').placeholder = t('ph');
   document.getElementById('leg-vil').textContent  = t('legVil');
   document.getElementById('leg-prov').textContent = t('legProv');
+  document.getElementById('detect-btn').textContent = t('detectBtn');
   if (document.getElementById('results').classList.contains('open'))
     document.getElementById('res-title').textContent = t('resTitle');
 }
@@ -416,10 +435,12 @@ async function onCountrySelected(country){
   vs.disabled = true; vs.innerHTML = `<option>— select district first —</option>`;
   document.getElementById('analyse-btn').disabled = true;
   setStatus(t('loading'));
-  if (bndLayer)    { map.removeLayer(bndLayer);    bndLayer    = null; }
-  if (hlLayer)     { map.removeLayer(hlLayer);     hlLayer     = null; }
-  if (vilBndLayer) { map.removeLayer(vilBndLayer); vilBndLayer = null; }
-  if (plotLayer)   { map.removeLayer(plotLayer);   plotLayer   = null; }
+  if (bndLayer)     { map.removeLayer(bndLayer);     bndLayer     = null; }
+  if (hlLayer)      { map.removeLayer(hlLayer);      hlLayer      = null; }
+  if (vilBndLayer)  { map.removeLayer(vilBndLayer);  vilBndLayer  = null; }
+  if (plotLayer)    { map.removeLayer(plotLayer);    plotLayer    = null; }
+  if (detectLayer)  { map.removeLayer(detectLayer);  detectLayer  = null; }
+  document.getElementById('detect-btn').disabled = true;
   closeResults();
   try {
     const url = `${API}/gadm/${country.iso}/1`;
@@ -460,8 +481,10 @@ function onProvClicked(feat){
   ds.disabled = true; ds.innerHTML = `<option value="">Loading districts…</option>`;
   const vs = document.getElementById('vil-sel');
   vs.disabled = true; vs.innerHTML = `<option value="">— select district first —</option>`;
-  if (vilBndLayer) { map.removeLayer(vilBndLayer); vilBndLayer = null; }
-  if (plotLayer)   { map.removeLayer(plotLayer);   plotLayer   = null; }
+  if (vilBndLayer)  { map.removeLayer(vilBndLayer);  vilBndLayer  = null; }
+  if (plotLayer)    { map.removeLayer(plotLayer);    plotLayer    = null; }
+  if (detectLayer)  { map.removeLayer(detectLayer);  detectLayer  = null; }
+  document.getElementById('detect-btn').disabled = false;
   l3Data = null;
   loadDistricts(curISO, feat.properties.GID_1);
 }
@@ -610,6 +633,98 @@ async function loadRegionFields(province){
   }catch(e){ console.error('loadRegionFields:',e); }
 }
 
+// ── Satellite field auto-detection ─────────────────────────────────────────
+async function detectFields(){
+  if(!selFeat){ setStatus(t('needProv'),'err'); return; }
+  const btn  = document.getElementById('detect-btn');
+  const year = document.getElementById('year-sel').value;
+  btn.disabled = true;
+  btn.textContent = t('detecting');
+  setStatus(t('detecting'));
+  if(detectLayer){ map.removeLayer(detectLayer); detectLayer=null; }
+  try{
+    const coords = extractCoords(selFeat);
+    const r = await fetch(`${API}/officer/detect-fields`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({coords, year:parseInt(year)})
+    });
+    if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.error||`HTTP ${r.status}`); }
+    const geojson = await r.json();
+    const count   = geojson.features?.length || 0;
+
+    detectLayer = L.geoJSON(geojson,{
+      style: feat => {
+        const ndvi = feat.properties?.mean ?? feat.properties?.ndvi ?? null;
+        const col  = ndviToColor(ndvi);
+        return {color:col, weight:1.2, fillColor:col, fillOpacity:0.52};
+      },
+      onEachFeature:(feat,layer)=>{
+        const ndvi   = feat.properties?.mean ?? null;
+        const col    = ndviToColor(ndvi);
+        const pxArea = feat.properties?.count ?? 0;
+        const badge  = ndvi===null?'':ndvi>=0.40
+          ?`<span class="pop-badge" style="background:#0b2a15;color:#27ae60">Good</span>`
+          :ndvi>=0.25?`<span class="pop-badge" style="background:#2a2000;color:#f39c12">Moderate</span>`
+          :`<span class="pop-badge" style="background:#2a0a0a;color:#e74c3c">Low</span>`;
+        layer.bindPopup(`
+          <div class="pop-title">🛰️ Satellite Field</div>
+          <div class="pop-row"><span class="pop-k">NDVI</span><span class="pop-v" style="color:${col}">${ndvi!==null?ndvi.toFixed(3):'—'}</span></div>
+          <div class="pop-row"><span class="pop-k">Pixels</span><span class="pop-v">${pxArea}</span></div>
+          ${badge}
+          <div class="mc-note" style="margin-top:5px">Auto-detected · not yet registered</div>
+        `,{maxWidth:220});
+        layer.bindTooltip(`NDVI ${ndvi!==null?ndvi.toFixed(2):'—'}`,{sticky:true,className:'leaflet-tooltip-dark'});
+      }
+    }).addTo(map);
+
+    setStatus(`✓ ${count} ${t('detectedUnit')}`, 'ok');
+    const dc = document.getElementById('detect-count');
+    if(dc){ dc.querySelector('.mc-val').textContent=count; dc.style.display=''; }
+  }catch(e){
+    setStatus(e.message||'Detection failed','err');
+  }finally{
+    btn.disabled=false;
+    btn.textContent=t('detectBtn');
+  }
+}
+
+// ── Load registered farmers for a province ──────────────────────────────────
+async function loadRegionFarmers(province){
+  const section = document.getElementById('farmers-section');
+  const list    = document.getElementById('farmers-list');
+  if(!section||!list||!province) return;
+  list.innerHTML=`<div style="color:#5a7a9a;font-size:11px">Loading…</div>`;
+  try{
+    const r = await fetch(`${API}/officer/farmers?province=${encodeURIComponent(province)}`);
+    if(!r.ok) return;
+    const data    = await r.json();
+    const farmers = data.farmers||[];
+    const hdr     = section.querySelector('h4');
+    if(hdr) hdr.textContent = `${t('farmers')} (${farmers.length})`;
+    if(!farmers.length){
+      list.innerHTML=`<div style="color:#5a7a9a;font-size:11px">${t('noFarmers')}</div>`;
+      return;
+    }
+    const flag={en:'🇬🇧',fa:'🇦🇫',ps:'🇦🇫'};
+    list.innerHTML=farmers.map(f=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #163352">
+        <div style="display:flex;align-items:center;gap:7px">
+          <span style="font-size:15px">${flag[f.language]||'🌍'}</span>
+          <div>
+            <div style="font-size:12px;font-weight:600;color:#dde4f0">${f.phone}</div>
+            <div style="font-size:10px;color:#334a60">${t('joined')}: ${f.joined||'—'}</div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:13px;font-weight:700;color:#27ae60">${f.field_count}</div>
+          <div style="font-size:10px;color:#5a7a9a">${t('fields2')}</div>
+        </div>
+      </div>`).join('');
+  }catch(e){
+    list.innerHTML=`<div style="color:#e74c3c;font-size:11px">Could not load farmer data</div>`;
+  }
+}
+
 // ── Coordinate extraction ───────────────────────────────────────────────────
 function extractCoords(feat){
   const g = feat.geometry, coords = [];
@@ -648,6 +763,7 @@ async function analyseAdmin(){
     renderResults(data, country, province, district, village);
     setStatus('', 'ok');
     loadRegionFields(province);
+    loadRegionFarmers(province);
   } catch(e){
     setStatus(e.message || t('noData'), 'err');
   } finally {
@@ -767,6 +883,13 @@ function renderResults(d, country, province, district, village){
       <div class="mc-note">Click any plot on map for detail</div>
     </div>
 
+    <div class="mc" id="detect-count" style="display:none">
+      <div class="mc-lbl">${t('detectedFields')}</div>
+      <div class="mc-val">—</div>
+      <div class="mc-unit">${t('detectedUnit')}</div>
+      <div class="mc-note">🛰️ SNIC · Sentinel-2 · auto-mapped</div>
+    </div>
+
     ${sarHTML}
     ${modisHTML}
 
@@ -775,6 +898,13 @@ function renderResults(d, country, province, district, village){
     <div class="full" style="background:#0b1e0e;border-color:#1a4a1a">
       <h4 style="color:#27ae60">${t('recommend')}</h4>
       <div id="rec-text">${buildRec(d)}</div>
+    </div>
+
+    <div class="full" id="farmers-section" style="background:#04142a;border-color:#1e3a5f">
+      <h4 style="color:#3498db">${t('farmers')}</h4>
+      <div id="farmers-list" style="margin-top:6px">
+        <div style="color:#5a7a9a;font-size:11px">Loading…</div>
+      </div>
     </div>
   `;
 

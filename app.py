@@ -357,17 +357,41 @@ def get_regional_data(lat, lon):
         if lat_min<=lat<=lat_max and lon_min<=lon<=lon_max:
             return {"province":name,"ndvi":ndvi,"evi":evi,"savi":savi,
                     "mndwi":mndwi,"lswi":lswi,"rain":rain,"trend":trend,"source":"regional_db"}
-    ndvi  = round(max(0.08,min(0.45,0.06+lat*0.003+(lon-62)*0.002)),4)
-    evi   = round(ndvi*0.72,4); savi=round(ndvi*0.85,4)
-    rain  = max(80,min(480,int(lat*8)))
-    mndwi = round(max(-0.38,min(0.05,-0.38+rain*0.001)),4)
-    lswi  = round(mndwi+0.05,4)
-    return {"province":"Afghanistan","ndvi":ndvi,"evi":evi,"savi":savi,
-            "mndwi":mndwi,"lswi":lswi,"rain":rain,
-            "trend":{2019:round(ndvi+0.07,4),2020:round(ndvi+0.05,4),
-                     2021:round(ndvi+0.02,4),2022:round(ndvi-0.10,4),
-                     2023:round(ndvi-0.04,4),2024:ndvi,2025:round(ndvi+0.02,4)},
-            "source":"interpolated"}
+    return get_climate_zone_fallback(lat, lon)
+
+
+def get_climate_zone_fallback(lat, lon):
+    """Climate-zone based fallback for any global location when GEE is unavailable."""
+    alat = abs(lat)
+    # Tropical / equatorial
+    if alat < 10:
+        ndvi,evi,savi,mndwi,rain = 0.62,0.45,0.52,0.12,1800
+        zone = "tropical"
+    # Sub-tropical savanna / monsoon
+    elif alat < 20:
+        ndvi,evi,savi,mndwi,rain = 0.42,0.30,0.36,-0.05,820
+        zone = "subtropical"
+    # Arid / semi-arid (Sahara, Arabian Peninsula, Central Asia, Atacama)
+    elif alat < 32:
+        ndvi,evi,savi,mndwi,rain = 0.16,0.10,0.14,-0.38,140
+        zone = "arid"
+    # Mediterranean / semi-arid steppe
+    elif alat < 42:
+        ndvi,evi,savi,mndwi,rain = 0.34,0.24,0.29,-0.12,420
+        zone = "mediterranean"
+    # Temperate oceanic / continental
+    elif alat < 56:
+        ndvi,evi,savi,mndwi,rain = 0.46,0.33,0.39,0.04,660
+        zone = "temperate"
+    # Boreal / subarctic
+    else:
+        ndvi,evi,savi,mndwi,rain = 0.28,0.18,0.24,-0.06,380
+        zone = "boreal"
+    lswi = round(mndwi + 0.05, 4)
+    trend = {yr: round(ndvi + (0.02 if yr >= 2022 else 0.04) * (-1 if yr==2022 else 1), 4)
+             for yr in range(2019, 2026)}
+    return {"ndvi":ndvi,"evi":evi,"savi":savi,"mndwi":mndwi,"lswi":lswi,"rain":rain,
+            "trend":trend,"source":f"climate_zone_{zone}"}
 
 # ── Soil, Crop Calendar, Area calc — all unchanged from v6.0 ─────────────────
 AFGHAN_SOILS = {
@@ -1643,6 +1667,105 @@ def gee_analyse_officer(coords, year, clat, clon, scale=500):
     }
 
 
+@app.route("/officer/farmers", methods=["GET"])
+def officer_farmers():
+    """List registered farmers for a province with masked phone and field count."""
+    province = request.args.get("province", "")
+    if not sb_ok:
+        return jsonify({"farmers": [], "count": 0})
+    if not province:
+        return jsonify({"error": "province required"}), 400
+    try:
+        res = (sb.table("farmers")
+                 .select("id,phone,language,province,created_at")
+                 .eq("province", province)
+                 .order("created_at", desc=True)
+                 .execute())
+        farmers = res.data or []
+        result = []
+        for f in farmers:
+            phone = f.get("phone", "")
+            masked = (phone[:3] + "****" + phone[-3:]) if len(phone) > 6 else "****"
+            try:
+                fc = (sb.table("fields").select("id", count="exact")
+                        .eq("farmer_id", f["id"]).execute())
+                field_count = fc.count or 0
+            except:
+                field_count = 0
+            result.append({
+                "phone": masked, "language": f.get("language","en"),
+                "province": f.get("province",""), "field_count": field_count,
+                "joined": (f.get("created_at","") or "")[:10]
+            })
+        return jsonify({"farmers": result, "count": len(result)})
+    except Exception as e:
+        log.error(f"/officer/farmers: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/officer/detect-fields", methods=["POST","OPTIONS"])
+def officer_detect_fields():
+    """Use GEE SNIC segmentation to auto-detect agricultural field boundaries."""
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    if not gee_ok:
+        return jsonify({"error": "Satellite analysis not available"}), 503
+    try:
+        import ee
+        data    = request.get_json(force=True)
+        coords  = data.get("coords", [])
+        year    = int(data.get("year", datetime.now().year))
+        if len(coords) < 3:
+            return jsonify({"error": "Need ≥3 coordinate points"}), 400
+
+        poly     = ee.Geometry.Polygon([[[c[1], c[0]] for c in coords]])
+        area_km2 = calc_area_ha(coords) / 100.0
+        end_date = min(f"{year}-07-31", datetime.now().strftime("%Y-%m-%d"))
+
+        # Scale: finer for small areas, coarser for large ones
+        if area_km2 < 50:    seg_scale = 10
+        elif area_km2 < 200: seg_scale = 20
+        elif area_km2 < 800: seg_scale = 30
+        else:                 seg_scale = 50
+
+        s2 = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+              .filterBounds(poly).filterDate(f"{year}-04-01", end_date)
+              .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 20))
+              .limit(6).median().clip(poly))
+
+        ndvi = s2.normalizedDifference(["B8","B4"]).rename("ndvi")
+        # Agricultural mask: active vegetation
+        agri = ndvi.gt(0.12).And(ndvi.lt(0.90))
+
+        snic_size = max(4, seg_scale // 2)
+        snic = ee.Algorithms.Image.Segmentation.SNIC(
+            image=s2.select(["B2","B3","B4","B8","B11"]).addBands(ndvi),
+            size=snic_size, compactness=0.5, connectivity=8, neighborhoodSize=128
+        ).select(["ndvi_mean"]).rename("ndvi")
+
+        min_px = max(5, int(500  / (seg_scale ** 2)))   # ~500 m²  min
+        max_px =       int(5000000 / (seg_scale ** 2))  # ~500 ha max
+
+        fields = (snic.updateMask(agri)
+                  .reduceToVectors(
+                      geometry=poly, scale=seg_scale,
+                      geometryType="polygon", eightConnected=True,
+                      labelProperty="field", reducer=ee.Reducer.mean(),
+                      maxPixels=1e10, bestEffort=True, tileScale=8)
+                  .filter(ee.Filter.And(
+                      ee.Filter.gte("count", min_px),
+                      ee.Filter.lte("count", max_px)))
+                  .limit(800))
+
+        geojson = fields.getInfo()
+        count   = len(geojson.get("features", []))
+        log.info(f"detect-fields: {count} fields, scale={seg_scale}m, area={area_km2:.0f}km²")
+        return jsonify(geojson)
+    except Exception as e:
+        log.error(f"/officer/detect-fields: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/officer/fields", methods=["GET"])
 def officer_fields():
     """Return all farmer fields for a province with their latest satellite analysis."""
@@ -1753,9 +1876,9 @@ def officer_analyse():
             "year": year,
         })
 
-        # Farmer count from Supabase — Afghanistan only
+        # Farmer count from Supabase — works for any country
         farmer_count = None
-        if sb_ok and province and country.strip().lower() in ("afghanistan","افغانستان"):
+        if sb_ok and province:
             try:
                 r = sb.table("farmers").select("id", count="exact").eq("province", province).execute()
                 farmer_count = r.count
