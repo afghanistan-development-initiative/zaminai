@@ -205,6 +205,7 @@ body[dir=rtl] .ctrl{direction:rtl}
         <label class="lp-item"><input type="radio" name="lp-base" value="google"> 🌍 Google Satellite</label>
         <label class="lp-item"><input type="radio" name="lp-base" value="osm"> 🗺️ OpenStreetMap</label>
         <label class="lp-item"><input type="radio" name="lp-base" value="dark"> 🌑 Dark Map</label>
+        <label class="lp-item"><input type="radio" name="lp-base" value="terrain"> ⛰️ Terrain / Hillshade</label>
         <label class="lp-item"><input type="checkbox" id="lp-labels" checked> 🏷️ Labels overlay</label>
 
         <div class="lp-sep"></div>
@@ -221,8 +222,8 @@ body[dir=rtl] .ctrl{direction:rtl}
 
         <!-- Map Context -->
         <div class="lp-group-title">Map Context</div>
-        <label class="lp-item lp-off"><input type="checkbox" id="lp-terrain" disabled> ⛰️ Terrain / Hillshade</label>
-        <label class="lp-item lp-off"><input type="checkbox" id="lp-forest" disabled> 🌲 Forest</label>
+        <label class="lp-item lp-off" id="lp-terrain-row"><input type="checkbox" id="lp-terrain" disabled> ⛰️ Terrain (see Base Map)</label>
+        <label class="lp-item"><input type="checkbox" id="lp-forest"> 🌲 Forest / Dense Vegetation</label>
         <label class="lp-item"><input type="checkbox" id="lp-roads"> 🛣️ Roads</label>
         <label class="lp-item"><input type="checkbox" id="lp-buildings"> 🏘️ Settlements</label>
         <label class="lp-item"><input type="checkbox" id="lp-rivers"> 🌊 Rivers</label>
@@ -502,6 +503,10 @@ function _satLayerStyle(layerName, feat){
       const cc = feat.properties?.crop_class ?? 4;
       return {color:'#fff',weight:.7,fillColor:_cropColors[cc]||'#888',fillOpacity:.65};
     }
+    case 'forest': {
+      const col = ndviToColor(feat.properties?.mean ?? null);
+      return {color:'#fff',weight:.7,fillColor:'#1a7a40',fillOpacity:.65};
+    }
     default: return {color:'#fff',weight:.7,fillColor:'#888',fillOpacity:.55};
   }
 }
@@ -533,6 +538,11 @@ function _satLayerPopup(layerName, feat){
               <div class="pop-row"><span class="pop-k">Type</span><span class="pop-v">${lbl}</span></div>
               <div class="pop-row"><span class="pop-k">NDVI</span><span class="pop-v">${ndviStr}</span></div>
               <div class="mc-note">Rule-based estimate · verify in field</div>`;}
+    case 'forest':{
+      const ndviVal = feat.properties?.mean ?? null;
+      return `<div class="pop-title">🌲 Forest / Dense Vegetation</div>
+              <div class="pop-row"><span class="pop-k">NDVI</span><span class="pop-v">${ndviVal!==null?ndviVal.toFixed(3):'—'}</span></div>
+              <div class="mc-note">NDVI ≥ 0.45 year-round · Sentinel-2</div>`;}
     default: return `<div class="pop-title">${layerName}</div>`;
   }
 }
@@ -619,12 +629,17 @@ document.addEventListener('DOMContentLoaded', () => {
     'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
     {attribution:'&copy; OSM &copy; CARTO',maxZoom:18}
   );
+  // Step 4: Terrain / hillshade base layer (ESRI World Shaded Relief)
+  const terrainLayer = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}',
+    {attribution:'Tiles &copy; Esri &mdash; Source: Esri',maxZoom:13}
+  );
 
   esriSat.addTo(map);
   esriLabels.addTo(map);
 
   // ── Layer panel: base map switching ─────────────────────────────────
-  const _baseLayers = {esri:esriSat, google:googleSat, osm:osmLayer, dark:darkLayer};
+  const _baseLayers = {esri:esriSat, google:googleSat, osm:osmLayer, dark:darkLayer, terrain:terrainLayer};
   let   _activeBase = esriSat;
   document.querySelectorAll('input[name="lp-base"]').forEach(radio => {
     radio.addEventListener('change', function(){
@@ -640,8 +655,8 @@ document.addEventListener('DOMContentLoaded', () => {
     this.checked ? esriLabels.addTo(map) : map.removeLayer(esriLabels);
   });
 
-  // Enable + wire satellite layer checkboxes (Step 2)
-  ['ndvi','water','baresoil','croptype'].forEach(name => {
+  // Enable + wire satellite layer checkboxes (Steps 2 + 4)
+  ['ndvi','water','baresoil','croptype','forest'].forEach(name => {
     const cb = document.getElementById(`lp-${name}`);
     if(!cb) return;
     cb.disabled = false;

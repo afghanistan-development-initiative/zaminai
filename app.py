@@ -2077,7 +2077,7 @@ def officer_layer(layer_name):
         return jsonify({}), 200
     if not gee_ok:
         return jsonify({"error": "Satellite analysis not available"}), 503
-    if layer_name not in ("ndvi", "water", "baresoil", "croptype"):
+    if layer_name not in ("ndvi", "water", "baresoil", "croptype", "forest"):
         return jsonify({"error": f"Unknown layer: {layer_name}"}), 400
     try:
         import ee
@@ -2148,6 +2148,23 @@ def officer_layer(layer_name):
             label_img = (index.multiply(20).floor().int()
                          .updateMask(index.gt(0.0)))
             label_prop = "bsi_class"
+
+        elif layer_name == "forest":
+            # Forest / dense vegetation: NDVI > 0.45 year-round.
+            # Use the full date window (not just growing season) to catch
+            # evergreen forest that stays green all year.
+            s2_full = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+                       .filterBounds(poly)
+                       .filterDate(f"{year}-01-01", f"{year}-12-31")
+                       .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 80))
+                       .sort("CLOUDY_PIXEL_PERCENTAGE").limit(12)
+                       .map(_mask_s2).median().clip(poly))
+            ndvi_f = s2_full.normalizedDifference(["B8","B4"])
+            # Forest threshold: high NDVI (0.45+) — distinguishes forest from crops
+            index     = ndvi_f.rename("ndvi")
+            label_img = (index.multiply(20).floor().int()
+                         .updateMask(index.gte(0.45)))
+            label_prop = "forest_class"
 
         elif layer_name == "croptype":
             # Pixel-level crop classification using the same rules as detect_crop().
