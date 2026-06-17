@@ -1924,7 +1924,7 @@ def officer_detect_fields():
         # Grid approach: divide the region into regular cells, compute mean NDVI
         # per cell, return cells where NDVI indicates active crops.
         # No maxSize constraint. Works globally at any scale.
-        grid_scale = 100 if area_km2 < 50 else (200 if area_km2 < 300 else 500)
+        grid_scale = 50 if area_km2 < 20 else (100 if area_km2 < 150 else (200 if area_km2 < 600 else 500))
 
         clon_c   = sum(c[1] for c in coords) / len(coords)
         utm_zone = int((clon_c + 180) / 6) + 1
