@@ -745,28 +745,46 @@ async function detectFields(){
     if(!geojson) throw new Error('Detection timed out after 3 minutes. Try a smaller region.');
     const count   = geojson.features?.length || 0;
 
+    // Dynamic World land cover colours and labels
+    const DW_COL  = {0:'#2980b9',1:'#1a7a40',2:'#8bc34a',3:'#1abc9c',
+                     4:'#f39c12',5:'#95a5a6',6:'#e74c3c',7:'#a04000',8:'#ecf0f1'};
+    const DW_NAME = {0:'Water',1:'Forest / Trees',2:'Grassland',3:'Flooded Vegetation',
+                     4:'Cropland',5:'Shrub / Scrub',6:'Built-up / Urban',
+                     7:'Bare Ground / Desert',8:'Snow / Ice'};
+    const DW_ICON = {0:'💧',1:'🌲',2:'🌿',3:'🌊',4:'🌾',5:'🌱',6:'🏘️',7:'🏜️',8:'❄️'};
+
     detectLayer = L.geoJSON(geojson,{
       style: feat => {
-        const ndvi = feat.properties?.ndvi ?? feat.properties?.mean ?? null;
-        const col  = ndviToColor(ndvi);
-        return {color:'#ffffff', weight:1.0, fillColor:col, fillOpacity:0.52};
+        const lc   = feat.properties?.lc;
+        const ndvi = feat.properties?.mean ?? null;
+        // DW result: colour by land class (crops use NDVI health colour)
+        // NDVI-only fallback: colour by NDVI
+        const col = (lc !== undefined && lc !== null)
+          ? (lc === 4 ? ndviToColor(ndvi) : (DW_COL[lc] || '#888'))
+          : ndviToColor(ndvi);
+        return {color:'#ffffff', weight:0.8, fillColor:col, fillOpacity:0.55};
       },
       onEachFeature:(feat,layer)=>{
-        const ndvi   = feat.properties?.ndvi ?? feat.properties?.mean ?? null;
-        const col    = ndviToColor(ndvi);
-        const pxArea = feat.properties?.count ?? 0;
-        const badge  = ndvi===null?'':ndvi>=0.40
-          ?`<span class="pop-badge" style="background:#0b2a15;color:#27ae60">Good</span>`
-          :ndvi>=0.25?`<span class="pop-badge" style="background:#2a2000;color:#f39c12">Moderate</span>`
-          :`<span class="pop-badge" style="background:#2a0a0a;color:#e74c3c">Low</span>`;
+        const lc   = feat.properties?.lc;
+        const ndvi = feat.properties?.mean ?? null;
+        const col  = (lc !== undefined && lc !== null)
+          ? (lc === 4 ? ndviToColor(ndvi) : (DW_COL[lc] || '#888'))
+          : ndviToColor(ndvi);
+        const className = (lc !== undefined && lc !== null) ? DW_NAME[lc] : 'Vegetation';
+        const icon      = (lc !== undefined && lc !== null) ? DW_ICON[lc] : '🌿';
+        const ndviBadge = (lc === 4 || lc === undefined) && ndvi !== null
+          ? (ndvi>=0.40 ? `<span class="pop-badge" style="background:#0b2a15;color:#27ae60">Healthy</span>`
+            :ndvi>=0.25 ? `<span class="pop-badge" style="background:#2a2000;color:#f39c12">Moderate</span>`
+            :`<span class="pop-badge" style="background:#2a0a0a;color:#e74c3c">Stressed</span>`)
+          : '';
         layer.bindPopup(`
-          <div class="pop-title">🛰️ Satellite Field</div>
-          <div class="pop-row"><span class="pop-k">NDVI</span><span class="pop-v" style="color:${col}">${ndvi!==null?ndvi.toFixed(3):'—'}</span></div>
-          <div class="pop-row"><span class="pop-k">Pixels</span><span class="pop-v">${pxArea}</span></div>
-          ${badge}
-          <div class="mc-note" style="margin-top:5px">Auto-detected · not yet registered</div>
+          <div class="pop-title">${icon} ${className}</div>
+          ${ndvi!==null?`<div class="pop-row"><span class="pop-k">NDVI</span><span class="pop-v" style="color:${col}">${ndvi.toFixed(3)}</span></div>`:''}
+          ${ndviBadge}
+          <div class="mc-note" style="margin-top:5px">Dynamic World · Sentinel-2</div>
         `,{maxWidth:220});
-        layer.bindTooltip(`NDVI ${ndvi!==null?ndvi.toFixed(2):'—'}`,{sticky:true,className:'leaflet-tooltip-dark'});
+        layer.bindTooltip(`${icon} ${className}${ndvi!==null?' · NDVI '+ndvi.toFixed(2):''}`,
+          {sticky:true,className:'leaflet-tooltip-dark'});
       }
     }).addTo(map);
 
