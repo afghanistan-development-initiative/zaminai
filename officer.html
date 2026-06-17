@@ -725,7 +725,10 @@ async function detectFields(){
       body: JSON.stringify({coords, year:parseInt(year)})
     });
     if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.error||`HTTP ${r.status}`); }
-    const geojson = await r.json();
+    const text = await r.text();
+    if(!text || !text.trim()) throw new Error('Empty response — server may have timed out. Try a smaller region.');
+    let geojson;
+    try { geojson = JSON.parse(text); } catch(pe){ throw new Error('Invalid response from server. Try a smaller region.'); }
     if(geojson.error) throw new Error(geojson.error);
     const count   = geojson.features?.length || 0;
 
