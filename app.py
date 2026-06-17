@@ -29,7 +29,7 @@
 import os, json, math, logging, requests
 from datetime import datetime
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, Response
 from flask_cors import CORS
 
 load_dotenv()
@@ -1871,15 +1871,17 @@ def officer_farmers():
 def officer_detect_fields():
     """Auto-detect agricultural fields via NDVI connected-component analysis.
 
-    Replaces the previous SNIC approach, which silently returned 0 features
-    because SNIC's 'clusters' band is float — reduceToVectors requires an
-    integer label image.  connectedComponents() natively produces integer
-    labels and is more reliable globally.
+    Streams newline keep-alives every 5 s to prevent Render's 30-second
+    load-balancer idle timeout from dropping long GEE computations.
+    The final JSON body may be prefixed with whitespace; JSON.parse handles it.
     """
+    import threading, json as _json
+
     if request.method == "OPTIONS":
         return jsonify({}), 200
     if not gee_ok:
         return jsonify({"error": "Satellite analysis not available"}), 503
+
     try:
         import ee
         data    = request.get_json(force=True)
@@ -1892,73 +1894,88 @@ def officer_detect_fields():
         area_km2 = calc_area_ha(coords) / 100.0
         today    = datetime.now().strftime("%Y-%m-%d")
 
-        # ── Hemisphere-aware growing season ──────────────────────────────────
-        # April-July assumes Northern Hemisphere. Southern Hemisphere crops
-        # peak Oct-Mar (Brazil, Australia, Argentina, South Africa etc.).
+        # Hemisphere-aware growing season
         clat = sum(c[0] for c in coords) / len(coords)
         if clat >= 10:
-            # Northern hemisphere — spring/summer
-            s_start = f"{year}-04-01"
-            s_end   = min(f"{year}-09-30", today)
+            s_start = f"{year}-04-01";  s_end = min(f"{year}-09-30", today)
         elif clat <= -10:
-            # Southern hemisphere — straddles year boundary
-            s_start = f"{year-1}-10-01"
-            s_end   = min(f"{year}-04-30", today)
+            s_start = f"{year-1}-10-01"; s_end = min(f"{year}-04-30", today)
         else:
-            # Equatorial — crops year-round
-            s_start = f"{year}-01-01"
-            s_end   = min(f"{year}-12-31", today)
-        # Safety: if entire window is in the future, shift back one year
+            s_start = f"{year}-01-01";  s_end = min(f"{year}-12-31", today)
         if s_start > today:
-            s_start = f"{year-1}{s_start[4:]}"
-            s_end   = f"{year-1}{s_end[4:]}"
+            s_start = f"{year-1}{s_start[4:]}"; s_end = f"{year-1}{s_end[4:]}"
 
-        # Resolution: coarser for larger areas to stay under GEE's 80 MiB tile limit.
-        # focal_min/connectedComponents run at native S2 10m without reproject,
-        # so we force the working scale explicitly (see ndvi.reproject below).
+        # Resolution: coarser for larger areas
         if area_km2 < 50:    seg_scale = 20
         elif area_km2 < 300: seg_scale = 30
         else:                 seg_scale = 50
 
+        # Build the GEE computation graph (lazy — nothing runs yet)
         s2 = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
               .filterBounds(poly)
               .filterDate(s_start, s_end)
               .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 35))
-              .sort("CLOUDY_PIXEL_PERCENTAGE").limit(8).median().clip(poly))
+              .sort("CLOUDY_PIXEL_PERCENTAGE").limit(6).median().clip(poly))
 
-        # Force computation at seg_scale — prevents native 10 m S2 resolution
-        # blowing the 80 MiB tile limit on regions larger than ~50 km².
-        proj = s2.select("B4").projection()
         ndvi = (s2.normalizedDifference(["B8","B4"]).rename("ndvi")
-                .reproject(proj.atScale(seg_scale)))
+                .reproject(crs='EPSG:4326', scale=seg_scale))
 
-        # Crop mask: active vegetation, not dense forest
         crop_mask = ndvi.gt(0.20).And(ndvi.lt(0.85))
-
-        # Connected components at working scale
         components = (crop_mask.selfMask()
                       .connectedComponents(
                           connectedness=ee.Kernel.plus(1), maxSize=1024))
 
-        # Size filters: 0.5 ha min, 400 ha max
         min_px = max(5, int(5000  / (seg_scale ** 2)))
         max_px =       int(4000000 / (seg_scale ** 2))
 
-        geojson = (components.select("labels").toInt()
-                   .addBands(ndvi)
-                   .reduceToVectors(
-                       geometry=poly, scale=seg_scale,
-                       geometryType="polygon", eightConnected=False,
-                       labelProperty="field", reducer=ee.Reducer.mean(),
-                       maxPixels=1e10, bestEffort=True, tileScale=16)
-                   .filter(ee.Filter.And(
-                       ee.Filter.gte("count", min_px),
-                       ee.Filter.lte("count", max_px)))
-                   .limit(300)
-                   .getInfo())
-        count   = len(geojson.get("features", []))
-        log.info(f"detect-fields: {count} fields, scale={seg_scale}m, area={area_km2:.0f}km²")
-        return jsonify(geojson)
+        fc = (components.select("labels").toInt()
+              .addBands(ndvi)
+              .reduceToVectors(
+                  geometry=poly, scale=seg_scale,
+                  geometryType="polygon", eightConnected=False,
+                  labelProperty="field", reducer=ee.Reducer.mean(),
+                  maxPixels=1e10, bestEffort=True, tileScale=16)
+              .filter(ee.Filter.And(
+                  ee.Filter.gte("count", min_px),
+                  ee.Filter.lte("count", max_px)))
+              .limit(300))
+
+        # Run getInfo() in a background thread and stream keep-alive newlines
+        # every 5 s so Render's 30-second load-balancer timeout doesn't drop us.
+        result_box = [None]; error_box  = [None]
+
+        def gee_worker():
+            try:
+                result_box[0] = fc.getInfo()
+                count = len(result_box[0].get("features", []))
+                log.info(f"detect-fields: {count} fields, scale={seg_scale}m, area={area_km2:.0f}km²")
+            except Exception as ex:
+                error_box[0] = str(ex)
+                log.error(f"detect-fields GEE error: {ex}")
+
+        t = threading.Thread(target=gee_worker, daemon=True)
+        t.start()
+
+        def generate():
+            while t.is_alive():
+                t.join(timeout=5)
+                if t.is_alive():
+                    yield '\n'          # keep-alive: resets Render's idle timer
+            if error_box[0]:
+                yield _json.dumps({"error": error_box[0]})
+            else:
+                yield _json.dumps(result_box[0] or {"type":"FeatureCollection","features":[]})
+
+        return Response(
+            generate(),
+            mimetype='application/json',
+            headers={
+                'Access-Control-Allow-Origin':  '*',
+                'Access-Control-Allow-Headers': 'Content-Type',
+                'X-Accel-Buffering':            'no',   # disable nginx buffering
+            }
+        )
+
     except Exception as e:
         log.error(f"/officer/detect-fields: {e}")
         return jsonify({"error": str(e)}), 500

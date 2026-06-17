@@ -726,6 +726,7 @@ async function detectFields(){
     });
     if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.error||`HTTP ${r.status}`); }
     const geojson = await r.json();
+    if(geojson.error) throw new Error(geojson.error);
     const count   = geojson.features?.length || 0;
 
     detectLayer = L.geoJSON(geojson,{
