@@ -1659,7 +1659,7 @@ def gee_analyse_officer(coords, year, clat, clon, scale=500):
     sar_data = None
     try:
         s1 = (ee.ImageCollection("COPERNICUS/S1_GRD")
-              .filterBounds(poly).filterDate(f"{year}-04-01", end_date)
+              .filterBounds(poly).filterDate(s_start, s_end)
               .filter(ee.Filter.eq("instrumentMode", "IW"))
               .filter(ee.Filter.listContains("transmitterReceiverPolarisation", "VV"))
               .filter(ee.Filter.listContains("transmitterReceiverPolarisation", "VH"))
@@ -1717,7 +1717,7 @@ def gee_analyse_officer(coords, year, clat, clon, scale=500):
         lc_scale = 10 if area_km2 < 100 else 30 if area_km2 < 1000 else 100 if area_km2 < 10000 else 300
         dw_mode = (ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1")
                    .filterBounds(poly)
-                   .filterDate(f"{year}-04-01", end_date)
+                   .filterDate(s_start, s_end)
                    .select("label")
                    .mode()
                    .clip(poly))
@@ -1820,7 +1820,7 @@ def gee_analyse_officer(coords, year, clat, clon, scale=500):
         "water_bodies": water_bodies,
         "ndvi_monthly": ndvi_monthly,
         "lat":round(clat,5),"lon":round(clon,5),
-        "source":"gee_live","image_date":end_date,"analysis_scale_m":scale
+        "source":"gee_live","image_date":s_end,"analysis_scale_m":scale
     }
 
 
