@@ -1904,9 +1904,14 @@ def officer_detect_fields():
         if s_start > today:
             s_start = f"{year-1}{s_start[4:]}"; s_end = f"{year-1}{s_end[4:]}"
 
-        if area_km2 < 50:    seg_scale = 20
-        elif area_km2 < 300: seg_scale = 30
-        else:                 seg_scale = 50
+        # Scale: coarser for larger areas so full coverage fits in one response.
+        # Target: ~500-2000 polygons for the whole district/province.
+        # DW has 9 classes → naturally few large polygons at any scale.
+        # Satellite index layers have 15+ classes → need coarser scale.
+        if area_km2 < 50:      seg_scale = 20
+        elif area_km2 < 300:   seg_scale = 30
+        elif area_km2 < 1000:  seg_scale = 50
+        else:                   seg_scale = 100
 
         # Per-pixel QA60 cloud masking — keeps valid pixels even from cloudy images.
         # Critical for Netherlands, UK, tropical monsoon regions where no image
@@ -1949,8 +1954,9 @@ def officer_detect_fields():
                       geometryType="polygon", eightConnected=True,
                       reducer=ee.Reducer.mean(),
                       labelProperty="lc",
-                      maxPixels=1e10, bestEffort=True, tileScale=4)
-                  .limit(500))
+                      maxPixels=1e10, bestEffort=True, tileScale=4))
+            # No .limit() — DW has only 9 classes, so full-district coverage
+            # produces at most a few hundred polygons naturally.
         else:
             # Pre-DW fallback: NDVI zones (vegetation only)
             ndvi_q = (ndvi.multiply(20).floor().int()
@@ -1962,8 +1968,7 @@ def officer_detect_fields():
                       reducer=ee.Reducer.mean(),
                       labelProperty="field",
                       maxPixels=1e10, bestEffort=True, tileScale=4)
-                  .filter(ee.Filter.gte("mean", 0.10))
-                  .limit(500))
+                  .filter(ee.Filter.gte("mean", 0.10)))
 
         task_id = str(uuid.uuid4())
         _detect_tasks[task_id] = {"status": "pending"}
@@ -2102,7 +2107,10 @@ def officer_layer(layer_name):
         if s_start > today:
             s_start = f"{year-1}{s_start[4:]}"; s_end = f"{year-1}{s_end[4:]}"
 
-        seg_scale = 20 if area_km2 < 50 else (30 if area_km2 < 300 else 50)
+        if area_km2 < 50:     seg_scale = 20
+        elif area_km2 < 300:  seg_scale = 30
+        elif area_km2 < 1000: seg_scale = 50
+        else:                  seg_scale = 100
 
         def _mask_s2(img):
             qa = img.select("QA60")
@@ -2201,6 +2209,9 @@ def officer_layer(layer_name):
 
         def _worker():
             try:
+                # 3000 limit: enough to cover any district/province fully.
+                # Scale is already adaptive (100m for large areas) so total
+                # polygon count stays manageable at this limit.
                 fc = (label_with_ndvi
                       .reduceToVectors(
                           geometry=poly, scale=seg_scale,
@@ -2208,7 +2219,7 @@ def officer_layer(layer_name):
                           reducer=ee.Reducer.mean(),
                           labelProperty=label_prop,
                           maxPixels=1e10, bestEffort=True, tileScale=4)
-                      .limit(500))
+                      .limit(3000))
                 result = fc.getInfo()
                 count  = len(result.get("features", []))
                 log.info(f"layer/{layer_name} task {task_id[:8]}: {count} polygons")
