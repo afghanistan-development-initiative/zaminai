@@ -1574,19 +1574,38 @@ def gee_analyse_officer(coords, year, clat, clon, scale=500):
           .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 20))
           .sort("CLOUDY_PIXEL_PERCENTAGE").limit(5).median().clip(poly))
 
-    def s2m(img, band):
-        v = img.reduceRegion(ee.Reducer.mean(), poly, scale, maxPixels=1e9).get(band).getInfo()
-        return round(float(v), 4) if v is not None else None
+    # ── All S2 indices in one reduceRegion call (was 4 separate getInfo calls) ──
+    indices = (s2.normalizedDifference(["B8","B4"]).rename("ndvi")
+               .addBands(s2.expression(
+                   "2.5*((NIR-RED)/(NIR+6*RED-7.5*BLUE+1))",
+                   {"NIR":s2.select("B8"),"RED":s2.select("B4"),"BLUE":s2.select("B2")}
+               ).rename("evi"))
+               .addBands(s2.expression(
+                   "((NIR-RED)/(NIR+RED+0.5))*1.5",
+                   {"NIR":s2.select("B8"),"RED":s2.select("B4")}
+               ).rename("savi"))
+               .addBands(s2.normalizedDifference(["B3","B11"]).rename("mndwi")))
 
-    ndvi  = s2m(s2.normalizedDifference(["B8","B4"]).rename("nd"), "nd")
-    evi   = s2m(s2.expression("2.5*((NIR-RED)/(NIR+6*RED-7.5*BLUE+1))",
-                {"NIR":s2.select("B8"),"RED":s2.select("B4"),"BLUE":s2.select("B2")}).rename("evi"), "evi")
-    savi  = s2m(s2.expression("((NIR-RED)/(NIR+RED+0.5))*1.5",
-                {"NIR":s2.select("B8"),"RED":s2.select("B4")}).rename("savi"), "savi")
-    mndwi = s2m(s2.normalizedDifference(["B3","B11"]).rename("nd"), "nd")
-    rain  = s2m(ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY").filterBounds(poly)
-                .filterDate(f"{year}-01-01", f"{year}-12-31")
-                .select("precipitation").sum().clip(poly), "precipitation")
+    idx_stats = indices.reduceRegion(
+        ee.Reducer.mean(), poly, scale, maxPixels=1e9
+    ).getInfo()
+    def _f(k): v = idx_stats.get(k); return round(float(v), 4) if v is not None else None
+    ndvi  = _f("ndvi")
+    evi   = _f("evi")
+    savi  = _f("savi")
+    mndwi = _f("mndwi")
+
+    # ── CHIRPS rain — separate collection, one call ──────────────────────────
+    rain = None
+    try:
+        rv = (ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY").filterBounds(poly)
+              .filterDate(f"{year}-01-01", f"{year}-12-31")
+              .select("precipitation").sum().clip(poly)
+              .reduceRegion(ee.Reducer.mean(), poly, scale, maxPixels=1e9)
+              .get("precipitation").getInfo())
+        rain = round(float(rv), 1) if rv is not None else None
+    except Exception as e:
+        log.warning(f"Officer CHIRPS failed: {e}")
 
     # For very large polygons sample every other year to stay within timeout budget
     trend_step = 2 if scale >= 2000 else 1
@@ -1807,19 +1826,26 @@ def officer_farmers():
                  .order("created_at", desc=True)
                  .execute())
         farmers = res.data or []
+        # Batch field counts — one query instead of one per farmer
+        farmer_ids = [f["id"] for f in farmers]
+        field_counts = {}
+        if farmer_ids:
+            try:
+                fc_res = (sb.table("fields").select("farmer_id")
+                            .in_("farmer_id", farmer_ids).execute())
+                for row in (fc_res.data or []):
+                    fid = row["farmer_id"]
+                    field_counts[fid] = field_counts.get(fid, 0) + 1
+            except Exception as e:
+                log.warning(f"Officer batch field count failed: {e}")
         result = []
         for f in farmers:
             phone = f.get("phone", "")
             masked = (phone[:3] + "****" + phone[-3:]) if len(phone) > 6 else "****"
-            try:
-                fc = (sb.table("fields").select("id", count="exact")
-                        .eq("farmer_id", f["id"]).execute())
-                field_count = fc.count or 0
-            except:
-                field_count = 0
             result.append({
                 "phone": masked, "language": f.get("language","en"),
-                "province": f.get("province",""), "field_count": field_count,
+                "province": f.get("province",""),
+                "field_count": field_counts.get(f["id"], 0),
                 "joined": (f.get("created_at","") or "")[:10]
             })
         return jsonify({"farmers": result, "count": len(result)})
