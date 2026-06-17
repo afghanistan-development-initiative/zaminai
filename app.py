@@ -1914,42 +1914,43 @@ def officer_detect_fields():
               .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 35))
               .sort("CLOUDY_PIXEL_PERCENTAGE").limit(6).median().clip(poly))
 
-        ndvi = s2.normalizedDifference(["B8","B4"]).rename("ndvi")
-
-        # ── Grid-based crop detection ─────────────────────────────────────────
-        # connectedComponents(maxSize=1024) is limited to 1024 pixels max patch.
-        # Dense agricultural landscapes (Punjab plains, Rift Valley) have
-        # continuous cropland spanning 1000+ ha — all cut → 0 results.
+        # ── SNIC superpixel segmentation ──────────────────────────────────────
+        # connectedComponents(maxSize=1024) cuts large connected patches → 0 results
+        # in dense agricultural landscapes.
+        # Grid approaches fail because reduceToVectors casts int64 labels to int32.
         #
-        # Grid approach: divide the region into regular cells, compute mean NDVI
-        # per cell, return cells where NDVI indicates active crops.
-        # No maxSize constraint. Works globally at any scale.
-        grid_scale = 50 if area_km2 < 20 else (100 if area_km2 < 150 else (200 if area_km2 < 600 else 500))
-
+        # SNIC creates superpixels with sequential small integers as cluster IDs
+        # — no maxSize limit, no int overflow. The original SNIC approach failed
+        # because clusters band is float; .toInt() fixes that.
+        # Reproject S2 to working scale first so SNIC runs at seg_scale metres.
         clon_c   = sum(c[1] for c in coords) / len(coords)
         utm_zone = int((clon_c + 180) / 6) + 1
         utm_epsg = f"EPSG:{32600 + utm_zone}" if clat >= 0 else f"EPSG:{32700 + utm_zone}"
 
-        ndvi_g  = ndvi.reproject(crs=utm_epsg, scale=grid_scale)
-        crop_g  = ndvi_g.gt(0.15).And(ndvi_g.lt(0.90))
+        s2_proj  = s2.reproject(crs=utm_epsg, scale=seg_scale)
+        ndvi     = s2_proj.normalizedDifference(["B8","B4"]).rename("ndvi")
+        crop_mask = ndvi.gt(0.15).And(ndvi.lt(0.90))
 
-        # Unique integer ID per grid cell from pixel coordinates
-        proj_g    = ee.Projection(utm_epsg).atScale(grid_scale)
-        px_coords = ee.Image.pixelCoordinates(proj_g)
-        # int64 required — multiply(1000000) overflows int32 for large UTM coordinates
-        cell_id   = (px_coords.select("x").divide(grid_scale).floor().int64()
-                     .multiply(1000000)
-                     .add(px_coords.select("y").divide(grid_scale).floor().int64()))
+        snic_size = max(3, seg_scale // 20)  # superpixel size in pixels
+        snic_out  = ee.Algorithms.Image.Segmentation.SNIC(
+            image=s2_proj.select(["B2","B3","B4","B8","B11"]).addBands(ndvi),
+            size=snic_size, compactness=0.5, connectivity=8, neighborhoodSize=64
+        )
+        clusters = snic_out.select("clusters").toInt()  # float→int fixes original SNIC bug
 
-        fc = (cell_id.updateMask(crop_g)
-              .addBands(ndvi_g.rename("ndvi"))
+        min_px = max(2, int(2000  / (seg_scale ** 2)))
+        max_px =       int(4000000 / (seg_scale ** 2))
+
+        fc = (clusters.updateMask(crop_mask)
+              .addBands(ndvi)
               .reduceToVectors(
-                  geometry=poly, scale=grid_scale,
-                  geometryType="polygon", eightConnected=False,
-                  reducer=ee.Reducer.mean(),
-                  labelProperty="cell",
+                  geometry=poly, scale=seg_scale,
+                  geometryType="polygon", eightConnected=True,
+                  labelProperty="field", reducer=ee.Reducer.mean(),
                   maxPixels=1e10, bestEffort=True, tileScale=4)
-              .filter(ee.Filter.gte("mean", 0.15))
+              .filter(ee.Filter.And(
+                  ee.Filter.gte("count", min_px),
+                  ee.Filter.lte("count", max_px)))
               .limit(500))
 
         task_id = str(uuid.uuid4())
