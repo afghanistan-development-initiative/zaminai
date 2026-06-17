@@ -1916,6 +1916,17 @@ def officer_detect_fields():
 
         ndvi = s2.normalizedDifference(["B8","B4"]).rename("ndvi")
 
+        # Reproject to UTM at working scale BEFORE connectedComponents.
+        # Without this, connectedComponents runs at S2 native 10 m:
+        # maxSize=1024 → max patch = 1024×100 m² = 10.24 ha, which cuts all
+        # large continuous cropland (e.g. Punjab plains) → 0 detected fields.
+        # At 50 m: maxSize=1024 → 256 ha, which covers realistic farm patches.
+        # UTM uses metres as native units, avoiding EPSG:4326 degree ambiguity.
+        clon_c = sum(c[1] for c in coords) / len(coords)
+        utm_zone = int((clon_c + 180) / 6) + 1
+        utm_epsg = f"EPSG:{32600 + utm_zone}" if clat >= 0 else f"EPSG:{32700 + utm_zone}"
+        ndvi = ndvi.reproject(crs=utm_epsg, scale=seg_scale)
+
         crop_mask = ndvi.gt(0.15).And(ndvi.lt(0.90))
         components = (crop_mask.selfMask()
                       .connectedComponents(
