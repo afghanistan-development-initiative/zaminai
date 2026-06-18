@@ -106,8 +106,9 @@ def handle_api_request():
         # Sentinel-2
         s2 = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
               .filterBounds(region)
-              .filterDate(f"{year}-04-01", f"{year}-08-31")
-              .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 15))
+              .filterDate(f"{year}-01-01", f"{year}-12-31")
+              .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 35))
+              .sort("CLOUDY_PIXEL_PERCENTAGE").limit(10)
               .median().clip(region))
         
         ndvi  = s2.normalizedDifference(["B8","B4"]).rename("NDVI")
@@ -226,11 +227,13 @@ def analyze_field(geometry_coords, year=2024):
     try:
         region = ee.Geometry.Polygon([geometry_coords])
 
-        # Sentinel-2 growing season
+        # Sentinel-2 — full year with lenient cloud filter so cloudy regions
+        # (Europe, SE Asia) still produce a valid composite
         s2 = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
               .filterBounds(region)
-              .filterDate(f"{year}-05-01", f"{year}-07-31")
-              .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 15))
+              .filterDate(f"{year}-01-01", f"{year}-12-31")
+              .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 35))
+              .sort("CLOUDY_PIXEL_PERCENTAGE").limit(10)
               .median().clip(region))
 
         ndvi  = s2.normalizedDifference(["B8","B4"]).rename("NDVI")
@@ -259,12 +262,14 @@ def analyze_field(geometry_coords, year=2024):
 
         # NDVI for multiple years for trend
         ndvi_trend = {}
-        for yr in [2019, 2020, 2021, 2022, 2023, 2024]:
+        cur_yr = dt.datetime.now().year
+        for yr in range(2019, cur_yr + 1):
             try:
                 s2_yr = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
                          .filterBounds(region)
-                         .filterDate(f"{yr}-05-01", f"{yr}-07-31")
-                         .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 15))
+                         .filterDate(f"{yr}-01-01", f"{yr}-12-31")
+                         .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 35))
+                         .sort("CLOUDY_PIXEL_PERCENTAGE").limit(8)
                          .median().clip(region))
                 ndvi_yr = s2_yr.normalizedDifference(["B8","B4"])
                 val = ndvi_yr.reduceRegion(

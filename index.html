@@ -949,6 +949,19 @@ function calcFarm(){
 }
 updLand();
 
+// Apply live GEE result to fieldData — shared by sync and async paths
+function _applyLiveData(d){
+  fieldData.ndvi=d.ndvi; fieldData.mndwi=d.mndwi||d.water; fieldData.rain=d.rain;
+  fieldData.trend=d.trend||d.ndvi_trend; fieldData.evi=d.evi||null;
+  fieldData.savi=d.savi||null; fieldData.lswi=d.lswi||null;
+  fieldData.crops=d.crops||[]; fieldData.season=d.season||[];
+  fieldData.monthly_rain=d.monthly_rain||null; fieldData.source=d.source||'gee_live';
+  fieldData.soil=d.soil||null; fieldData.ndre=d.ndre||null;
+  fieldData.gndvi=d.gndvi||null; fieldData.vci=d.vci||null;
+  fieldData.ndwi=d.ndwi||null; fieldData.ndmi=d.ndmi||null;
+  fieldData.drought=d.drought_index||null;
+}
+
 // ── APP STATE ─────────────────────────────────────────────────────────────────
 let mapInited=false,appMap=null,pts=[],polyLayer=null,ptMarkers=[],fieldData=null,selSize=0.5,appLang='en',isListening=false;
 let farmerId=null,farmerPhone=null,savedFields=[];
@@ -1457,20 +1470,39 @@ else console.error('Report panel not found');
   }
 
   // Call API
-  fetch(API+'/analyse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({coords:pts.map(p=>[p[0],p[1]]),year:new Date().getFullYear(),province:fieldData.prov||'Afghanistan',farmer_id:farmerId,field_id:fieldData.field_id,label:fieldData.prov||'Field'})})
-    .then(r=>r.json()).then(d=>{
+  // Async satellite analysis — poll until GEE result arrives
+  // Regional data already shown immediately; live data updates report when ready
+  (async ()=>{
+    try{
+      const r = await fetch(API+'/analyse',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({coords:pts.map(p=>[p[0],p[1]]),year:new Date().getFullYear(),
+          province:fieldData.prov||'Afghanistan',farmer_id:farmerId,field_id:fieldData.field_id,label:fieldData.prov||'Field'})});
+      const start = await r.json();
       clearTimeout(_warmupTimer);
-      if(d.status==='success'&&d.ndvi){
-        fieldData.ndvi=d.ndvi;fieldData.mndwi=d.mndwi||d.water;fieldData.rain=d.rain||rain;
-        fieldData.trend=d.trend||d.ndvi_trend||trend;fieldData.evi=d.evi||null;fieldData.savi=d.savi||null;
-        fieldData.lswi=d.lswi||null;fieldData.crops=d.crops||[];fieldData.season=d.season||[];
-        fieldData.monthly_rain=d.monthly_rain||null;fieldData.source=d.source||'regional';
-        fieldData.soil=d.soil||null;fieldData.ndre=d.ndre||null;fieldData.gndvi=d.gndvi||null;
-        fieldData.vci=d.vci||null;fieldData.ndwi=d.ndwi||null;fieldData.ndmi=d.ndmi||null;
-        fieldData.drought=d.drought_index||null;
-        renderReport();
+      if(start.error) return;
+
+      // Legacy sync response (no task_id)
+      if(!start.task_id){
+        if(start.status==='success'&&start.ndvi){ _applyLiveData(start); renderReport(); }
+        return;
       }
-    }).catch(()=>{});
+
+      // Poll for async result (up to 3 min)
+      for(let i=0;i<36;i++){
+        await new Promise(res=>setTimeout(res,5000));
+        const poll = await fetch(`${API}/analyse-result/${start.task_id}`);
+        const pd   = await poll.json();
+        if(pd.status==='done'){
+          if(pd.data?.status==='success'&&pd.data?.ndvi){
+            _applyLiveData(pd.data); renderReport();
+            notify('🛰️ Live satellite data loaded');
+          }
+          break;
+        }
+        if(pd.status==='error') break;
+      }
+    }catch(e){}
+  })();
   renderReport();
   document.getElementById('rp-info').textContent=aJ+' jereb · '+aHa+' ha · '+new Date().getFullYear();
   btn.innerHTML='🛰️ '+(appLang==='fa'?'تحلیل دوباره':appLang==='ps'?'بیا تحلیل':'Re-analyse');btn.disabled=false;

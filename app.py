@@ -1271,66 +1271,103 @@ def alerts_daily():
 
 # ── ANALYSIS ROUTE (unchanged logic, added db save) ───────────────────────────
 
+# Async task store for farmer field analysis (same pattern as officer/analyse)
+_farmer_analyse_tasks = {}
+
 @app.route("/analyse", methods=["POST","OPTIONS"])
 def analyse():
+    """Async farmer field analysis. Returns {task_id} immediately;
+    poll GET /analyse-result/<task_id> for the satellite result.
+    Regional fallback is instant — live GEE runs in background.
+    """
     if request.method=="OPTIONS": return jsonify({}),200
     try:
         data      = request.get_json(force=True)
         coords    = data.get("coords",[])
         year      = int(data.get("year",datetime.now().year))
         label     = data.get("label","Field")
-        farmer_id = data.get("farmer_id")   # optional — saves to DB if provided
-        field_id  = data.get("field_id")    # optional
+        farmer_id = data.get("farmer_id")
+        field_id  = data.get("field_id")
         if len(coords)<3:
             return jsonify({"error":"Need ≥3 coordinate points"}),400
+
         lats=[c[0] for c in coords]; lons=[c[1] for c in coords]
         clat=sum(lats)/len(lats); clon=sum(lons)/len(lons)
         area_ha=calc_area_ha(coords); area_jereb=round(area_ha*5,1)
         month=datetime.now().month
-        if gee_ok:
+        task_id = str(uuid.uuid4())
+        _farmer_analyse_tasks[task_id] = {"status":"pending"}
+
+        def _worker():
             try:
-                result=gee_analyse(coords,year,clat,clon)
-                reg=get_regional_data(clat,clon)
-                result.update({"label":label,"area_ha":area_ha,"area_jereb":area_jereb,
-                               "status":"success","province":reg["province"]})
-                result["crops"]=detect_crop(result["ndvi"],result["evi"],result["savi"],
-                    result["mndwi"],result["lswi"],month,reg["province"])
-                result["season"]=get_current_season_advice(reg["province"],result["ndvi"],result["mndwi"])
-                result["monthly_rain"]=get_monthly_rain(result["rain"] or reg["rain"],reg["province"])
-                result["soil"]=get_soil_data(clat,clon,reg["province"])
-                if result.get("trend"):
-                    tv=[v for v in result["trend"].values() if v]
-                    if tv:
-                        h_min=min(tv); h_max=max(tv); cur=result["ndvi"] or 0
-                        result["vci"]=round((cur-h_min)/(h_max-h_min+0.001)*100,1) if h_max>h_min else None
-                # Save to database if farmer_id provided
+                result = {}
+                if gee_ok:
+                    try:
+                        result = gee_analyse(coords, year, clat, clon)
+                        reg = get_regional_data(clat, clon)
+                        result.update({"label":label,"area_ha":area_ha,"area_jereb":area_jereb,
+                                       "status":"success","province":reg["province"]})
+                        result["crops"] = detect_crop(result["ndvi"],result["evi"],result["savi"],
+                            result["mndwi"],result["lswi"],month,reg["province"])
+                        result["season"] = get_current_season_advice(reg["province"],result["ndvi"],result["mndwi"])
+                        result["monthly_rain"] = get_monthly_rain(result["rain"] or reg["rain"],reg["province"])
+                        result["soil"] = get_soil_data(clat,clon,reg["province"])
+                        if result.get("trend"):
+                            tv=[v for v in result["trend"].values() if v]
+                            if tv:
+                                h_min=min(tv); h_max=max(tv); cur=result["ndvi"] or 0
+                                result["vci"] = round((cur-h_min)/(h_max-h_min+0.001)*100,1) if h_max>h_min else None
+                        if farmer_id and field_id:
+                            db_save_analysis(field_id, farmer_id, result)
+                        _farmer_analyse_tasks[task_id] = {"status":"done","data":result}
+                        return
+                    except Exception as e:
+                        log.error(f"GEE failed in /analyse worker: {e}")
+
+                # Regional fallback
+                reg = get_regional_data(clat, clon)
+                result = {
+                    "label":label,"status":"success","source":reg["source"],
+                    "province":reg["province"],"ndvi":reg["ndvi"],"evi":reg["evi"],
+                    "savi":reg["savi"],"mndwi":reg["mndwi"],"water":reg["mndwi"],
+                    "lswi":reg["lswi"],"rain":reg["rain"],"area_ha":area_ha,
+                    "area_jereb":area_jereb,"trend":reg["trend"],"ndvi_trend":reg["trend"],
+                    "year":year,"lat":round(clat,5),"lon":round(clon,5),
+                    "latest_date":f"{year}-05-15",
+                    "crops":detect_crop(reg["ndvi"],reg["evi"],reg["savi"],reg["mndwi"],reg["lswi"],month,reg["province"]),
+                    "season":get_current_season_advice(reg["province"],reg["ndvi"],reg["mndwi"]),
+                    "monthly_rain":get_monthly_rain(reg["rain"],reg["province"]),
+                    "soil":get_soil_data(clat,clon,reg["province"]),
+                    "ndre":round(reg["ndvi"]*0.75,4),"gndvi":round(reg["ndvi"]*0.88,4),
+                    "ndmi":round(reg["mndwi"]+0.08,4),"ndwi":round(reg["mndwi"]+0.05,4),
+                    "vci":None,"drought_index":round(reg["mndwi"]-reg["ndvi"],4),
+                }
                 if farmer_id and field_id:
-                    db_save_analysis(field_id,farmer_id,result)
-                return jsonify(result)
-            except Exception as e:
-                log.error(f"GEE failed: {e}")
-        reg=get_regional_data(clat,clon)
-        result={
-            "label":label,"status":"success","source":reg["source"],
-            "province":reg["province"],"ndvi":reg["ndvi"],"evi":reg["evi"],
-            "savi":reg["savi"],"mndwi":reg["mndwi"],"water":reg["mndwi"],
-            "lswi":reg["lswi"],"rain":reg["rain"],"area_ha":area_ha,
-            "area_jereb":area_jereb,"trend":reg["trend"],"ndvi_trend":reg["trend"],
-            "year":year,"lat":round(clat,5),"lon":round(clon,5),
-            "latest_date":f"{year}-05-15",
-            "crops":detect_crop(reg["ndvi"],reg["evi"],reg["savi"],reg["mndwi"],reg["lswi"],month,reg["province"]),
-            "season":get_current_season_advice(reg["province"],reg["ndvi"],reg["mndwi"]),
-            "monthly_rain":get_monthly_rain(reg["rain"],reg["province"]),
-            "soil":get_soil_data(clat,clon,reg["province"]),
-            "ndre":round(reg["ndvi"]*0.75,4),"gndvi":round(reg["ndvi"]*0.88,4),
-            "ndmi":round(reg["mndwi"]+0.08,4),"ndwi":round(reg["mndwi"]+0.05,4),
-            "vci":None,"drought_index":round(reg["mndwi"]-reg["ndvi"],4),
-        }
-        if farmer_id and field_id:
-            db_save_analysis(field_id,farmer_id,result)
-        return jsonify(result)
+                    db_save_analysis(field_id, farmer_id, result)
+                _farmer_analyse_tasks[task_id] = {"status":"done","data":result}
+            except Exception as ex:
+                log.error(f"/analyse worker: {ex}")
+                _farmer_analyse_tasks[task_id] = {"status":"error","error":str(ex)}
+
+        threading.Thread(target=_worker, daemon=True).start()
+        return jsonify({"task_id": task_id, "status": "pending"})
     except Exception as e:
         log.error(f"/analyse: {e}"); return jsonify({"error":str(e)}),500
+
+
+@app.route("/analyse-result/<task_id>", methods=["GET","OPTIONS"])
+def analyse_result(task_id):
+    """Poll for farmer field analysis result."""
+    if request.method == "OPTIONS": return jsonify({}), 200
+    task = _farmer_analyse_tasks.get(task_id)
+    if not task: return jsonify({"status":"error","error":"Task not found"}), 404
+    if task["status"] == "pending": return jsonify({"status":"pending"})
+    if task["status"] == "error":
+        _farmer_analyse_tasks.pop(task_id, None)
+        return jsonify({"status":"error","error":task["error"]}), 500
+    data = task.get("data", {})
+    _farmer_analyse_tasks.pop(task_id, None)
+    return jsonify({"status":"done","data":data})
 
 
 @app.route("/ask", methods=["POST","OPTIONS"])
