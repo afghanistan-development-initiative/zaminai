@@ -1066,8 +1066,7 @@ function ndviToColor(v){
   if(v>=0.05) return '#bf360c';
   return '#6d4c41';
 }
-// ndviToColor and _ndviGradient are identical — alias for backwards compat
-const _ndviGradient = ndviToColor;
+// ndviToColor is an alias for _ndviGradient (defined above) for backwards compat
 
 // ── Dynamic legend ────────────────────────────────────────────────────────────
 function updateMapLegend(activeLayer){
