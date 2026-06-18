@@ -497,81 +497,170 @@ const API = 'https://zaminai.onrender.com';
 const _satLayers   = {};   // name → Leaflet layer (or null if not yet loaded)
 const _satLoading  = {};   // name → true while GEE task in flight
 
-// Colour helpers for each layer type
-function _ndviClassColor(v){
-  // v = floor(ndvi*20), i.e. class 2 = NDVI 0.10-0.15, class 14 = 0.70-0.75
-  const ndvi = v / 20;
-  return ndviToColor(ndvi);
+// ── Satellite layer colour functions — value-based, not flat class buckets ────
+
+// NDVI: 7-tier health gradient
+function _ndviGradient(n){
+  if(n===null||n===undefined) return '#607d8b';
+  if(n>=0.65) return '#1b5e20';   // Very dense / excellent
+  if(n>=0.50) return '#2e7d32';   // Healthy
+  if(n>=0.35) return '#558b2f';   // Good
+  if(n>=0.25) return '#f9a825';   // Moderate / needs attention
+  if(n>=0.15) return '#ef6c00';   // Low / stressed
+  if(n>=0.05) return '#bf360c';   // Very low / near-bare
+  return '#6d4c41';                // Bare soil / non-vegetated
 }
-const _waterColors  = ['#c0392b','#e67e22','#f1c40f','#2ecc71','#2980b9','#1a5276'];
-const _bsiColors    = ['#f9e79f','#f0b27a','#e59866','#ca6f1e','#784212','#4a235a'];
+
+// MNDWI: continuous blue gradient (wetter = darker blue)
+function _mndwiColor(cls){
+  const c = cls ?? 0;
+  if(c >= 6)  return '#01579b';  // Open surface water
+  if(c >= 3)  return '#0288d1';  // Water body / flooded
+  if(c >= 1)  return '#29b6f6';  // Very wet / irrigated
+  if(c >= -1) return '#80cbc4';  // Moist soil
+  if(c >= -3) return '#a5d6a7';  // Slightly dry
+  if(c >= -6) return '#a1887f';  // Dry soil
+  return '#6d4c41';               // Very dry / bare
+}
+
+// BSI: orange-brown gradient (higher = more exposed bare soil)
+function _bsiColor(cls){
+  const c = cls ?? 0;
+  if(c >= 6)  return '#bf360c';  // Heavily exposed — erosion risk
+  if(c >= 4)  return '#e64a19';
+  if(c >= 2)  return '#f57c00';
+  if(c >= 1)  return '#ffa726';
+  return '#ffe0b2';               // Slight bare soil
+}
+
+// DW class: NDVI-aware per class (crops use full health gradient)
+function _dwColor(lc, ndvi){
+  const n = ndvi ?? 0.3;
+  switch(lc){
+    case 0: return n < -0.05 ? '#01579b' : '#0288d1'; // permanent vs seasonal water
+    case 1: return n > 0.60 ? '#1b5e20' : '#2e7d32';  // dense vs moderate forest
+    case 2: return '#7cb342';   // grassland
+    case 3: return '#00838f';   // flooded veg / paddy
+    case 4: return _ndviGradient(n); // crops: full NDVI health scale
+    case 5: return '#9e9d24';   // shrub/scrub
+    case 6: return '#b71c1c';   // built-up / urban
+    case 7: return n > 0.12 ? '#8d6e63' : '#5d4037'; // bare: thin veg vs pure bare
+    case 8: return '#e1f5fe';   // snow / ice
+    default: return '#607d8b';
+  }
+}
+
 const _cropColors   = {1:'#f39c12',2:'#27ae60',3:'#1a7a40',4:'#a04000'};
 const _cropLabels   = {1:'Wheat',2:'Vegetables',3:'Orchard/Trees',4:'Bare/Fallow'};
 const _cropLabelsFA = {1:'گندم',2:'سبزیجات',3:'باغ',4:'بایر'};
 const _cropLabelsPS = {1:'غنم',2:'سبزیجات',3:'باغ',4:'بایره ځمکه'};
 
+// ── Health badge HTML helper ──────────────────────────────────────────────────
+function _ndviBadge(n){
+  if(n===null) return '';
+  if(n>=0.45) return `<span class="pop-badge" style="background:#0b2a15;color:#27ae60">● Healthy</span>`;
+  if(n>=0.28) return `<span class="pop-badge" style="background:#2a2000;color:#f39c12">● Moderate</span>`;
+  return `<span class="pop-badge" style="background:#2a0a0a;color:#e74c3c">● Stressed</span>`;
+}
+
+// ── Context-aware insights per DW class ──────────────────────────────────────
+function _dwInsight(lc, ndvi){
+  const n = ndvi ?? 0;
+  const insights = {
+    0: n < -0.05 ? 'Permanent surface water — potential irrigation source'
+                 : 'Seasonal water body — may dry up outside rainy season',
+    1: n > 0.60 ? 'Dense forest — high biomass, watershed & carbon storage'
+                : 'Moderate forest — monitor for degradation or clearing',
+    2: 'Grassland / rangeland — grazing land or seasonal fallow',
+    3: 'Flooded vegetation — rice paddy, wetland, or irrigation channel',
+    4: n>=0.45 ? 'Healthy cropland — good growing conditions'
+       :n>=0.28 ? 'Moderate cropland — consider irrigation or top-dressing fertilizer'
+       : 'Stressed cropland — irrigation, soil assessment, or pest check recommended',
+    5: 'Shrub / scrub — degraded land with rehabilitation potential',
+    6: 'Built-up / urban settlement — market and input supply access nearby',
+    7: n > 0.12 ? 'Bare ground with sparse vegetation — recently harvested or degraded'
+                : 'Exposed bare soil — high erosion and dust risk; cover crops advised',
+    8: 'Snow / ice cover — seasonal or permanent',
+  };
+  return insights[lc] ?? '';
+}
+
 function _satLayerStyle(layerName, feat){
   const ndvi = feat.properties?.mean ?? null;
   switch(layerName){
     case 'ndvi': {
-      const col = ndviToColor(ndvi);
-      return {color:'#fff',weight:.7,fillColor:col,fillOpacity:.6};
+      const col = _ndviGradient(ndvi);
+      return {color:col,weight:.5,fillColor:col,fillOpacity:.68};
     }
     case 'water': {
-      // MNDWI class: higher class = wetter
       const cls = feat.properties?.mndwi_class ?? 0;
-      const idx = Math.min(Math.max(cls + 2, 0), _waterColors.length-1);
-      return {color:'#fff',weight:.7,fillColor:_waterColors[idx],fillOpacity:.6};
+      const col = _mndwiColor(cls);
+      const wet = (cls ?? 0) >= 1;
+      return {color:wet?'#0277bd':'#fff',weight:wet?.8:.5,fillColor:col,fillOpacity:.7};
     }
     case 'baresoil': {
       const cls = feat.properties?.bsi_class ?? 0;
-      const idx = Math.min(Math.max(cls + 2, 0), _bsiColors.length-1);
-      return {color:'#fff',weight:.7,fillColor:_bsiColors[idx],fillOpacity:.6};
+      const col = _bsiColor(cls);
+      return {color:'#fff',weight:.5,fillColor:col,fillOpacity:.68};
     }
     case 'croptype': {
       const cc = feat.properties?.crop_class ?? 4;
-      return {color:'#fff',weight:.7,fillColor:_cropColors[cc]||'#888',fillOpacity:.65};
+      const col = _cropColors[cc]||'#888';
+      return {color:'#fff',weight:.7,fillColor:col,fillOpacity:.7};
     }
     case 'forest': {
-      const col = ndviToColor(feat.properties?.mean ?? null);
-      return {color:'#fff',weight:.7,fillColor:'#1a7a40',fillOpacity:.65};
+      const n = feat.properties?.mean ?? 0.5;
+      const col = n > 0.65 ? '#1b5e20' : '#2e7d32';
+      return {color:'#fff',weight:.5,fillColor:col,fillOpacity:.65};
     }
-    default: return {color:'#fff',weight:.7,fillColor:'#888',fillOpacity:.55};
+    default: return {color:'#fff',weight:.6,fillColor:'#888',fillOpacity:.55};
   }
 }
 
 function _satLayerPopup(layerName, feat){
-  const ndvi  = feat.properties?.mean ?? null;
+  const ndvi    = feat.properties?.mean ?? null;
   const ndviStr = ndvi !== null ? ndvi.toFixed(3) : '—';
+  const badge   = _ndviBadge(ndvi);
   switch(layerName){
-    case 'ndvi':
-      return `<div class="pop-title">🟢 NDVI Health</div>
-              <div class="pop-row"><span class="pop-k">NDVI</span><span class="pop-v">${ndviStr}</span></div>
-              <div class="mc-note">Sentinel-2 · growing season composite</div>`;
+    case 'ndvi': {
+      const cat = ndvi===null?'—':ndvi>=0.65?'Very dense':ndvi>=0.50?'Healthy':ndvi>=0.35?'Good':ndvi>=0.25?'Moderate':ndvi>=0.15?'Low':'Bare/stressed';
+      return `<div class="pop-title">🟢 NDVI Vegetation Health</div>
+              <div class="pop-row"><span class="pop-k">NDVI</span><span class="pop-v" style="color:${_ndviGradient(ndvi)};font-size:14px;font-weight:800">${ndviStr}</span></div>
+              <div class="pop-row"><span class="pop-k">Category</span><span class="pop-v">${cat}</span></div>
+              ${badge}
+              <div class="mc-note" style="margin-top:5px">Sentinel-2 · growing season composite</div>`;}
     case 'water':{
-      const cls = feat.properties?.mndwi_class ?? '—';
-      return `<div class="pop-title">💧 Water / Moisture Index (MNDWI)</div>
-              <div class="pop-row"><span class="pop-k">MNDWI class</span><span class="pop-v">${cls}</span></div>
-              <div class="pop-row"><span class="pop-k">NDVI</span><span class="pop-v">${ndviStr}</span></div>
-              <div class="mc-note">Positive = surface water · negative = dry soil</div>`;}
+      const cls = feat.properties?.mndwi_class ?? 0;
+      const mndwi = cls / 20;
+      const waterType = cls>=6?'Surface water':cls>=1?'Wet / flooded':cls>=-1?'Moist soil':cls>=-3?'Semi-dry':'Dry soil';
+      return `<div class="pop-title">💧 Water / Moisture (MNDWI)</div>
+              <div class="pop-row"><span class="pop-k">MNDWI</span><span class="pop-v" style="color:${_mndwiColor(cls)};font-weight:700">~${mndwi.toFixed(2)}</span></div>
+              <div class="pop-row"><span class="pop-k">Type</span><span class="pop-v">${waterType}</span></div>
+              <div class="mc-note">${cls>=3?'💧 Irrigation potential':'🏜️ Low water — supplemental irrigation needed'}</div>`;}
     case 'baresoil':{
-      const cls = feat.properties?.bsi_class ?? '—';
+      const cls = feat.properties?.bsi_class ?? 0;
+      const risk = cls>=6?'⚠️ Very high erosion risk':cls>=3?'⚠️ High erosion risk':cls>=1?'Moderate bare exposure':'Slight bare soil';
       return `<div class="pop-title">🏜️ Bare Soil Index (BSI)</div>
-              <div class="pop-row"><span class="pop-k">BSI class</span><span class="pop-v">${cls}</span></div>
+              <div class="pop-row"><span class="pop-k">BSI class</span><span class="pop-v" style="color:${_bsiColor(cls)};font-weight:700">${cls}</span></div>
+              <div class="pop-row"><span class="pop-k">Risk</span><span class="pop-v">${risk}</span></div>
               <div class="pop-row"><span class="pop-k">NDVI</span><span class="pop-v">${ndviStr}</span></div>
-              <div class="mc-note">Higher = more exposed soil / less vegetation</div>`;}
+              <div class="mc-note">${cls>=3?'Cover crops or mulch advised':'Acceptable bare soil level'}</div>`;}
     case 'croptype':{
-      const cc = feat.properties?.crop_class ?? 4;
-      const lbl = lang==='fa'? (_cropLabelsFA[cc]||'—') : lang==='ps'? (_cropLabelsPS[cc]||'—') : (_cropLabels[cc]||'—');
+      const cc  = feat.properties?.crop_class ?? 4;
+      const lbl = lang==='fa'?(_cropLabelsFA[cc]||'—'):lang==='ps'?(_cropLabelsPS[cc]||'—'):(_cropLabels[cc]||'—');
+      const actions = {1:'Plant Oct–Nov · Urea top-dress Feb',2:'Drip irrigation · harvest Jul–Oct',3:'Pruning · post-harvest irrigation',4:'Soil test · consider crop rotation'};
       return `<div class="pop-title">🌾 Crop Type <span style="font-weight:400;opacity:.7">(estimate)</span></div>
-              <div class="pop-row"><span class="pop-k">Type</span><span class="pop-v">${lbl}</span></div>
+              <div class="pop-row"><span class="pop-k">Type</span><span class="pop-v" style="color:${_cropColors[cc]};">${lbl}</span></div>
               <div class="pop-row"><span class="pop-k">NDVI</span><span class="pop-v">${ndviStr}</span></div>
-              <div class="mc-note">Rule-based estimate · verify in field</div>`;}
+              ${badge}
+              <div class="mc-note">${actions[cc]||''} · verify in field</div>`;}
     case 'forest':{
-      const ndviVal = feat.properties?.mean ?? null;
+      const n   = feat.properties?.mean ?? null;
+      const den = n===null?'—':n>=0.65?'Dense forest':n>=0.50?'Moderate forest':'Open canopy';
       return `<div class="pop-title">🌲 Forest / Dense Vegetation</div>
-              <div class="pop-row"><span class="pop-k">NDVI</span><span class="pop-v">${ndviVal!==null?ndviVal.toFixed(3):'—'}</span></div>
-              <div class="mc-note">NDVI ≥ 0.45 year-round · Sentinel-2</div>`;}
+              <div class="pop-row"><span class="pop-k">NDVI</span><span class="pop-v" style="color:${_ndviGradient(n)};font-weight:700">${n!==null?n.toFixed(3):'—'}</span></div>
+              <div class="pop-row"><span class="pop-k">Density</span><span class="pop-v">${den}</span></div>
+              <div class="mc-note">Watershed & carbon zone · NDVI ≥ 0.45 year-round</div>`;}
     default: return `<div class="pop-title">${layerName}</div>`;
   }
 }
@@ -622,6 +711,7 @@ async function toggleSatLayer(layerName, show){
       }
     }).addTo(map);
     _satLayers[layerName] = lyr;
+    updateMapLegend(layerName);
     setStatus(`✓ ${layerName} loaded`, 'ok');
   }catch(e){
     setStatus(e.message||'Layer failed','err');
@@ -967,12 +1057,74 @@ function highlight(feat){
 
 // ── NDVI colour scale ───────────────────────────────────────────────────────
 function ndviToColor(v){
-  if(v===null||v===undefined) return '#556677';
-  if(v>=0.55) return '#27ae60';
-  if(v>=0.40) return '#8bc34a';
-  if(v>=0.25) return '#f39c12';
-  if(v>=0.10) return '#e67e22';
-  return '#e74c3c';
+  if(v===null||v===undefined) return '#607d8b';
+  if(v>=0.65) return '#1b5e20';
+  if(v>=0.50) return '#2e7d32';
+  if(v>=0.35) return '#558b2f';
+  if(v>=0.25) return '#f9a825';
+  if(v>=0.15) return '#ef6c00';
+  if(v>=0.05) return '#bf360c';
+  return '#6d4c41';
+}
+// ndviToColor and _ndviGradient are identical — alias for backwards compat
+const _ndviGradient = ndviToColor;
+
+// ── Dynamic legend ────────────────────────────────────────────────────────────
+function updateMapLegend(activeLayer){
+  const leg = document.getElementById('map-legend');
+  if(!leg) return;
+  let html = '';
+  if(!activeLayer || activeLayer==='landcover'){
+    // DW class legend
+    html = `<div style="font-weight:700;color:#27ae60;margin-bottom:5px;font-size:10px;letter-spacing:.05em" id="leg-title">Land Cover</div>`;
+    [[0,'#0288d1','Water'],[1,'#2e7d32','Forest'],[2,'#7cb342','Grassland'],
+     [3,'#00838f','Flooded Veg'],[4,'#f9a825','Crops (NDVI health)'],
+     [5,'#9e9d24','Shrub'],[6,'#b71c1c','Built-up'],[7,'#6d4c41','Bare Ground']
+    ].forEach(([,col,lbl])=>{
+      html+=`<div class="leg-row"><div class="leg-dot" style="background:${col}"></div><span>${lbl}</span></div>`;
+    });
+  } else if(activeLayer==='ndvi'){
+    html = `<div style="font-weight:700;color:#27ae60;margin-bottom:5px;font-size:10px" id="leg-title">NDVI Health</div>`;
+    [['≥ 0.65','#1b5e20','Very dense'],['0.50–0.65','#2e7d32','Healthy'],
+     ['0.35–0.50','#558b2f','Good'],['0.25–0.35','#f9a825','Moderate'],
+     ['0.15–0.25','#ef6c00','Low'],['< 0.15','#bf360c','Bare/stressed']
+    ].forEach(([v,col,lbl])=>{
+      html+=`<div class="leg-row"><div class="leg-dot" style="background:${col}"></div><span>${v} <span style="opacity:.65;font-size:9px">${lbl}</span></span></div>`;
+    });
+  } else if(activeLayer==='water'){
+    html = `<div style="font-weight:700;color:#0288d1;margin-bottom:5px;font-size:10px" id="leg-title">Water / MNDWI</div>`;
+    [['#01579b','Surface water'],['#0288d1','Water body'],['#29b6f6','Wet / irrigated'],
+     ['#80cbc4','Moist soil'],['#a1887f','Dry soil'],['#6d4c41','Very dry']
+    ].forEach(([col,lbl])=>{
+      html+=`<div class="leg-row"><div class="leg-dot" style="background:${col}"></div><span>${lbl}</span></div>`;
+    });
+  } else if(activeLayer==='baresoil'){
+    html = `<div style="font-weight:700;color:#f57c00;margin-bottom:5px;font-size:10px" id="leg-title">Bare Soil (BSI)</div>`;
+    [['#ffe0b2','Slight'],['#ffa726','Light'],['#f57c00','Moderate'],
+     ['#e64a19','Heavy'],['#bf360c','Very high erosion risk']
+    ].forEach(([col,lbl])=>{
+      html+=`<div class="leg-row"><div class="leg-dot" style="background:${col}"></div><span>${lbl}</span></div>`;
+    });
+  } else if(activeLayer==='croptype'){
+    html = `<div style="font-weight:700;color:#f39c12;margin-bottom:5px;font-size:10px" id="leg-title">Crop Type</div>`;
+    [['#f39c12','Wheat'],['#27ae60','Vegetables'],['#1a7a40','Orchard / Trees'],['#a04000','Bare / Fallow']
+    ].forEach(([col,lbl])=>{
+      html+=`<div class="leg-row"><div class="leg-dot" style="background:${col}"></div><span>${lbl}</span></div>`;
+    });
+  } else if(activeLayer==='forest'){
+    html = `<div style="font-weight:700;color:#1b5e20;margin-bottom:5px;font-size:10px" id="leg-title">Forest Density</div>`;
+    [['#1b5e20','Dense (NDVI > 0.65)'],['#2e7d32','Moderate (0.50–0.65)'],['#558b2f','Open canopy (0.45–0.50)']
+    ].forEach(([col,lbl])=>{
+      html+=`<div class="leg-row"><div class="leg-dot" style="background:${col}"></div><span>${lbl}</span></div>`;
+    });
+  }
+  if(html) leg.innerHTML = html + `
+    <div class="leg-row" style="margin-top:5px;border-top:1px solid #163352;padding-top:5px">
+      <div class="leg-dot" style="background:#ffe066"></div><span id="leg-vil">${t('legVil')}</span>
+    </div>
+    <div class="leg-row">
+      <div class="leg-dot" style="background:transparent;border:2px solid #fff"></div><span id="leg-prov">${t('legProv')}</span>
+    </div>`;
 }
 
 // ── Load & draw all farmer plots in a province ──────────────────────────────
@@ -1071,39 +1223,39 @@ async function detectFields(){
       style: feat => {
         const lc   = feat.properties?.lc;
         const ndvi = feat.properties?.mean ?? null;
-        // DW result: colour by land class (crops use NDVI health colour)
-        // NDVI-only fallback: colour by NDVI
-        const col = (lc !== undefined && lc !== null)
-          ? (lc === 4 ? ndviToColor(ndvi) : (DW_COL[lc] || '#888'))
-          : ndviToColor(ndvi);
-        return {color:'#ffffff', weight:0.8, fillColor:col, fillOpacity:0.55};
+        const col  = (lc !== undefined && lc !== null) ? _dwColor(lc, ndvi) : _ndviGradient(ndvi);
+        const wet  = lc === 0 || lc === 3; // water / flooded get blue stroke
+        const urb  = lc === 6;             // built-up gets darker stroke
+        const stroke = wet ? '#0277bd' : urb ? '#7f0000' : '#ffffff';
+        const wt = (wet || urb) ? 1.2 : 0.7;
+        return {color:stroke, weight:wt, fillColor:col, fillOpacity:0.62};
       },
       onEachFeature:(feat,layer)=>{
         const lc   = feat.properties?.lc;
         const ndvi = feat.properties?.mean ?? null;
-        const col  = (lc !== undefined && lc !== null)
-          ? (lc === 4 ? ndviToColor(ndvi) : (DW_COL[lc] || '#888'))
-          : ndviToColor(ndvi);
+        const col  = (lc !== undefined && lc !== null) ? _dwColor(lc, ndvi) : _ndviGradient(ndvi);
         const className = (lc !== undefined && lc !== null) ? DW_NAME[lc] : 'Vegetation';
         const icon      = (lc !== undefined && lc !== null) ? DW_ICON[lc] : '🌿';
-        const ndviBadge = (lc === 4 || lc === undefined) && ndvi !== null
-          ? (ndvi>=0.40 ? `<span class="pop-badge" style="background:#0b2a15;color:#27ae60">Healthy</span>`
-            :ndvi>=0.25 ? `<span class="pop-badge" style="background:#2a2000;color:#f39c12">Moderate</span>`
-            :`<span class="pop-badge" style="background:#2a0a0a;color:#e74c3c">Stressed</span>`)
-          : '';
+        const badge     = (lc===4 || lc===undefined) ? _ndviBadge(ndvi) : '';
+        const insight   = (lc !== undefined) ? _dwInsight(lc, ndvi) : '';
         layer.bindPopup(`
           <div class="pop-title">${icon} ${className}</div>
-          ${ndvi!==null?`<div class="pop-row"><span class="pop-k">NDVI</span><span class="pop-v" style="color:${col}">${ndvi.toFixed(3)}</span></div>`:''}
-          ${ndviBadge}
-          <div class="mc-note" style="margin-top:5px">Dynamic World · Sentinel-2</div>
-        `,{maxWidth:220});
+          ${ndvi!==null?`<div class="pop-row"><span class="pop-k">NDVI</span><span class="pop-v" style="color:${col};font-weight:700">${ndvi.toFixed(3)}</span></div>`:''}
+          ${badge}
+          ${insight?`<div style="font-size:10px;color:#8aa8c0;margin-top:5px;line-height:1.45">${insight}</div>`:''}
+          <div class="mc-note" style="margin-top:4px">Dynamic World V1 · Sentinel-2 10 m</div>
+        `,{maxWidth:240});
         layer.bindTooltip(`${icon} ${className}${ndvi!==null?' · NDVI '+ndvi.toFixed(2):''}`,
           {sticky:true,className:'leaflet-tooltip-dark'});
+        // Hover highlight
+        layer.on('mouseover',function(){ this.setStyle({weight:2.0,fillOpacity:0.80}); });
+        layer.on('mouseout', function(){ detectLayer?.resetStyle(this); });
       }
     }).addTo(map);
 
     setStatus(`✓ ${count} ${t('detectedUnit')}`, 'ok');
-    syncLandCoverToggle(true);   // keep layer panel in sync
+    syncLandCoverToggle(true);
+    updateMapLegend('landcover');
     const dc = document.getElementById('detect-count');
     if(dc){ dc.querySelector('.mc-val').textContent=count; dc.style.display=''; }
   }catch(e){
