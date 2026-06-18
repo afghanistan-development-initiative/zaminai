@@ -1095,19 +1095,30 @@ function drawVillageBoundaries(feats){
 
 // ── Parcel context menu (right-click popup) ──────────────────────────────────
 let _parcelMenuPopup = null;
+let _pendingFeat = null, _pendingName = '', _pendingLevel = '';
+
 function _showParcelMenu(feature, name, level, latlng){
   if(_parcelMenuPopup){ _parcelMenuPopup.remove(); }
+  _pendingFeat  = feature;
+  _pendingName  = name;
+  _pendingLevel = level;
+  const safeName = name.replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const html = `
-    <div style="min-width:180px">
-      <div style="font-weight:700;color:#3498db;margin-bottom:8px;font-size:12px">📍 ${name}</div>
-      <button onclick="_parcelMenuPopup.remove();analyseParcel(${JSON.stringify(feature).replace(/"/g,'&quot;')},'${name.replace(/'/g,"\\'")}','${level}')"
-        style="width:100%;padding:7px;background:#3498db;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;margin-bottom:5px">
+    <div style="min-width:190px">
+      <div style="font-weight:700;color:#3498db;margin-bottom:8px;font-size:12px">📍 ${safeName}</div>
+      <button onclick="_analyseFromMenu()"
+        style="width:100%;padding:8px;background:#3498db;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;margin-bottom:5px">
         🛰️ Analyse this parcel
       </button>
-      <div style="font-size:10px;color:#5a7a9a;text-align:center">Results include GeoJSON · CSV · KML export</div>
+      <div style="font-size:10px;color:#5a7a9a;text-align:center">Export as GeoJSON · CSV · KML</div>
     </div>`;
-  _parcelMenuPopup = L.popup({closeButton:true, className:'leaflet-popup-dark'})
+  _parcelMenuPopup = L.popup({closeButton:true})
     .setLatLng(latlng).setContent(html).openOn(map);
+}
+
+function _analyseFromMenu(){
+  if(_parcelMenuPopup){ _parcelMenuPopup.remove(); _parcelMenuPopup = null; }
+  if(_pendingFeat) analyseParcel(_pendingFeat, _pendingName, _pendingLevel);
 }
 
 document.getElementById('vil-sel').addEventListener('change', function(){

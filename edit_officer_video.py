@@ -11,7 +11,8 @@ sys.stdout = _io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='repl
 
 import io, numpy as np, scipy.io.wavfile as wav, matplotlib
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt, matplotlib.patheffects as pe
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 from pathlib import Path
 from PIL import Image as PILImage
 from moviepy import VideoFileClip, VideoClip, AudioFileClip, concatenate_videoclips
@@ -157,7 +158,7 @@ def add_caption(frame_arr, line1, line2, t_rel, dur):
 
     # Frosted glass pill — bottom left
     bx, by, bw, bh = 20, 12, max(len(line1),len(line2))*8+40, 50
-    ax.add_patch(plt.FancyBboxPatch((bx, by), bw, bh,
+    ax.add_patch(mpatches.FancyBboxPatch((bx, by), bw, bh,
         boxstyle="round,pad=4", fc=BG, ec=GREEN, lw=1.5, alpha=a*.88, zorder=5))
     ax.add_patch(plt.Rectangle((bx, by+bh-3), bw, 3, fc=GREEN, alpha=a, zorder=6))
 
