@@ -67,41 +67,50 @@ def gen_music(duration=90, sr=44100):
     print("  Generating background music…")
     t = np.linspace(0, duration, int(sr * duration), endpoint=False)
 
-    # Ambient minor pad — A minor chord (A2, C3, E3, A3)
+    # Pure ambient pad — sustained sine tones only, no beats, no arpeggios
+    # A minor chord layers: A2 C3 E3 G3 A3 (very gentle detuning for warmth)
+    layers = [
+        (110.00, 0.30, 0.000),   # A2 root — bass foundation
+        (130.81, 0.22, +0.08),   # C3 minor third
+        (164.81, 0.18, -0.06),   # E3 fifth
+        (196.00, 0.12, +0.04),   # G3 minor seventh (adds colour)
+        (220.00, 0.10, -0.03),   # A3 octave
+        (261.63, 0.06, +0.02),   # C4 upper third (very subtle)
+    ]
+
     pad = np.zeros_like(t)
-    for f, vol, det in [(110,.35,.0),(130.81,.25,+.15),(164.81,.20,-.10),(220,.15,+.05),(261.63,.08,-.08)]:
-        lfo  = 1 + .006 * np.sin(2*np.pi*.12*t + np.random.rand()*6.28)
-        pad += vol * np.sin(2*np.pi*(f+det)*t) * lfo
+    rng = np.random.default_rng(42)   # fixed seed — no random noise each run
 
-    # Subtle texture — gentle arpeggiated notes (very low volume)
-    bpm = 72
-    beat = bpm / 60
-    arp_notes = [220, 261.63, 329.63, 261.63]   # A3 C4 E4 C4
-    arp = np.zeros_like(t)
-    note_dur = 1 / beat / 2
-    for step in range(int(duration * beat * 2)):
-        s = step / (beat * 2)
-        e = s + note_dur * .7
-        note = arp_notes[step % len(arp_notes)]
-        mask = ((t >= s) & (t < e)).astype(float)
-        env  = np.where(mask > 0, np.exp(-3 * np.mod(t - s, note_dur)), 0)
-        arp += .04 * env * np.sin(2*np.pi*note*t)
+    for freq, vol, detune in layers:
+        # Very slow LFO — barely perceptible gentle swell
+        lfo_rate  = 0.07 + rng.uniform(-0.01, 0.01)
+        lfo_phase = rng.uniform(0, 2 * np.pi)
+        lfo       = 1.0 + 0.004 * np.sin(2 * np.pi * lfo_rate * t + lfo_phase)
 
-    music = pad + arp
+        # Pure sine — no harmonics, no distortion
+        tone = np.sin(2 * np.pi * (freq + detune) * t)
+        pad += vol * tone * lfo
 
-    # Fade in 2s / fade out 4s
-    fi = int(2*sr); fo = int(4*sr)
+    # Gentle low-pass smoothing — removes any remaining high-frequency artifacts
+    # Use a long window (equivalent to ~30 Hz cutoff) for ultra-smooth sound
+    smooth_samples = int(sr * 0.004)   # 4ms window
+    kernel = np.ones(smooth_samples) / smooth_samples
+    pad = np.convolve(pad, kernel, mode='same')
+
+    # Master envelope: 4s fade-in, 5s fade-out — very gradual
+    fi = int(4 * sr); fo = int(5 * sr)
     env = np.ones_like(t)
-    env[:fi]  = np.linspace(0, 1, fi)
-    env[-fo:] = np.linspace(1, 0, fo)
-    music *= env
+    env[:fi]   = np.linspace(0, 1, fi) ** 2    # squared = ease-in curve
+    env[-fo:]  = np.linspace(1, 0, fo) ** 2
+    pad *= env
 
-    # Normalise to -18 dBFS (subtle background level)
-    peak = np.max(np.abs(music))
-    if peak > 0: music = music / peak * 0.12
+    # Target level: -20 dBFS — clearly audible but never distracting
+    peak = np.max(np.abs(pad))
+    if peak > 0:
+        pad = pad / peak * 0.10   # 10% amplitude
 
-    wav.write(str(MUSIC_WAV), sr, (music * 32767).astype(np.int16))
-    print(f"  Music: {MUSIC_WAV.name}")
+    wav.write(str(MUSIC_WAV), sr, (pad * 32767).astype(np.int16))
+    print(f"  Music: {MUSIC_WAV.name} ({duration:.0f}s)")
 
 # ── Step 3: Build title/closing cards ────────────────────────────────────────
 W, H = 1910, 906
