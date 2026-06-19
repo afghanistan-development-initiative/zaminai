@@ -2152,6 +2152,24 @@ def officer_parcel_thumbnail():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/officer/proxy-image", methods=["GET"])
+def officer_proxy_image():
+    """Proxy GEE thumbnail URLs so the browser can draw them on canvas
+    without CORS errors. Only allows earthengine.googleapis.com URLs."""
+    url = request.args.get("url", "")
+    if not url.startswith("https://earthengine.googleapis.com"):
+        return "Only GEE URLs allowed", 403
+    try:
+        r = requests.get(url, timeout=40, headers={"User-Agent": "ZaminAI/1.0"})
+        return r.content, 200, {
+            "Content-Type": "image/png",
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "public,max-age=3600"
+        }
+    except Exception as e:
+        return str(e), 500
+
+
 @app.route("/gadm/<iso>/<int:level>", methods=["GET"])
 def gadm_proxy(iso, level):
     """Proxy GADM GeoJSON to avoid browser CORS restrictions."""

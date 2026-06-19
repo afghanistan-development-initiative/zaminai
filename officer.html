@@ -1190,19 +1190,47 @@ function analyseSelectedParcel(){
 }
 
 // ── Image download functions ─────────────────────────────────────────────────
+// ── Layer metadata (legend content per layer type) ────────────────────────────
+const LAYER_META = {
+  natural:    { title:'True Colour (Sentinel-2)',  source:'B4/B3/B2 · Sentinel-2 SR',
+                legend:[] },   // no colour legend for natural colour
+  ndvi:       { title:'Vegetation Health (NDVI)',  source:'B8/B4 · Sentinel-2 SR',
+                legend:[['#1b5e20','≥ 0.65  Very dense'],['#2e7d32','0.50–0.65  Healthy'],
+                        ['#558b2f','0.35–0.50  Good'],['#f9a825','0.25–0.35  Moderate'],
+                        ['#ef6c00','0.15–0.25  Low/stressed'],['#bf360c','< 0.15  Bare/sparse']] },
+  landcover:  { title:'Land Cover Classification', source:'Dynamic World V1 · 10 m',
+                legend:[['#2980b9','💧 Water'],['#1a7a40','🌲 Forest / Trees'],
+                        ['#8bc34a','🌿 Grassland'],['#1abc9c','🌊 Flooded Vegetation'],
+                        ['#f39c12','🌾 Cropland'],['#95a5a6','🌱 Shrub / Scrub'],
+                        ['#e74c3c','🏘️ Built-up / Urban'],['#a04000','🏜️ Bare Ground'],
+                        ['#ecf0f1','❄️ Snow / Ice']] },
+  water:      { title:'Water / Moisture (MNDWI)',  source:'B3/B11 · Sentinel-2 SR',
+                legend:[['#01579b','Open surface water'],['#0288d1','Water body / flooded'],
+                        ['#29b6f6','Very wet / irrigated'],['#80cbc4','Moist soil'],
+                        ['#a1887f','Semi-dry soil'],['#6d4c41','Dry / bare']] },
+  baresoil:   { title:'Bare Soil Index (BSI)',     source:'(SWIR+RED-NIR-BLUE) · Sentinel-2',
+                legend:[['#ffe0b2','Minimal bare soil'],['#ffa726','Light exposure'],
+                        ['#f57c00','Moderate exposure'],['#e64a19','Heavy exposure'],
+                        ['#bf360c','Very high erosion risk']] },
+  false_color:{ title:'False Colour (NIR)',        source:'B8/B4/B3 · Sentinel-2 SR',
+                legend:[['#cc0000','Dense vegetation (red = NIR)'],
+                        ['#ff9900','Moderate vegetation'],
+                        ['#cccccc','Urban / bare / soil']] },
+};
+
 async function downloadParcelImage(layer){
   if(!_parcelState){ alert('Run parcel analysis first.'); return; }
-  const { coords, year, name } = _parcelState;
-  const safeName = (name||'parcel').replace(/[^a-zA-Z0-9_]/g,'_');
+  const { coords, year, name, analysis } = _parcelState;
 
-  // Show loading state in preview
+  // Show loading state
   const prev = document.getElementById('pp-img-preview');
   const img  = document.getElementById('pp-sat-img');
   const note = document.getElementById('pp-img-note');
   prev.style.display='block';
-  img.src=''; note.textContent='Loading satellite image…';
+  img.src=''; note.textContent=`Loading ${layer} image…`;
 
   try{
+    // Get GEE thumbnail URL
     const r = await fetch(`${API}/officer/parcel-thumbnail`,{
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({coords, year, layer})
@@ -1210,20 +1238,167 @@ async function downloadParcelImage(layer){
     const d = await r.json();
     if(d.error) throw new Error(d.error);
 
-    // Show preview
-    img.src  = d.url;
-    note.textContent = `${layer.toUpperCase()} · ${year} · Sentinel-2`;
+    note.textContent='Composing annotated image…';
 
-    // Trigger download
-    const a  = document.createElement('a');
-    a.href   = d.url;
-    a.target = '_blank';
-    a.download = `ZaminAI_${safeName}_${layer}_${year}.png`;
-    a.click();
+    // Compose annotated image with legend + stats on canvas
+    const blob = await composeAnnotatedImage(d.url, layer, analysis, name, year);
+    const url  = URL.createObjectURL(blob);
+    img.src = url;
+    note.textContent = `${(LAYER_META[layer]||{}).title||layer} · ${year}`;
+
+    // Download
+    const safeName = (name||'parcel').replace(/[^a-zA-Z0-9_]/g,'_');
+    const a = document.createElement('a');
+    a.href = url; a.download = `ZaminAI_${safeName}_${layer}_${year}.png`; a.click();
   }catch(e){
-    note.textContent = 'Image error: ' + e.message;
+    note.textContent = 'Error: ' + e.message;
+    console.error(e);
   }
 }
+
+// ── Full annotated map image composer ─────────────────────────────────────────
+async function composeAnnotatedImage(geeUrl, layer, analysis, name, year){
+  const meta = LAYER_META[layer] || {};
+  const W = 1200, H_IMG = 640, H_LEGEND = 320, H_FOOT = 44;
+  const H = 80 + H_IMG + H_LEGEND + H_FOOT;  // header + image + stats/legend + footer
+
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // ── Background ────────────────────────────────────────────────────────────
+  ctx.fillStyle = '#080f1e'; ctx.fillRect(0,0,W,H);
+
+  // ── Header bar ────────────────────────────────────────────────────────────
+  const hh = 80;
+  ctx.fillStyle = '#0c1a30'; ctx.fillRect(0,0,W,hh);
+  ctx.fillStyle = '#27ae60'; ctx.fillRect(0,0,6,hh);
+
+  ctx.fillStyle = '#27ae60'; ctx.font = 'bold 13px monospace';
+  ctx.fillText('● ZaminAI — Satellite Analysis', 18, 26);
+
+  ctx.fillStyle = '#dde4f0'; ctx.font = 'bold 22px sans-serif';
+  ctx.fillText(`${meta.title||layer.toUpperCase()}`, 18, 54);
+
+  ctx.fillStyle = '#5a7a9a'; ctx.font = '13px sans-serif';
+  ctx.fillText(`${name}  ·  ${year}`, W-14, 32);
+  ctx.textAlign = 'right';
+  ctx.fillText(`${meta.source||'Sentinel-2'}`, W-14, 54);
+  ctx.textAlign = 'left';
+
+  // ── Load and draw satellite image ─────────────────────────────────────────
+  const proxyUrl = `${API}/officer/proxy-image?url=${encodeURIComponent(geeUrl)}`;
+  const satImg = await new Promise((res, rej) => {
+    const i = new Image(); i.crossOrigin='anonymous';
+    i.onload=()=>res(i); i.onerror=e=>rej(new Error('Image load failed'));
+    i.src = proxyUrl;
+  });
+
+  // Left 66% = image, right 34% = legend panel
+  const IMG_W = Math.round(W * 0.66), IMG_H = H_IMG;
+  ctx.drawImage(satImg, 0, hh, IMG_W, IMG_H);
+
+  // Subtle border
+  ctx.strokeStyle='#163352'; ctx.lineWidth=1;
+  ctx.strokeRect(0, hh, IMG_W, IMG_H);
+
+  // ── Legend panel (right side) ─────────────────────────────────────────────
+  const LP_X = IMG_W + 1, LP_W = W - IMG_W - 1;
+  ctx.fillStyle = '#0c1a30'; ctx.fillRect(LP_X, hh, LP_W, IMG_H);
+  ctx.strokeStyle='#163352'; ctx.strokeRect(LP_X, hh, LP_W, IMG_H);
+
+  let ly = hh + 22;
+  ctx.fillStyle='#5a7a9a'; ctx.font='bold 10px monospace';
+  ctx.fillText('LEGEND', LP_X+14, ly); ly+=20;
+
+  const legend = meta.legend || [];
+  for(const [col, lbl] of legend){
+    ctx.fillStyle=col;
+    ctx.fillRect(LP_X+14, ly-12, 18, 14);
+    ctx.strokeStyle='#163352'; ctx.lineWidth=0.5;
+    ctx.strokeRect(LP_X+14, ly-12, 18, 14);
+    ctx.fillStyle='#dde4f0'; ctx.font='11px sans-serif';
+    ctx.fillText(lbl, LP_X+38, ly);
+    ly+=22;
+  }
+
+  // ── Statistics section (right panel, below legend) ────────────────────────
+  if(analysis){
+    ly = Math.max(ly, hh+IMG_H/2);
+    ctx.fillStyle='#5a7a9a'; ctx.font='bold 10px monospace';
+    ctx.fillText('KEY STATISTICS', LP_X+14, ly); ly+=18;
+
+    const stats = [];
+    if(analysis.ndvi!=null)   stats.push(['NDVI', analysis.ndvi.toFixed(3)]);
+    if(analysis.rain!=null)   stats.push(['Rainfall', Math.round(analysis.rain)+' mm/yr']);
+    if(analysis.area_km2!=null) stats.push(['Area', Math.round(analysis.area_km2).toLocaleString()+' km²']);
+    if(analysis.landcover?.crop_pct!=null) stats.push(['Cropland', analysis.landcover.crop_pct.toFixed(1)+'%']);
+    if(analysis.terrain?.elev_mean_m!=null) stats.push(['Elevation', Math.round(analysis.terrain.elev_mean_m)+' m']);
+    if(analysis.population?.total!=null) stats.push(['Population', analysis.population.total.toLocaleString()]);
+
+    for(const [k,v] of stats){
+      ctx.fillStyle='#5a7a9a'; ctx.font='10px monospace';
+      ctx.fillText(k+':', LP_X+14, ly);
+      ctx.fillStyle='#dde4f0'; ctx.font='bold 11px sans-serif';
+      ctx.fillText(v, LP_X+90, ly);
+      ly+=18;
+    }
+  }
+
+  // ── Bottom statistics bar ─────────────────────────────────────────────────
+  const BY = hh + H_IMG;
+  ctx.fillStyle = '#0a1525'; ctx.fillRect(0, BY, W, H_LEGEND);
+
+  if(analysis?.landcover?.classes){
+    const cls = analysis.landcover.classes;
+    const sorted = Object.entries(cls).filter(([,v])=>v>1).sort(([,a],[,b])=>b-a);
+    const BAR_X=20, BAR_Y=BY+14, BAR_W=W-40, BAR_H=20;
+
+    // Color bar
+    let bx=BAR_X;
+    for(const [klass, pct] of sorted){
+      const col = (_LC_DEF_COL[klass])||'#888';
+      const w = (pct/100)*BAR_W;
+      ctx.fillStyle=col; ctx.fillRect(bx, BAR_Y, Math.max(1,w), BAR_H);
+      bx+=w;
+    }
+    ctx.strokeStyle='#163352'; ctx.lineWidth=1;
+    ctx.strokeRect(BAR_X, BAR_Y, BAR_W, BAR_H);
+
+    // Class labels under bar
+    ctx.font='10px sans-serif'; bx=BAR_X;
+    let row=0;
+    for(const [klass, pct] of sorted.slice(0,8)){
+      const col=(_LC_DEF_COL[klass])||'#888';
+      const label=(_LC_DEF_LBL[klass])||klass;
+      const col_x = BAR_X + (row%4)*((W-40)/4);
+      const col_y = BAR_Y + BAR_H + 16 + Math.floor(row/4)*18;
+      ctx.fillStyle=col;
+      ctx.fillRect(col_x, col_y-10, 12, 12);
+      ctx.fillStyle='#8aa8c0';
+      ctx.fillText(`${label}: ${pct.toFixed(1)}%`, col_x+16, col_y);
+      row++;
+    }
+  }
+
+  // ── Footer ────────────────────────────────────────────────────────────────
+  const FY = H - H_FOOT;
+  ctx.fillStyle='#040d1a'; ctx.fillRect(0,FY,W,H_FOOT);
+  ctx.fillStyle='#27ae60'; ctx.fillRect(0,FY,4,H_FOOT);
+  ctx.fillStyle='#334a60'; ctx.font='10px monospace';
+  ctx.fillText(`Source: ${meta.source||'Sentinel-2 SR'} · CHIRPS Rainfall · SRTM 30m · WorldPop`,
+               14, FY+18);
+  ctx.fillText(`Generated: ${new Date().toISOString().slice(0,10)} · ZaminAI · Afghanistan Development Initiative · zaminai.org`,
+               14, FY+34);
+
+  return new Promise(res => canvas.toBlob(res, 'image/png'));
+}
+
+// LC definition helpers for canvas legend bar
+const _LC_DEF_COL = {water:'#2980b9',trees:'#1a7a40',grass:'#8bc34a',flooded_veg:'#1abc9c',
+  crops:'#f39c12',shrub_scrub:'#95a5a6',built_up:'#e74c3c',bare_ground:'#a04000',snow_ice:'#ecf0f1'};
+const _LC_DEF_LBL = {water:'Water',trees:'Forest',grass:'Grass',flooded_veg:'Flooded',
+  crops:'Crops',shrub_scrub:'Shrub',built_up:'Urban',bare_ground:'Bare',snow_ice:'Snow'};
 
 // ── Time-series / dynamic change explorer ────────────────────────────────────
 let _tsState = {coords:null, trend:{}, playing:false, playTimer:null};
@@ -1251,54 +1426,81 @@ function showTimeSeries(trend){
   onTsSlider(document.getElementById('pp-ts-slider').value);
 }
 
+// Cache for timelapse images so we don't re-fetch on repeat plays
+const _tsImgCache = {};
+
 async function onTsSlider(year){
   year = parseInt(year);
   document.getElementById('pp-ts-slider').value = year;
   const v = _tsState.trend[year];
-  document.getElementById('pp-ts-year').textContent =
-    `${year}: NDVI ${v!=null?v.toFixed(3):'—'}`;
-  // Load satellite image for this year
+  const ndviCol = v!=null ? (v>=0.45?'#2e7d32':v>=0.28?'#f9a825':v>=0.15?'#ef6c00':'#bf360c') : '#607d8b';
+  document.getElementById('pp-ts-year').innerHTML =
+    `<span style="color:${ndviCol};font-size:15px;font-weight:800">${year}</span>` +
+    `<span style="font-size:11px;color:#8aa8c0;margin-left:6px">NDVI ${v!=null?v.toFixed(3):'—'}</span>`;
+
   if(!_parcelState?.coords) return;
   const wrap = document.getElementById('pp-ts-img-wrap');
   wrap.style.display = 'block';
-  const img = document.getElementById('pp-ts-img');
-  img.style.opacity = '0.4';
-  const r = await fetch(`${API}/officer/parcel-thumbnail`,{
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({coords:_parcelState.coords, year, layer:'ndvi'})
-  }).catch(()=>null);
-  if(r){
-    const d = await r.json().catch(()=>({}));
-    if(d.url){ img.src=d.url; img.onload=()=>img.style.opacity='1'; }
+  const img  = document.getElementById('pp-ts-img');
+
+  // Check cache first
+  if(_tsImgCache[year]){
+    img.src = _tsImgCache[year]; img.style.opacity='1'; return;
   }
+
+  img.style.opacity = '0.25';
+  try{
+    const r = await fetch(`${API}/officer/parcel-thumbnail`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({coords:_parcelState.coords, year, layer:'ndvi'})
+    });
+    const d = await r.json();
+    if(d.url){
+      // Wait for image to actually load before returning (important for timelapse)
+      await new Promise((res, rej) => {
+        const i = new Image();
+        i.onload  = () => { _tsImgCache[year]=d.url; img.src=d.url; img.style.opacity='1'; res(); };
+        i.onerror = () => res();   // don't block on error
+        i.src = d.url;
+      });
+    }
+  }catch(e){ img.style.opacity='0.5'; }
 }
 
 function _dlTsImage(){
   const year = parseInt(document.getElementById('pp-ts-slider').value);
-  if(_parcelState?.coords) {
+  if(_parcelState){
+    const orig = _parcelState.year;
     _parcelState.year = year;
     downloadParcelImage('ndvi');
+    _parcelState.year = orig;
   }
 }
 
 let _playIdx = 0;
 async function _playTimelapse(){
-  if(_tsState.playing){ clearInterval(_tsState.playTimer); _tsState.playing=false;
-    document.getElementById('pp-ts-play').textContent='▶ Play timelapse'; return; }
+  if(_tsState.playing){
+    _tsState.playing = false;
+    document.getElementById('pp-ts-play').textContent='▶ Play timelapse';
+    return;
+  }
   const years = Object.keys(_tsState.trend).map(Number).sort().filter(y=>_tsState.trend[y]);
   if(!years.length) return;
+
   _tsState.playing = true;
-  document.getElementById('pp-ts-play').textContent='⏹ Stop';
   _playIdx = 0;
-  async function nextFrame(){
-    if(!_tsState.playing){ return; }
-    if(_playIdx >= years.length){ _tsState.playing=false;
-      document.getElementById('pp-ts-play').textContent='▶ Play timelapse'; return; }
-    await onTsSlider(years[_playIdx]);
-    _playIdx++;
-    _tsState.playTimer = setTimeout(nextFrame, 1800);
+  document.getElementById('pp-ts-play').textContent='⏹ Stop';
+  document.getElementById('pp-ts-play').style.background='#2a0a0a';
+
+  for(const y of years){
+    if(!_tsState.playing) break;
+    await onTsSlider(y);            // waits for image to load
+    await new Promise(res=>setTimeout(res, 2200)); // hold 2.2s per frame
   }
-  nextFrame();
+
+  _tsState.playing = false;
+  document.getElementById('pp-ts-play').textContent='▶ Play timelapse';
+  document.getElementById('pp-ts-play').style.background='';
 }
 
 // Download satellite image for any polygon (called from DW layer popups)
