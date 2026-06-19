@@ -7,6 +7,8 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<link href="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@3/dist/maplibre-gl.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Tahoma,sans-serif;background:#080f1e;color:#dde4f0;height:100vh;overflow:hidden;display:flex;flex-direction:column}
@@ -101,6 +103,15 @@ body[dir=rtl] #results{left:0;right:330px}
 /* ── RTL overrides ── */
 body[dir=rtl] #sidebar{border-right:none;border-left:1px solid #163352}
 body[dir=rtl] .ctrl{direction:rtl}
+
+/* ── 3D View overlay ── */
+#view3d-overlay{position:absolute;inset:0;z-index:1900;background:#080f1e;display:none}
+#view3d-map{width:100%;height:100%}
+#view3d-toolbar{position:absolute;top:12px;left:12px;z-index:2000;display:flex;gap:8px;flex-wrap:wrap;max-width:420px}
+.v3d-btn{padding:7px 13px;background:rgba(12,26,48,.92);color:#dde4f0;border:1px solid #163352;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;backdrop-filter:blur(6px);transition:all .15s}
+.v3d-btn:hover,.v3d-btn.on{border-color:#27ae60;color:#27ae60;background:rgba(12,48,24,.92)}
+#view3d-info{position:absolute;bottom:30px;left:12px;z-index:2000;background:rgba(12,26,48,.88);border:1px solid #163352;border-radius:6px;padding:8px 12px;font-size:11px;color:#dde4f0;backdrop-filter:blur(6px);max-width:260px}
+.v3d-tip{color:#5a7a9a;font-size:10px;margin-top:4px}
 
 /* ── Layer toggle panel ── */
 #layer-panel{position:absolute;top:60px;right:10px;width:210px;background:rgba(12,26,48,.96);border:1px solid #163352;border-radius:8px;z-index:950;backdrop-filter:blur(8px);font-size:12px;color:#dde4f0;box-shadow:0 4px 20px rgba(0,0,0,.5)}
@@ -205,6 +216,10 @@ body[dir=rtl] #parcel-panel{left:0;right:330px}
       <button id="detect-btn" onclick="detectFields()" disabled style="width:100%;padding:8px;background:#0d2233;color:#3498db;border:1px solid #1e3a5f;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;margin-top:4px;transition:all .15s;letter-spacing:.03em">
         🛰️ Auto-detect Fields from Satellite
       </button>
+      <button onclick="open3DView()"
+        style="width:100%;padding:8px;background:#0d1a2e;color:#8b5cf6;border:1px solid #4c1d95;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;margin-top:4px;transition:all .15s;letter-spacing:.03em">
+        🏔️ 3D Terrain View
+      </button>
       <button id="parcel-btn" onclick="analyseSelectedParcel()" disabled
         style="width:100%;padding:8px;background:#0d1a2e;color:#f39c12;border:1px solid #2a3a1f;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;margin-top:4px;transition:all .15s;letter-spacing:.03em">
         📊 Analyse &amp; Export Parcel (GIS)
@@ -217,6 +232,23 @@ body[dir=rtl] #parcel-panel{left:0;right:330px}
       </div>
     </div>
   </div>
+  <!-- ── 3D View Overlay (Maplibre GL + terrain) ──────────────────────── -->
+  <div id="view3d-overlay">
+    <div id="view3d-toolbar">
+      <button class="v3d-btn" onclick="close3DView()">← 2D Map</button>
+      <button class="v3d-btn" id="v3d-terrain-btn" onclick="toggle3DTerrain()">⛰️ Terrain ON</button>
+      <button class="v3d-btn" id="v3d-lc-btn"      onclick="toggle3DLandcover()">🌍 Land Cover</button>
+      <button class="v3d-btn" id="v3d-sat-btn"      onclick="toggle3DSat()">🛰️ Satellite</button>
+      <button class="v3d-btn" id="v3d-tilt-btn"     onclick="toggle3DTilt()">📐 Tilt</button>
+    </div>
+    <div id="view3d-info">
+      <div style="font-weight:700;color:#27ae60;margin-bottom:3px">🏔️ 3D Terrain View</div>
+      <div id="v3d-region" style="color:#dde4f0;margin-bottom:3px"></div>
+      <div class="v3d-tip">Drag to rotate · Scroll to zoom · Right-drag to tilt</div>
+    </div>
+    <div id="view3d-map"></div>
+  </div>
+
   <div id="map">
 
     <!-- ── Layer toggle panel ─────────────────────────────────────────── -->
@@ -289,6 +321,24 @@ body[dir=rtl] #parcel-panel{left:0;right:330px}
     <button id="pp-close" onclick="closeParcelPanel()">✕</button>
   </div>
   <div id="pp-body"></div>
+  <!-- Village crop map button (shown only for small areas) -->
+  <div id="pp-crop-bar" style="display:none;padding:8px 14px;border-top:1px solid #163352">
+    <button onclick="loadVillageCrops()"
+      style="width:100%;padding:8px;background:#0b2a15;color:#27ae60;border:1px solid #27ae60;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700">
+      🌾 Load 10m Crop Type Map  <span style="font-weight:400;font-size:10px">(village detail)</span>
+    </button>
+    <div id="pp-crop-legend" style="display:none;margin-top:8px;font-size:10px">
+      <div style="color:#5a7a9a;margin-bottom:4px;font-weight:700;text-transform:uppercase;letter-spacing:.05em">Crop Types</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <span><span style="display:inline-block;width:10px;height:10px;background:#f39c12;border-radius:2px"></span> Wheat</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:#27ae60;border-radius:2px"></span> Vegetables</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:#1a7a40;border-radius:2px"></span> Orchard/Trees</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:#a04000;border-radius:2px"></span> Bare/Fallow</span>
+      </div>
+      <div style="color:#334a60;margin-top:3px">10 m · Sentinel-2 · rule-based estimate · verify in field</div>
+    </div>
+  </div>
+
   <div class="pp-dl-bar" id="pp-dl-bar" style="display:none">
     <span style="font-size:11px;color:#5a7a9a;align-self:center;flex-basis:100%;margin-bottom:4px">📥 Export:</span>
     <a class="pp-dl-btn pp-dl-geojson" href="#" onclick="downloadParcel('geojson');return false">📦 GeoJSON</a>
@@ -1400,6 +1450,180 @@ const _LC_DEF_COL = {water:'#2980b9',trees:'#1a7a40',grass:'#8bc34a',flooded_veg
 const _LC_DEF_LBL = {water:'Water',trees:'Forest',grass:'Grass',flooded_veg:'Flooded',
   crops:'Crops',shrub_scrub:'Shrub',built_up:'Urban',bare_ground:'Bare',snow_ice:'Snow'};
 
+// ── 3D Terrain View (Maplibre GL JS) ─────────────────────────────────────────
+let _3dMap = null, _3dLCVisible = false, _3dSatOn = true, _3dTerrainOn = true;
+
+const _3D_STYLE = {
+  version: 8,
+  glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+  sources: {
+    sat: { type:'raster', tileSize:256,
+      tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+      attribution:'Esri' },
+    labels: { type:'raster', tileSize:256,
+      tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'],
+      attribution:'Esri' },
+    terrain: { type:'raster-dem', tileSize:256, encoding:'terrarium', maxzoom:15,
+      tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+      attribution:'Mapzen/AWS' },
+  },
+  layers: [
+    { id:'sat',    type:'raster', source:'sat' },
+    { id:'labels', type:'raster', source:'labels', paint:{'raster-opacity':0.75} }
+  ],
+  sky: {
+    'sky-color':'#08101e','horizon-color':'#0c1a30',
+    'horizon-fog-blend':0.6,'fog-color':'#080f1e','fog-ground-blend':0.9
+  }
+};
+
+function open3DView(){
+  const ov = document.getElementById('view3d-overlay');
+  ov.style.display = 'block';
+
+  if(_3dMap){ _3dMap.resize(); return; }
+
+  const centre = map.getCenter();
+  const zoom   = Math.min(map.getZoom(), 12);
+
+  _3dMap = new maplibregl.Map({
+    container: 'view3d-map',
+    style: _3D_STYLE,
+    center: [centre.lng, centre.lat],
+    zoom, pitch: 55, bearing: -25, antialias: true,
+    terrain: { source:'terrain', exaggeration: 1.8 }
+  });
+
+  _3dMap.addControl(new maplibregl.NavigationControl({visualizePitch:true}), 'top-right');
+  _3dMap.addControl(new maplibregl.ScaleControl({unit:'metric'}), 'bottom-right');
+
+  _3dMap.on('load', ()=>{
+    _3dMap.setTerrain({ source:'terrain', exaggeration:1.8 });
+    _add3DProvinceLayers();
+    _add3DLandcoverLayers();
+    _3dFlyToRegion();
+  });
+
+  const regionName = selFeat?.properties?.NAME_1 || cIn.value.trim() || '';
+  document.getElementById('v3d-region').textContent = regionName;
+}
+
+function close3DView(){
+  document.getElementById('view3d-overlay').style.display = 'none';
+}
+
+function _add3DProvinceLayers(){
+  if(!_3dMap || !l1Data) return;
+  if(_3dMap.getSource('provinces')) return;
+  _3dMap.addSource('provinces', {type:'geojson', data:l1Data});
+
+  // Province fill extrusion (low, translucent walls)
+  _3dMap.addLayer({ id:'prov-walls', type:'fill-extrusion', source:'provinces',
+    paint:{ 'fill-extrusion-color':'#27ae60',
+            'fill-extrusion-height':800, 'fill-extrusion-base':0,
+            'fill-extrusion-opacity':0.18 } });
+
+  // Province outlines (white, sharp)
+  _3dMap.addLayer({ id:'prov-lines', type:'line', source:'provinces',
+    paint:{ 'line-color':'#ffffff','line-width':1.5,'line-opacity':0.8 } });
+
+  // Province labels
+  _3dMap.addLayer({ id:'prov-labels', type:'symbol', source:'provinces',
+    layout:{ 'text-field':['get','NAME_1'], 'text-size':11,
+             'text-font':['Open Sans Regular'],
+             'text-anchor':'center' },
+    paint:{ 'text-color':'#dde4f0', 'text-halo-color':'#080f1e', 'text-halo-width':1 }
+  });
+
+  // Village layer (if loaded)
+  if(l3Data){
+    _3dMap.addSource('villages',{type:'geojson',data:{type:'FeatureCollection',features:l3Data.features}});
+    _3dMap.addLayer({id:'vil-lines',type:'line',source:'villages',
+      paint:{'line-color':'#ffe066','line-width':0.8,'line-opacity':0.6}});
+  }
+}
+
+function _add3DLandcoverLayers(){
+  if(!_3dMap || !detectLayer) return;
+  try{
+    const gj = detectLayer.toGeoJSON();
+    if(_3dMap.getSource('lc3d')) _3dMap.removeLayer('lc3d-extrude');
+    else _3dMap.addSource('lc3d',{type:'geojson',data:gj});
+
+    // Extrusion heights by DW class (crops low, forest tall, urban medium)
+    const heightExpr = ['match',['get','lc'],
+      0,400,    // water → flat blue
+      1,9000,   // forest → tall green
+      2,600,    // grass → low
+      3,500,    // flooded → near flat
+      4,800,    // crops → low
+      5,1200,   // shrub → low-medium
+      6,4000,   // urban → medium
+      7,300,    // bare → very flat
+      8,200,    // snow → flat
+      500       // default
+    ];
+    const colorExpr = ['match',['get','lc'],
+      0,'#2980b9', 1,'#1a7a40', 2,'#8bc34a', 3,'#1abc9c', 4,'#f39c12',
+      5,'#95a5a6', 6,'#e74c3c', 7,'#a04000', 8,'#ecf0f1', '#888'
+    ];
+
+    _3dMap.addLayer({ id:'lc3d-extrude', type:'fill-extrusion', source:'lc3d',
+      paint:{ 'fill-extrusion-color': colorExpr,
+              'fill-extrusion-height': heightExpr,
+              'fill-extrusion-base': 0,
+              'fill-extrusion-opacity': 0.78 }
+    });
+    _3dLCVisible = true;
+    document.getElementById('v3d-lc-btn').classList.add('on');
+  }catch(e){ console.warn('3D LC error:', e); }
+}
+
+function _3dFlyToRegion(){
+  if(!_3dMap || !selFeat) return;
+  try{
+    const bounds = L.geoJSON(selFeat).getBounds();
+    _3dMap.fitBounds(
+      [[bounds.getWest(),bounds.getSouth()],[bounds.getEast(),bounds.getNorth()]],
+      { padding:60, pitch:55, bearing:-25, duration:1800 }
+    );
+  }catch(e){}
+}
+
+function toggle3DTerrain(){
+  if(!_3dMap) return;
+  _3dTerrainOn = !_3dTerrainOn;
+  _3dMap.setTerrain(_3dTerrainOn ? {source:'terrain',exaggeration:1.8} : null);
+  document.getElementById('v3d-terrain-btn').textContent =
+    `⛰️ Terrain ${_3dTerrainOn?'ON':'OFF'}`;
+  document.getElementById('v3d-terrain-btn').classList.toggle('on', _3dTerrainOn);
+}
+
+function toggle3DLandcover(){
+  if(!_3dMap) return;
+  if(!_3dLCVisible && detectLayer) { _add3DLandcoverLayers(); return; }
+  if(_3dMap.getLayer('lc3d-extrude')){
+    _3dLCVisible ? _3dMap.setLayoutProperty('lc3d-extrude','visibility','none')
+                 : _3dMap.setLayoutProperty('lc3d-extrude','visibility','visible');
+    _3dLCVisible = !_3dLCVisible;
+    document.getElementById('v3d-lc-btn').classList.toggle('on',_3dLCVisible);
+  }
+}
+
+function toggle3DSat(){
+  if(!_3dMap) return;
+  _3dSatOn = !_3dSatOn;
+  _3dMap.setLayoutProperty('sat','visibility',_3dSatOn?'visible':'none');
+  document.getElementById('v3d-sat-btn').classList.toggle('on',_3dSatOn);
+}
+
+let _3dPitch = 55;
+function toggle3DTilt(){
+  if(!_3dMap) return;
+  _3dPitch = _3dPitch === 55 ? 75 : _3dPitch === 75 ? 0 : 55;
+  _3dMap.easeTo({pitch:_3dPitch, duration:800});
+}
+
 // ── Time-series / dynamic change explorer ────────────────────────────────────
 let _tsState = {coords:null, trend:{}, playing:false, playTimer:null};
 
@@ -1501,6 +1725,72 @@ async function _playTimelapse(){
   _tsState.playing = false;
   document.getElementById('pp-ts-play').textContent='▶ Play timelapse';
   document.getElementById('pp-ts-play').style.background='';
+}
+
+// ── Village 10m crop type map ────────────────────────────────────────────────
+let _villageCropLayer = null;
+
+async function loadVillageCrops(){
+  if(!_parcelState){ alert('Run parcel analysis first.'); return; }
+  const btn = document.querySelector('#pp-crop-bar button');
+  btn.textContent = '⏳ Loading 10m crop map…'; btn.disabled = true;
+
+  const { coords, year } = _parcelState;
+  try{
+    // Start task
+    const r = await fetch(`${API}/officer/village-crops`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({coords, year})
+    });
+    const start = await r.json();
+    if(start.error) throw new Error(start.error);
+
+    // Poll
+    let geojson = null;
+    for(let i=0;i<40&&!geojson;i++){
+      await new Promise(res=>setTimeout(res,5000));
+      const poll = await fetch(`${API}/officer/analyse-result/${start.task_id}`);
+      const pd   = await poll.json();
+      if(pd.status==='done')  geojson = pd.data;
+      if(pd.status==='error') throw new Error(pd.error);
+    }
+    if(!geojson) throw new Error('Timed out. Try a smaller area.');
+
+    // Remove old layer
+    if(_villageCropLayer){ map.removeLayer(_villageCropLayer); }
+
+    const CROP_COLORS = {1:'#f39c12',2:'#27ae60',3:'#1a7a40',4:'#a04000'};
+    const CROP_NAMES  = {1:'Wheat',2:'Vegetables',3:'Orchard/Trees',4:'Bare/Fallow'};
+
+    _villageCropLayer = L.geoJSON(geojson,{
+      style: feat=>{
+        const cc  = feat.properties?.crop_class ?? 4;
+        const col = CROP_COLORS[cc]||'#888';
+        return {color:'#fff',weight:.6,fillColor:col,fillOpacity:.7};
+      },
+      onEachFeature:(feat,layer)=>{
+        const cc   = feat.properties?.crop_class ?? 4;
+        const ndvi = feat.properties?.mean ?? null;
+        layer.bindPopup(`
+          <div class="pop-title">🌾 ${CROP_NAMES[cc]||'Unknown'}</div>
+          <div class="pop-row"><span class="pop-k">NDVI</span><span class="pop-v">${ndvi!==null?ndvi.toFixed(3):'—'}</span></div>
+          <div class="mc-note">10 m · Sentinel-2 · rule-based estimate · verify in field</div>
+        `,{maxWidth:200});
+        layer.bindTooltip(CROP_NAMES[cc]||'—',{sticky:true,className:'leaflet-tooltip-dark'});
+      }
+    }).addTo(map);
+
+    const count = geojson.features?.length || 0;
+    btn.textContent = `✓ ${count} crop polygons loaded`;
+    document.getElementById('pp-crop-legend').style.display = 'block';
+
+    // Zoom to the crop polygons
+    if(count > 0) map.fitBounds(_villageCropLayer.getBounds(),{padding:[20,20]});
+
+  }catch(e){
+    btn.textContent = `Error: ${e.message}`;
+    btn.disabled = false;
+  }
 }
 
 // Download satellite image for any polygon (called from DW layer popups)
@@ -2334,6 +2624,10 @@ async function analyseParcel(feature, name, adminLevel){
   document.getElementById('pp-title').textContent = `📍 ${name}`;
   document.getElementById('pp-dl-bar').style.display = 'none';
   document.getElementById('pp-dl-note').style.display = 'none';
+  document.getElementById('pp-crop-bar').style.display = 'none';
+  document.getElementById('pp-timeseries').style.display = 'none';
+  document.getElementById('pp-img-preview').style.display = 'none';
+  if(_villageCropLayer){ map.removeLayer(_villageCropLayer); _villageCropLayer=null; }
   body.innerHTML = `<div style="text-align:center;padding:2rem">
     <div style="font-size:28px;animation:spin .8s linear infinite;display:inline-block">🛰️</div>
     <div style="color:#3498db;font-size:12px;margin-top:8px">Analysing ${name}…</div>
@@ -2420,6 +2714,14 @@ function renderParcelResults(d, name){
 
   document.getElementById('pp-dl-bar').style.display = 'flex';
   document.getElementById('pp-dl-note').style.display = 'block';
+
+  // Show village crop map button for small areas (< 50 km²)
+  const ppCropBar = document.getElementById('pp-crop-bar');
+  if(d.area_km2 && d.area_km2 < 50){
+    ppCropBar.style.display = 'block';
+  } else {
+    ppCropBar.style.display = 'none';
+  }
 
   // Show time-series explorer from NDVI trend data
   _tsState.coords = _parcelState.coords;

@@ -1829,17 +1829,19 @@ def gee_analyse_officer(coords, year, clat, clon, scale=500):
     except Exception as e:
         log.warning(f"JRC surface water failed: {e}")
 
-    # ── Monthly NDVI profile — skip for large areas to avoid timeout ──────────
+    # ── Monthly NDVI profile — all 12 months for villages, bimonthly for large ──
     ndvi_monthly = {}
-    if area_km2 < 8000:   # only run for districts / small provinces
+    if area_km2 < 20000:
         try:
-            cal_scale = max(scale, 300)
-            for mo in [1, 3, 5, 7, 9, 11]:
-                mo_end = f"{year}-{mo+1:02d}-01"
+            # Villages get fine monthly data; provinces get every-2-months
+            months = list(range(1,13)) if area_km2 < 200 else [1,3,5,7,9,11]
+            cal_scale = max(scale, 10 if area_km2 < 5 else 30 if area_km2 < 50 else 100)
+            for mo in months:
+                mo_end = f"{year}-{(mo%12)+1:02d}-01" if mo < 12 else f"{year+1}-01-01"
                 mc = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
                       .filterBounds(poly).filterDate(f"{year}-{mo:02d}-01", mo_end)
-                      .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 35))
-                      .median().clip(poly))
+                      .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 50))
+                      .sort("CLOUDY_PIXEL_PERCENTAGE").limit(3).median().clip(poly))
                 v = mc.normalizedDifference(["B8","B4"]).reduceRegion(
                         ee.Reducer.mean(), poly, cal_scale, maxPixels=1e9
                     ).get("nd").getInfo()
@@ -2152,6 +2154,94 @@ def officer_parcel_thumbnail():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/officer/village-crops", methods=["POST","OPTIONS"])
+def officer_village_crops():
+    """High-resolution crop type map for small areas (villages, fields).
+    Returns GeoJSON polygons with crop class + NDVI at 10-20m resolution.
+    Only suitable for area < 50 km² — uses native S2 10m resolution.
+    """
+    if request.method == "OPTIONS": return jsonify({}), 200
+    if not gee_ok: return jsonify({"error": "GEE not available"}), 503
+    try:
+        import ee
+        data   = request.get_json(force=True)
+        coords = data.get("coords", [])
+        year   = int(data.get("year", datetime.now().year))
+        if len(coords) < 3: return jsonify({"error": "Need ≥3 points"}), 400
+
+        area_km2 = calc_area_ha(coords) / 100.0
+        if area_km2 > 50:
+            return jsonify({"error": "Area too large for village crop map. Use district/province level analysis."}), 400
+
+        task_id = str(uuid.uuid4())
+        _analyse_farmer_tasks[task_id] = {"status": "pending"}
+
+        def _worker():
+            try:
+                poly = ee.Geometry.Polygon([[[c[1],c[0]] for c in coords]])
+                today = datetime.now().strftime("%Y-%m-%d")
+                clat  = sum(c[0] for c in coords) / len(coords)
+
+                if clat >= 10:
+                    s_start, s_end = f"{year}-04-01", min(f"{year}-09-30", today)
+                elif clat <= -10:
+                    s_start, s_end = f"{year-1}-10-01", min(f"{year}-04-30", today)
+                else:
+                    s_start, s_end = f"{year}-01-01", min(f"{year}-12-31", today)
+
+                def _qamask(img):
+                    qa = img.select("QA60")
+                    return img.updateMask(qa.bitwiseAnd(1<<10).eq(0).And(qa.bitwiseAnd(1<<11).eq(0)))
+
+                s2 = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+                      .filterBounds(poly).filterDate(s_start, s_end)
+                      .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 35))
+                      .sort("CLOUDY_PIXEL_PERCENTAGE").limit(6)
+                      .map(_qamask).median().clip(poly))
+
+                ndvi = s2.normalizedDifference(["B8","B4"]).rename("ndvi")
+                evi  = s2.expression("2.5*((NIR-RED)/(NIR+6*RED-7.5*BLUE+1))",
+                                     {"NIR":s2.select("B8"),"RED":s2.select("B4"),"BLUE":s2.select("B2")}).rename("evi")
+                lswi = s2.normalizedDifference(["B8","B11"]).rename("lswi")
+
+                month = datetime.now().month
+                # Pixel-level crop classification (same rules as detect_crop scalar logic)
+                crop_map = (ee.Image(4)  # default: bare/fallow
+                    .where(ndvi.gte(0.42).And(evi.gte(0.30)), 3)           # orchard
+                    .where(ndvi.gte(0.38).And(evi.gte(0.28)).And(lswi.gte(-0.10)), 2)  # vegetables
+                    .where(ndvi.gte(0.25).And(ndvi.lte(0.60)).And(evi.lt(0.38))
+                           .And(ee.Image(1 if month in range(3,8) else 0).eq(1)), 1)   # wheat
+                    .where(ndvi.lt(0.12), 4)                                # bare
+                ).rename("crop_class")
+
+                # Only show vegetated pixels
+                crop_masked = crop_map.updateMask(ndvi.gt(0.08))
+
+                # Vectorize at 10m (fine detail for villages)
+                fc = (crop_masked.addBands(ndvi)
+                      .reduceToVectors(
+                          geometry=poly, scale=10,
+                          geometryType="polygon", eightConnected=False,
+                          labelProperty="crop_class", reducer=ee.Reducer.mean(),
+                          maxPixels=1e10, bestEffort=True, tileScale=4)
+                      .filter(ee.Filter.gte("count", 10))   # min ~0.1 ha
+                      .limit(500))
+
+                result = fc.getInfo()
+                count  = len(result.get("features", []))
+                log.info(f"village-crops: {count} crop polygons, scale=10m, area={area_km2:.2f}km²")
+                _analyse_farmer_tasks[task_id] = {"status":"done","data":result}
+            except Exception as ex:
+                log.error(f"village-crops worker: {ex}")
+                _analyse_farmer_tasks[task_id] = {"status":"error","error":str(ex)}
+
+        threading.Thread(target=_worker, daemon=True).start()
+        return jsonify({"task_id": task_id, "status": "pending", "type": "village_crops"})
+    except Exception as e:
+        log.error(f"/officer/village-crops: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/officer/proxy-image", methods=["GET"])
 def officer_proxy_image():
     """Proxy GEE thumbnail URLs so the browser can draw them on canvas
@@ -2395,11 +2485,15 @@ def officer_analyse():
         area_ha  = calc_area_ha(coords)
         area_km2 = area_ha / 100.0
 
-        if area_km2 < 100:    scale = 100
-        elif area_km2 < 1000:  scale = 300
-        elif area_km2 < 10000: scale = 500
-        elif area_km2 < 30000: scale = 1000
-        else:                   scale = 2000
+        # Fine scale for small areas (villages, fields) — coarser for large regions
+        if area_km2 < 1:       scale = 10    # tiny village / single field
+        elif area_km2 < 10:    scale = 20    # village
+        elif area_km2 < 50:    scale = 30    # small district
+        elif area_km2 < 200:   scale = 50    # district
+        elif area_km2 < 1000:  scale = 100   # province
+        elif area_km2 < 5000:  scale = 300
+        elif area_km2 < 20000: scale = 500
+        else:                   scale = 1000
 
         task_id = str(uuid.uuid4())
         _analyse_tasks[task_id] = {"status": "pending"}
