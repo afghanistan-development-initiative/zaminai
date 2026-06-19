@@ -6,6 +6,7 @@
 <title>ZaminAI — Officer Dashboard</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Tahoma,sans-serif;background:#080f1e;color:#dde4f0;height:100vh;overflow:hidden;display:flex;flex-direction:column}
@@ -289,19 +290,49 @@ body[dir=rtl] #parcel-panel{left:0;right:330px}
   </div>
   <div id="pp-body"></div>
   <div class="pp-dl-bar" id="pp-dl-bar" style="display:none">
-    <span style="font-size:11px;color:#5a7a9a;align-self:center">Export for GIS:</span>
-    <a class="pp-dl-btn pp-dl-geojson" id="pp-btn-geojson" href="#" onclick="downloadParcel('geojson');return false">
-      📦 GeoJSON
-    </a>
-    <a class="pp-dl-btn pp-dl-csv" id="pp-btn-csv" href="#" onclick="downloadParcel('csv');return false">
-      📋 CSV
-    </a>
-    <a class="pp-dl-btn pp-dl-kml" id="pp-btn-kml" href="#" onclick="downloadParcel('kml');return false">
-      🌍 KML
-    </a>
+    <span style="font-size:11px;color:#5a7a9a;align-self:center;flex-basis:100%;margin-bottom:4px">📥 Export:</span>
+    <a class="pp-dl-btn pp-dl-geojson" href="#" onclick="downloadParcel('geojson');return false">📦 GeoJSON</a>
+    <a class="pp-dl-btn pp-dl-csv"     href="#" onclick="downloadParcel('csv');return false">📋 CSV</a>
+    <a class="pp-dl-btn pp-dl-kml"     href="#" onclick="downloadParcel('kml');return false">🌍 KML</a>
+    <a class="pp-dl-btn" style="background:#0d1f30;color:#f39c12;border:1px solid #f39c12"
+       href="#" onclick="downloadParcelImage('natural');return false">🛰️ Satellite PNG</a>
+    <a class="pp-dl-btn" style="background:#0b2a15;color:#27ae60;border:1px solid #27ae60"
+       href="#" onclick="downloadParcelImage('ndvi');return false">🟢 NDVI PNG</a>
+    <a class="pp-dl-btn" style="background:#04192e;color:#3498db;border:1px solid #3498db"
+       href="#" onclick="downloadParcelImage('landcover');return false">🌍 Land Cover PNG</a>
+    <a class="pp-dl-btn" style="background:#1c1400;color:#f39c12;border:1px solid #f39c12"
+       href="#" onclick="downloadMapScreenshot();return false">📷 Map Screenshot</a>
+  </div>
+  <!-- Time-series explorer -->
+  <div id="pp-timeseries" style="display:none;padding:10px 14px;border-top:1px solid #163352">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <span style="font-size:10px;font-weight:700;color:#5a7a9a;text-transform:uppercase;letter-spacing:.06em">📅 NDVI over time (2013–present)</span>
+      <span id="pp-ts-year" style="font-size:12px;font-weight:700;color:#f39c12"></span>
+    </div>
+    <input type="range" id="pp-ts-slider" min="2013" max="2025" value="2024"
+      style="width:100%;accent-color:#f39c12;cursor:pointer" oninput="onTsSlider(this.value)">
+    <div style="display:flex;justify-content:space-between;font-size:9px;color:#334a60;margin-top:2px">
+      <span>2013 (Landsat)</span><span>2019 (Sentinel-2)</span><span>2025</span>
+    </div>
+    <div id="pp-ts-bar" style="margin-top:8px;height:28px;border-radius:4px;overflow:hidden;display:flex;align-items:stretch">
+      <!-- NDVI trend bars rendered by JS -->
+    </div>
+    <div id="pp-ts-img-wrap" style="display:none;margin-top:8px">
+      <img id="pp-ts-img" src="" style="width:100%;border-radius:4px;border:1px solid #163352"/>
+      <div style="display:flex;gap:6px;margin-top:5px">
+        <button onclick="_dlTsImage()" style="flex:1;padding:5px;background:#1c1400;color:#f39c12;border:1px solid #f39c12;border-radius:4px;cursor:pointer;font-size:10px;font-weight:700">⬇️ Download this year PNG</button>
+        <button onclick="_playTimelapse()" id="pp-ts-play" style="flex:1;padding:5px;background:#04192e;color:#3498db;border:1px solid #3498db;border-radius:4px;cursor:pointer;font-size:10px;font-weight:700">▶ Play timelapse</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="pp-img-preview" style="display:none;padding:8px 14px">
+    <div style="font-size:10px;color:#5a7a9a;margin-bottom:4px">Satellite Image Preview</div>
+    <img id="pp-sat-img" src="" style="width:100%;border-radius:4px;border:1px solid #163352" alt="Satellite view"/>
+    <div id="pp-img-note" style="font-size:10px;color:#334a60;margin-top:4px"></div>
   </div>
   <div class="pp-dl-note" id="pp-dl-note" style="display:none">
-    GeoJSON / KML open directly in QGIS and ArcGIS Pro. CSV imports as table with coordinates.
+    GeoJSON / KML open directly in QGIS and ArcGIS Pro · CSV imports as table · PNG images for reports
   </div>
 </div>
 
@@ -980,6 +1011,8 @@ async function onCountrySelected(country){
     ps.innerHTML = `<option value="">— select —</option>`;
     names.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; ps.appendChild(o); });
     ps.disabled = false;
+    // Enable parcel analysis at country level (no province needed)
+    document.getElementById('parcel-btn').disabled = false;
     bndLayer = L.geoJSON(l1Data, {
       style:{ color:'#ffffff', weight:1.5, fillColor:'#27ae60', fillOpacity:.05 },
       onEachFeature:(f,layer) => {
@@ -1128,13 +1161,178 @@ function _analyseFromMenu(){
   if(_pendingFeat) analyseParcel(_pendingFeat, _pendingName, _pendingLevel);
 }
 
-// Called from "Analyse & Export Parcel" sidebar button — uses currently selected feature
+// Called from "Analyse & Export Parcel" sidebar button — works at ANY admin level
 function analyseSelectedParcel(){
-  if(!selFeat){ setStatus(t('needProv'), 'err'); return; }
-  const p    = selFeat.properties;
-  const name = p.NAME_3 || p.NAME_2 || p.NAME_1 || t('province');
-  const lvl  = p.NAME_3 ? 'village' : p.NAME_2 ? 'district' : 'province';
-  analyseParcel(selFeat, name, lvl);
+  let feat = selFeat, name, lvl;
+
+  if(feat){
+    const p = feat.properties;
+    name = p.NAME_3 || p.NAME_2 || p.NAME_1 || cIn.value.trim() || 'Region';
+    lvl  = p.NAME_3 ? 'village' : p.NAME_2 ? 'district' : 'province';
+  } else if(bndLayer) {
+    // Country level — build bounding-box polygon from all provinces
+    const b = bndLayer.getBounds();
+    feat = {
+      type:"Feature",
+      geometry:{type:"Polygon",coordinates:[[
+        [b.getWest(),b.getSouth()],[b.getWest(),b.getNorth()],
+        [b.getEast(),b.getNorth()],[b.getEast(),b.getSouth()],
+        [b.getWest(),b.getSouth()]
+      ]]},
+      properties:{}
+    };
+    name = cIn.value.trim() || 'Country';
+    lvl  = 'country';
+  } else {
+    setStatus(t('needProv'), 'err'); return;
+  }
+  analyseParcel(feat, name, lvl);
+}
+
+// ── Image download functions ─────────────────────────────────────────────────
+async function downloadParcelImage(layer){
+  if(!_parcelState){ alert('Run parcel analysis first.'); return; }
+  const { coords, year, name } = _parcelState;
+  const safeName = (name||'parcel').replace(/[^a-zA-Z0-9_]/g,'_');
+
+  // Show loading state in preview
+  const prev = document.getElementById('pp-img-preview');
+  const img  = document.getElementById('pp-sat-img');
+  const note = document.getElementById('pp-img-note');
+  prev.style.display='block';
+  img.src=''; note.textContent='Loading satellite image…';
+
+  try{
+    const r = await fetch(`${API}/officer/parcel-thumbnail`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({coords, year, layer})
+    });
+    const d = await r.json();
+    if(d.error) throw new Error(d.error);
+
+    // Show preview
+    img.src  = d.url;
+    note.textContent = `${layer.toUpperCase()} · ${year} · Sentinel-2`;
+
+    // Trigger download
+    const a  = document.createElement('a');
+    a.href   = d.url;
+    a.target = '_blank';
+    a.download = `ZaminAI_${safeName}_${layer}_${year}.png`;
+    a.click();
+  }catch(e){
+    note.textContent = 'Image error: ' + e.message;
+  }
+}
+
+// ── Time-series / dynamic change explorer ────────────────────────────────────
+let _tsState = {coords:null, trend:{}, playing:false, playTimer:null};
+
+function showTimeSeries(trend){
+  if(!trend || !Object.keys(trend).length) return;
+  _tsState.trend = trend;
+  const years = Object.keys(trend).map(Number).sort();
+  const maxY = new Date().getFullYear();
+  document.getElementById('pp-ts-slider').max = maxY;
+  // Build trend bar chart
+  const vals = years.map(y => trend[y] ?? 0);
+  const mx = Math.max(...vals.filter(v=>v)) || 0.8;
+  const bars = years.map(y => {
+    const v = trend[y] ?? 0;
+    const pct = Math.round((v/mx)*100);
+    const col = v>=0.45?'#2e7d32':v>=0.28?'#f9a825':v>=0.15?'#ef6c00':'#bf360c';
+    return `<div title="${y}: NDVI ${v?.toFixed?.(3)||'—'}"
+      style="flex:1;background:${col};opacity:${0.5+pct/200};position:relative;cursor:pointer"
+      onclick="onTsSlider(${y})">
+    </div>`;
+  }).join('');
+  document.getElementById('pp-ts-bar').innerHTML = bars;
+  document.getElementById('pp-timeseries').style.display = 'block';
+  onTsSlider(document.getElementById('pp-ts-slider').value);
+}
+
+async function onTsSlider(year){
+  year = parseInt(year);
+  document.getElementById('pp-ts-slider').value = year;
+  const v = _tsState.trend[year];
+  document.getElementById('pp-ts-year').textContent =
+    `${year}: NDVI ${v!=null?v.toFixed(3):'—'}`;
+  // Load satellite image for this year
+  if(!_parcelState?.coords) return;
+  const wrap = document.getElementById('pp-ts-img-wrap');
+  wrap.style.display = 'block';
+  const img = document.getElementById('pp-ts-img');
+  img.style.opacity = '0.4';
+  const r = await fetch(`${API}/officer/parcel-thumbnail`,{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({coords:_parcelState.coords, year, layer:'ndvi'})
+  }).catch(()=>null);
+  if(r){
+    const d = await r.json().catch(()=>({}));
+    if(d.url){ img.src=d.url; img.onload=()=>img.style.opacity='1'; }
+  }
+}
+
+function _dlTsImage(){
+  const year = parseInt(document.getElementById('pp-ts-slider').value);
+  if(_parcelState?.coords) {
+    _parcelState.year = year;
+    downloadParcelImage('ndvi');
+  }
+}
+
+let _playIdx = 0;
+async function _playTimelapse(){
+  if(_tsState.playing){ clearInterval(_tsState.playTimer); _tsState.playing=false;
+    document.getElementById('pp-ts-play').textContent='▶ Play timelapse'; return; }
+  const years = Object.keys(_tsState.trend).map(Number).sort().filter(y=>_tsState.trend[y]);
+  if(!years.length) return;
+  _tsState.playing = true;
+  document.getElementById('pp-ts-play').textContent='⏹ Stop';
+  _playIdx = 0;
+  async function nextFrame(){
+    if(!_tsState.playing){ return; }
+    if(_playIdx >= years.length){ _tsState.playing=false;
+      document.getElementById('pp-ts-play').textContent='▶ Play timelapse'; return; }
+    await onTsSlider(years[_playIdx]);
+    _playIdx++;
+    _tsState.playTimer = setTimeout(nextFrame, 1800);
+  }
+  nextFrame();
+}
+
+// Download satellite image for any polygon (called from DW layer popups)
+async function _dlDWImg(layer, coords, year, label){
+  const safeName = (label||'parcel').replace(/[^a-zA-Z0-9_]/g,'_');
+  try{
+    const r = await fetch(`${API}/officer/parcel-thumbnail`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({coords, year, layer})
+    });
+    const d = await r.json();
+    if(d.error){ alert('Image error: '+d.error); return; }
+    const a = document.createElement('a');
+    a.href = d.url; a.target='_blank';
+    a.download = `ZaminAI_${safeName}_${layer}_${year}.png`;
+    a.click();
+  }catch(e){ alert('Failed: '+e.message); }
+}
+
+async function downloadMapScreenshot(){
+  const name = (_parcelState?.name || selFeat?.properties?.NAME_1 || 'map')
+               .replace(/[^a-zA-Z0-9_]/g,'_');
+  try{
+    const canvas = await html2canvas(document.getElementById('map'),{
+      useCORS: true, allowTaint: true, scale: 1.5,
+      backgroundColor: '#080f1e'
+    });
+    const a = document.createElement('a');
+    a.download = `ZaminAI_${name}_map.png`;
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  }catch(e){
+    alert('Screenshot failed: '+e.message+'\nTry the Satellite PNG button instead.');
+  }
 }
 
 document.getElementById('vil-sel').addEventListener('change', function(){
@@ -1336,13 +1534,23 @@ async function detectFields(){
         const icon      = (lc !== undefined && lc !== null) ? DW_ICON[lc] : '🌿';
         const badge     = (lc===4 || lc===undefined) ? _ndviBadge(ndvi) : '';
         const insight   = (lc !== undefined) ? _dwInsight(lc, ndvi) : '';
+        const dwCoords = extractCoords(feat);
+        const dwYear   = parseInt(document.getElementById('year-sel').value);
         layer.bindPopup(`
           <div class="pop-title">${icon} ${className}</div>
           ${ndvi!==null?`<div class="pop-row"><span class="pop-k">NDVI</span><span class="pop-v" style="color:${col};font-weight:700">${ndvi.toFixed(3)}</span></div>`:''}
           ${badge}
           ${insight?`<div style="font-size:10px;color:#8aa8c0;margin-top:5px;line-height:1.45">${insight}</div>`:''}
-          <div class="mc-note" style="margin-top:4px">Dynamic World V1 · Sentinel-2 10 m</div>
-        `,{maxWidth:240});
+          <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap">
+            <button onclick="_dlDWImg('natural',${JSON.stringify(dwCoords)},${dwYear},'${className.replace(/'/g,'')}')"
+              style="flex:1;padding:4px 6px;background:#0d1f30;color:#f39c12;border:1px solid #f39c12;border-radius:4px;cursor:pointer;font-size:10px;font-weight:700">🛰️ Satellite</button>
+            <button onclick="_dlDWImg('landcover',${JSON.stringify(dwCoords)},${dwYear},'${className.replace(/'/g,'')}')"
+              style="flex:1;padding:4px 6px;background:#0b2a15;color:#27ae60;border:1px solid #27ae60;border-radius:4px;cursor:pointer;font-size:10px;font-weight:700">🌍 Land Cover</button>
+            <button onclick="_dlDWImg('ndvi',${JSON.stringify(dwCoords)},${dwYear},'${className.replace(/'/g,'')}')"
+              style="flex:1;padding:4px 6px;background:#04192e;color:#3498db;border:1px solid #3498db;border-radius:4px;cursor:pointer;font-size:10px;font-weight:700">🟢 NDVI</button>
+          </div>
+          <div class="mc-note" style="margin-top:4px">Dynamic World V1 · Sentinel-2 10 m · click image buttons to download PNG</div>
+        `,{maxWidth:260});
         layer.bindTooltip(`${icon} ${className}${ndvi!==null?' · NDVI '+ndvi.toFixed(2):''}`,
           {sticky:true,className:'leaflet-tooltip-dark'});
         // Hover + right-click for parcel analysis
@@ -2010,6 +2218,11 @@ function renderParcelResults(d, name){
 
   document.getElementById('pp-dl-bar').style.display = 'flex';
   document.getElementById('pp-dl-note').style.display = 'block';
+
+  // Show time-series explorer from NDVI trend data
+  _tsState.coords = _parcelState.coords;
+  const trend = d.combined_trend || d.ndvi_trend || d.trend || {};
+  if(Object.keys(trend).length) showTimeSeries(trend);
 }
 
 // ── GIS Download functions (client-side, no backend needed) ──────────────────

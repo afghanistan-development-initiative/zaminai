@@ -2082,6 +2082,76 @@ def officer_fields():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/officer/parcel-thumbnail", methods=["POST","OPTIONS"])
+def officer_parcel_thumbnail():
+    """Generate a GEE satellite/index image of a polygon for download.
+    layer: natural | ndvi | landcover | water | baresoil | croptype
+    Returns {url} — a public PNG thumbnail URL from GEE.
+    """
+    if request.method == "OPTIONS": return jsonify({}), 200
+    if not gee_ok: return jsonify({"error": "Satellite imagery unavailable"}), 503
+    try:
+        import ee
+        data   = request.get_json(force=True)
+        coords = data.get("coords", [])
+        year   = int(data.get("year", datetime.now().year))
+        layer  = data.get("layer", "natural")
+        if len(coords) < 3:
+            return jsonify({"error": "Need ≥3 coordinate points"}), 400
+
+        poly  = ee.Geometry.Polygon([[[c[1], c[0]] for c in coords]])
+        today = datetime.now().strftime("%Y-%m-%d")
+
+        # S2 composite for most layers
+        s2 = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+              .filterBounds(poly)
+              .filterDate(f"{year}-01-01", f"{year}-12-31")
+              .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 35))
+              .sort("CLOUDY_PIXEL_PERCENTAGE").limit(8).median().clip(poly))
+
+        if layer == "natural":
+            img = s2.select(["B4","B3","B2"])
+            vis = {"min":0,"max":3000,"bands":["B4","B3","B2"]}
+        elif layer == "ndvi":
+            img = s2.normalizedDifference(["B8","B4"])
+            vis = {"min":0,"max":0.8,
+                   "palette":["d32f2f","ef6c00","f9a825","558b2f","2e7d32","1b5e20"]}
+        elif layer == "landcover":
+            dw  = (ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1")
+                   .filterBounds(poly).filterDate(f"{year}-01-01",f"{year}-12-31")
+                   .select("label").limit(300).mode().clip(poly))
+            img = dw
+            vis = {"min":0,"max":8,
+                   "palette":["2980b9","1a7a40","8bc34a","1abc9c",
+                               "f39c12","95a5a6","e74c3c","a04000","ecf0f1"]}
+        elif layer == "water":
+            img = s2.normalizedDifference(["B3","B11"])
+            vis = {"min":-0.5,"max":0.5,
+                   "palette":["6d4c41","a1887f","80cbc4","29b6f6","0288d1","01579b"]}
+        elif layer == "baresoil":
+            img = s2.expression(
+                "((SWIR+RED)-(NIR+BLUE))/((SWIR+RED)+(NIR+BLUE))",
+                {"SWIR":s2.select("B11"),"RED":s2.select("B4"),
+                 "NIR":s2.select("B8"),"BLUE":s2.select("B2")})
+            vis = {"min":-0.3,"max":0.3,
+                   "palette":["1b5e20","ffe0b2","ffa726","f57c00","e64a19","bf360c"]}
+        elif layer == "false_color":
+            # NIR false colour — crops appear red, urban grey, bare soil brown
+            img = s2.select(["B8","B4","B3"])
+            vis = {"min":0,"max":3500,"bands":["B8","B4","B3"]}
+        else:
+            img = s2.select(["B4","B3","B2"])
+            vis = {"min":0,"max":3000,"bands":["B4","B3","B2"]}
+
+        url = img.getThumbURL({**vis, "region":poly,
+                               "dimensions":768, "format":"png"})
+        log.info(f"parcel-thumbnail: layer={layer} year={year}")
+        return jsonify({"url": url, "layer": layer, "year": year})
+    except Exception as e:
+        log.error(f"/officer/parcel-thumbnail: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/gadm/<iso>/<int:level>", methods=["GET"])
 def gadm_proxy(iso, level):
     """Proxy GADM GeoJSON to avoid browser CORS restrictions."""
