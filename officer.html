@@ -204,6 +204,10 @@ body[dir=rtl] #parcel-panel{left:0;right:330px}
       <button id="detect-btn" onclick="detectFields()" disabled style="width:100%;padding:8px;background:#0d2233;color:#3498db;border:1px solid #1e3a5f;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;margin-top:4px;transition:all .15s;letter-spacing:.03em">
         🛰️ Auto-detect Fields from Satellite
       </button>
+      <button id="parcel-btn" onclick="analyseSelectedParcel()" disabled
+        style="width:100%;padding:8px;background:#0d1a2e;color:#f39c12;border:1px solid #2a3a1f;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;margin-top:4px;transition:all .15s;letter-spacing:.03em">
+        📊 Analyse &amp; Export Parcel (GIS)
+      </button>
       <div id="status"></div>
       <div class="sidebar-foot">
         Boundaries: GADM 4.1 · worldwide<br>
@@ -981,7 +985,7 @@ async function onCountrySelected(country){
       onEachFeature:(f,layer) => {
         layer.on('click', () => { ps.value = f.properties.NAME_1; onProvClicked(f); });
         layer.on('contextmenu', (e) => { L.DomEvent.stopPropagation(e); _showParcelMenu(f, f.properties.NAME_1, 'province', e.latlng); });
-        layer.bindTooltip(`${f.properties.NAME_1} — click to select · right-click to analyse`, {sticky:true, className:'leaflet-tooltip-dark'});
+        layer.bindTooltip(f.properties.NAME_1, {sticky:true, className:'leaflet-tooltip-dark'});
       }
     }).addTo(map);
     map.fitBounds(bndLayer.getBounds(), {padding:[20,20]});
@@ -1003,6 +1007,7 @@ function onProvClicked(feat){
   selFeat = feat;
   highlight(feat);
   document.getElementById('analyse-btn').disabled = false;
+  document.getElementById('parcel-btn').disabled  = false;
   const ds = document.getElementById('dist-sel');
   ds.disabled = true; ds.innerHTML = `<option value="">Loading districts…</option>`;
   const vs = document.getElementById('vil-sel');
@@ -1011,6 +1016,7 @@ function onProvClicked(feat){
   if (plotLayer)    { map.removeLayer(plotLayer);    plotLayer    = null; }
   if (detectLayer)  { map.removeLayer(detectLayer);  detectLayer  = null; }
   document.getElementById('detect-btn').disabled = false;
+  document.getElementById('parcel-btn').disabled  = false;
   l3Data = null;
   loadDistricts(curISO, feat.properties.GID_1);
 }
@@ -1077,14 +1083,15 @@ function drawVillageBoundaries(feats){
     style:{ color:'#ffe066', weight:1, fillColor:'#ffe066', fillOpacity:0.06 },
     onEachFeature:(f, layer) => {
       const name = f.properties.NAME_3 || f.properties.NAME_2 || 'Parcel';
-      layer.bindTooltip(`${name} — click to select · right-click to analyse`,
+      layer.bindTooltip(`${name} — click to select`,
         {sticky:true, className:'leaflet-tooltip-dark'});
-      layer.on('click', () => {
+      layer.on('click', (e) => {
         const vs = document.getElementById('vil-sel');
         vs.value = name;
         selFeat = f; highlight(f);
+        document.getElementById('parcel-btn').disabled = false;
+        document.getElementById('detect-btn').disabled = false;
       });
-      // Right-click → parcel analysis
       layer.on('contextmenu', (e) => {
         L.DomEvent.stopPropagation(e);
         _showParcelMenu(f, name, 'village', e.latlng);
@@ -1119,6 +1126,15 @@ function _showParcelMenu(feature, name, level, latlng){
 function _analyseFromMenu(){
   if(_parcelMenuPopup){ _parcelMenuPopup.remove(); _parcelMenuPopup = null; }
   if(_pendingFeat) analyseParcel(_pendingFeat, _pendingName, _pendingLevel);
+}
+
+// Called from "Analyse & Export Parcel" sidebar button — uses currently selected feature
+function analyseSelectedParcel(){
+  if(!selFeat){ setStatus(t('needProv'), 'err'); return; }
+  const p    = selFeat.properties;
+  const name = p.NAME_3 || p.NAME_2 || p.NAME_1 || t('province');
+  const lvl  = p.NAME_3 ? 'village' : p.NAME_2 ? 'district' : 'province';
+  analyseParcel(selFeat, name, lvl);
 }
 
 document.getElementById('vil-sel').addEventListener('change', function(){
