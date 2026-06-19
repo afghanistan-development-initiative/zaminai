@@ -20,15 +20,15 @@ import edge_tts
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 HERE      = Path(__file__).parent.resolve()
-INPUT_VID = Path(r"C:\Users\Eigenaar\Downloads\officer_dashboard.mp4")
-OUTPUT    = Path(r"C:\Users\Eigenaar\Downloads\officer_dashboard_FINAL.mp4")
+INPUT_VID = Path(r"C:\Users\Eigenaar\Downloads\officer.mp4")
+OUTPUT    = Path(r"C:\Users\Eigenaar\Downloads\officer_FINAL.mp4")
 AUDIO_DIR = HERE / "audio_edit"
 MUSIC_WAV = HERE / "audio_edit" / "music_v2.wav"
 AUDIO_DIR.mkdir(exist_ok=True)
 
 # ── Settings ──────────────────────────────────────────────────────────────────
-VIDEO_SPEED = 1.25   # 89.9s → 71.9s — just enough faster to feel polished
-TARGET_DUR  = 72.0   # trim to this after speed-up
+VIDEO_SPEED = 1.45   # 122.5s → 84.5s — tight, professional pace
+TARGET_DUR  = 85.0   # trim to this after speed-up
 FPS         = 30
 
 # ── Brand ─────────────────────────────────────────────────────────────────────
@@ -39,18 +39,20 @@ DIM   = "#5a7a9a"
 DPI   = 96
 
 # ── Text caption schedule (shown on screen only — NO voice reading) ───────────
-# (time_in_sped_video, duration, line1, line2)
+# Timed to the sped-up video (original × 1/1.45)
 CAPTIONS = [
-    ( 3.0,  8.0, "Select any country",          "Province · District · Village"),
-    (18.0,  9.0, "Full satellite analysis",      "NDVI · Water · Rainfall · Radar · Temperature"),
-    (35.0,  9.0, "Land cover breakdown",         "9 classes · Dynamic World · exact hectares"),
-    (52.0,  8.0, "Satellite layer panel",        "Toggle on demand · live from Earth Engine"),
-    (64.0,  8.0, "Auto-detect fields",           "NDVI health colours · green = healthy · red = stressed"),
+    ( 3.0,  8.0, "Select any region — worldwide",      "Country · Province · District · Village"),
+    (17.0,  9.0, "Full satellite analysis",             "NDVI · Water · Rainfall · Radar · Temperature"),
+    (33.0,  9.0, "Land cover breakdown",                "9 classes · Dynamic World · exact hectares"),
+    (47.0,  8.0, "Analyse & export any parcel",         "GeoJSON · CSV · KML · Satellite PNG for QGIS/ArcGIS"),
+    (59.0,  8.0, "Annotated map images",                "Legend · statistics · land cover bar · attribution"),
+    (70.0,  8.0, "3D Terrain View",                     "Real SRTM elevation · extrude land cover · timelapse"),
+    (80.0,  7.0, "Village crop map at 10 m",            "Wheat · Vegetables · Orchard · Bare/Fallow"),
 ]
 
 # ── Step 1: Optional short opening voice line ─────────────────────────────────
-INTRO_TEXT = "ZaminAI. Satellite intelligence for field officers — free, worldwide."
-INTRO_MP3  = AUDIO_DIR / "intro_short.mp3"
+INTRO_TEXT = "ZaminAI Officer Dashboard. Real satellite intelligence for field officers — free, open, and working for any district anywhere on Earth."
+INTRO_MP3  = AUDIO_DIR / "intro_v2.mp3"
 
 async def gen_intro():
     if INTRO_MP3.exists(): return
@@ -196,7 +198,10 @@ def build():
     print("  Loading source video…")
     src = VideoFileClip(str(INPUT_VID))
     src_dur = src.duration
-    print(f"  Source: {src.w}x{src.h}  {src_dur:.1f}s → speed {VIDEO_SPEED}x → {src_dur/VIDEO_SPEED:.1f}s")
+    # Use source video dimensions so all clips match (avoids images-do-not-match error)
+    global W, H
+    W, H = src.w, src.h
+    print(f"  Source: {W}x{H}  {src_dur:.1f}s → speed {VIDEO_SPEED}x → {src_dur/VIDEO_SPEED:.1f}s")
 
     # ── CLIP 1: Title card (with brief intro voice if available) ──────────────
     intro_aud = None
