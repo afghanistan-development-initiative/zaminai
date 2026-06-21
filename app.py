@@ -551,6 +551,41 @@ def detect_crop(ndvi,evi,savi,mndwi,lswi,month,province):
             "label_fa":"مختلط","label_ps":"مخلوط","confidence":0.40,"reason":"Unclear signature"})
     return sorted(candidates,key=lambda x:x["confidence"],reverse=True)
 
+def coords_or_bbox(coords, geojson_geometry=None):
+    """Return coords if valid (≥3 points), otherwise derive a bounding-box
+    rectangle from the raw GeoJSON geometry so analysis never hard-errors
+    on GAUL GeometryCollection features."""
+    if coords and len(coords) >= 3:
+        return coords
+    if not geojson_geometry:
+        return coords
+    try:
+        lats, lons = [], []
+        def _collect(g):
+            t = g.get("type","")
+            c = g.get("coordinates",[])
+            if t in ("Point",):
+                lons.append(c[0]); lats.append(c[1])
+            elif t in ("LineString","MultiPoint"):
+                for pt in c: lons.append(pt[0]); lats.append(pt[1])
+            elif t in ("Polygon","MultiLineString"):
+                for ring in c:
+                    for pt in ring: lons.append(pt[0]); lats.append(pt[1])
+            elif t == "MultiPolygon":
+                for poly in c:
+                    for ring in poly:
+                        for pt in ring: lons.append(pt[0]); lats.append(pt[1])
+            elif t == "GeometryCollection":
+                for gm in g.get("geometries",[]): _collect(gm)
+        _collect(geojson_geometry)
+        if lats and lons:
+            s,n,w,e = min(lats),max(lats),min(lons),max(lons)
+            return [[s,w],[n,w],[n,e],[s,e],[s,w]]
+    except Exception:
+        pass
+    return coords
+
+
 def calc_area_ha(coords):
     n=len(coords)
     if n<3: return 0.0
@@ -1923,10 +1958,12 @@ def officer_detect_fields():
     try:
         import ee
         data    = request.get_json(force=True)
-        coords  = data.get("coords", [])
+        raw_coords = data.get("coords", [])
+        geometry   = data.get("geometry")      # raw GeoJSON geometry (optional, for bbox fallback)
+        coords  = coords_or_bbox(raw_coords, geometry)
         year    = int(data.get("year", datetime.now().year))
         if len(coords) < 3:
-            return jsonify({"error": "Need ≥3 coordinate points"}), 400
+            return jsonify({"error": "Need ≥3 coordinate points — check boundary data"}), 400
 
         poly     = ee.Geometry.Polygon([[[c[1], c[0]] for c in coords]])
         area_km2 = calc_area_ha(coords) / 100.0

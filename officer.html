@@ -2156,15 +2156,52 @@ async function loadRegionFarmers(province){
 
 // ── Coordinate extraction ───────────────────────────────────────────────────
 function extractCoords(feat){
-  const g = feat.geometry, coords = [];
-  const ring = r => r.forEach(([lon,lat]) => coords.push([lat,lon]));
-  if (g.type === 'Polygon') ring(g.coordinates[0]);
-  else if (g.type === 'MultiPolygon'){
-    let big = g.coordinates[0];
-    g.coordinates.forEach(p => { if (p[0].length > big[0].length) big = p; });
-    ring(big[0]);
+  // Walk any GeoJSON geometry type and return the largest polygon ring as [lat,lon] pairs.
+  // GAUL/GEE features can return GeometryCollection, LineString, Point etc. —
+  // we need to find the largest Polygon ring within whatever geometry is present.
+  const g = feat.geometry;
+  let bestRing = null;
+
+  function tryRing(ring){
+    if (ring && ring.length > 2 && (!bestRing || ring.length > bestRing.length))
+      bestRing = ring;
   }
-  return coords;
+
+  function walk(geom){
+    if (!geom) return;
+    switch (geom.type){
+      case 'Polygon':
+        tryRing(geom.coordinates[0]);
+        break;
+      case 'MultiPolygon':
+        geom.coordinates.forEach(p => tryRing(p[0]));
+        break;
+      case 'GeometryCollection':
+        (geom.geometries || []).forEach(walk);
+        break;
+      // LineString, Point — cannot form an analysis polygon, skip
+    }
+  }
+
+  walk(g);
+
+  if (bestRing) return bestRing.map(([lon, lat]) => [lat, lon]);
+
+  // Last resort: use the feature's bounding box as a rectangle
+  if (feat.bbox || feat.geometry){
+    try {
+      const layer = L.geoJSON(feat);
+      const b = layer.getBounds();
+      if (b.isValid()){
+        return [
+          [b.getSouth(), b.getWest()], [b.getNorth(), b.getWest()],
+          [b.getNorth(), b.getEast()], [b.getSouth(), b.getEast()],
+          [b.getSouth(), b.getWest()]
+        ];
+      }
+    } catch(e){}
+  }
+  return [];
 }
 
 // ── Main analyse ────────────────────────────────────────────────────────────
@@ -2187,7 +2224,10 @@ async function analyseAdmin(){
     // Step 1: start async task (returns immediately)
     const resp = await fetch(`${API}/officer/analyse`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ coords, year:parseInt(year), country, province, district, village, lang })
+      body: JSON.stringify({
+        coords, year:parseInt(year), country, province, district, village, lang,
+        geometry: selFeat.geometry   // raw GeoJSON geometry for server-side bbox fallback
+      })
     });
     if (!resp.ok){ const e = await resp.json().catch(()=>({})); throw new Error(e.error || `HTTP ${resp.status}`); }
     const start = await resp.json();
@@ -2690,7 +2730,8 @@ async function analyseParcel(feature, name, adminLevel){
       body: JSON.stringify({coords, year, country: cIn.value.trim(),
                             province: feature.properties?.NAME_1||'',
                             district: feature.properties?.NAME_2||'',
-                            village:  feature.properties?.NAME_3||''})
+                            village:  feature.properties?.NAME_3||'',
+                            geometry: feature.geometry})
     });
     const start = await r.json();
     if(start.error) throw new Error(start.error);
