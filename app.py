@@ -2863,21 +2863,8 @@ def agent_chat():
         return jsonify({"error": "Question required"}), 400
 
     try:
-        client = _get_anthropic()
-
-        if not client:
-            # Graceful fallback: try Gemini, otherwise basic response
-            prompt = f"You are a helpful agricultural AI assistant. Answer this farming question briefly and practically: {question}"
-            answer = call_gemini(prompt) or (
-                "I can answer farming questions when the AI service is connected. "
-                "Please check that the ANTHROPIC_API_KEY environment variable is set on the server."
-            )
-            return jsonify({"answer": answer, "tool_calls": [], "fallback": True,
-                            "session_id": session_id})
-
         from agents.tools        import TOOLS
         from agents.prompts      import ORCHESTRATOR_PROMPT, OFFICER_AGENT_PROMPT
-        from agents.orchestrator import run_agent, run_streaming_agent
 
         if coords:
             question = f"[Field coordinates provided: {coords[:3]}…] {question}"
@@ -2886,23 +2873,50 @@ def agent_chat():
         history  = _agent_sessions.get(session_id, [])
         tool_ctx = _build_tool_context()
 
+        # ── Choose AI backend: Anthropic (premium) or Gemini (free default) ──
+        anthropic_client = _get_anthropic()
+        use_gemini       = bool(GEMINI_KEY) and not anthropic_client
+
+        if not anthropic_client and not GEMINI_KEY:
+            return jsonify({
+                "answer":     "No AI key configured. Set GEMINI_API_KEY (free) or ANTHROPIC_API_KEY in Render environment variables.",
+                "tool_calls": [], "fallback": True, "session_id": session_id
+            })
+
         if stream:
-            def generate():
-                for event in run_streaming_agent(
-                    question, system, TOOLS, tool_ctx, client, history=history
-                ):
-                    yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+            if anthropic_client:
+                from agents.orchestrator import run_streaming_agent
+                def generate():
+                    for ev in run_streaming_agent(question, system, TOOLS, tool_ctx,
+                                                   anthropic_client, history=history):
+                        yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
+            else:
+                from agents.orchestrator import run_gemini_streaming
+                def generate():
+                    for ev in run_gemini_streaming(question, system, TOOLS, tool_ctx):
+                        yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
             return Response(generate(), mimetype="text/event-stream",
                             headers={"Cache-Control":"no-cache","X-Accel-Buffering":"no"})
 
-        out = run_agent(question, system, TOOLS, tool_ctx, client, history=history)
+        # Non-streaming
+        if anthropic_client:
+            from agents.orchestrator import run_agent
+            out     = run_agent(question, system, TOOLS, tool_ctx,
+                                anthropic_client, history=history)
+            backend = "anthropic"
+        else:
+            from agents.orchestrator import run_gemini_agent
+            out     = run_gemini_agent(question, system, TOOLS, tool_ctx)
+            backend = "gemini"
 
-        # Persist conversation history in memory (last 20 messages)
+        log.info(f"[Agent] backend={backend} tools={len(out.get('tool_calls',[]))} iter={out.get('iterations')}")
+
+        # Persist conversation history
         history.append({"role": "user",      "content": question})
         history.append({"role": "assistant", "content": out.get("answer","")})
         _agent_sessions[session_id] = history[-20:]
 
-        # Persist to Supabase if farmer identified
+        # Save to Supabase
         if sb_ok and farmer_id:
             try:
                 sb.table("conversations").insert({
@@ -2920,6 +2934,7 @@ def agent_chat():
             "tool_calls": out.get("tool_calls", []),
             "iterations": out.get("iterations"),
             "session_id": session_id,
+            "backend":    backend,
             "usage":      out.get("usage"),
         })
 
@@ -3007,15 +3022,22 @@ def agent_history(session_id):
 @app.route("/agent/status", methods=["GET"])
 def agent_status():
     """Return agent system status."""
+    has_anthropic = bool(_get_anthropic())
+    has_gemini    = bool(GEMINI_KEY)
+    active_backend = ("anthropic" if has_anthropic else
+                      "gemini"    if has_gemini    else "none")
     return jsonify({
-        "anthropic":    bool(_get_anthropic()),
-        "gee":          gee_ok,
-        "database":     sb_ok,
+        "anthropic":       has_anthropic,
+        "gemini":          has_gemini,
+        "active_backend":  active_backend,
+        "gee":             gee_ok,
+        "database":        sb_ok,
         "active_sessions": len(_agent_sessions),
         "tools_available": 12,
         "models": {
-            "main":  "claude-sonnet-4-6",
-            "fast":  "claude-haiku-4-5-20251001",
+            "anthropic_main":  "claude-sonnet-4-6",
+            "anthropic_fast":  "claude-haiku-4-5-20251001",
+            "gemini_default":  "gemini-1.5-flash",
         }
     })
 

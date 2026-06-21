@@ -435,11 +435,14 @@ function renderBotContent(text, meta){
   }
 
   // Usage info
-  if (meta?.usage){
+  const backend = meta?.backend;
+  const steps   = meta?.iterations || 1;
+  const tcount  = (meta?.tool_calls||[]).length;
+  if (steps > 0 || tcount > 0 || backend){
+    const tokens = meta?.usage ? `· ${(meta.usage.input_tokens||0)+(meta.usage.output_tokens||0)} tokens` : '';
+    const bLabel = backend === 'anthropic' ? '🧠 Claude' : backend === 'gemini' ? '⚡ Gemini' : '';
     html += `<div style="margin-top:.5rem;font-size:.68rem;color:#334a60">
-      ${meta.iterations||1} reasoning step${meta.iterations!==1?'s':''} ·
-      ${(meta.tool_calls||[]).length} tool call${(meta.tool_calls||[]).length!==1?'s':''} ·
-      ${(meta.usage.input_tokens||0)+(meta.usage.output_tokens||0)} tokens
+      ${bLabel} ${steps} step${steps!==1?'s':''} · ${tcount} tool${tcount!==1?'s':''} ${tokens}
     </div>`;
   }
 
@@ -517,20 +520,22 @@ async function checkStatus(){
   try{
     const r = await fetch(`${API}/agent/status`);
     const d = await r.json();
-    const ok = d.anthropic && d.gee;
+    const hasAI  = d.anthropic || d.gemini;
+    const ok     = hasAI && d.gee;
     document.getElementById('status-dot').className = 'status-dot' + (ok?'':' off');
     document.getElementById('status-txt').textContent =
-      ok           ? 'AI + GEE ready' :
-      !d.anthropic ? 'AI key not set — Gemini fallback active' :
-      !d.gee       ? 'GEE offline' : 'partial';
+      ok && d.anthropic ? '🧠 Claude + GEE ready' :
+      ok && d.gemini    ? '⚡ Gemini (free) + GEE ready' :
+      !hasAI            ? '❌ No AI key set' :
+      !d.gee            ? '⚠️ GEE offline' : 'partial';
 
-    // Show banner if Anthropic key missing
-    if (!d.anthropic){
+    // Banner when no AI at all
+    if (!hasAI){
       const msgs = document.getElementById('messages');
       const banner = document.createElement('div');
-      banner.style.cssText='padding:.6rem 1rem;background:#1c1400;border:1px solid #f39c12;border-radius:8px;font-size:.82rem;color:#f6ad55;margin:.5rem';
-      banner.innerHTML='⚠️ <b>ANTHROPIC_API_KEY not set on server</b> — Gemini fallback active. ' +
-        'Set the key in Render environment variables to enable full agent with satellite tools.';
+      banner.style.cssText='padding:.6rem 1rem;background:#1c1400;border:1px solid #e74c3c;border-radius:8px;font-size:.82rem;color:#e74c3c;margin:.5rem';
+      banner.innerHTML='❌ <b>No AI key configured.</b> Set <code>GEMINI_API_KEY</code> (free) ' +
+        'or <code>ANTHROPIC_API_KEY</code> in Render → Environment Variables.';
       msgs.querySelector('.examples')?.prepend(banner);
     }
   } catch(e){

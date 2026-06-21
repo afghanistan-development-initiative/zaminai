@@ -1,18 +1,174 @@
 """
 ZaminAI Multi-Agent Orchestrator
-Runs a Claude ReAct (Reason → Act → Observe) loop with specialist tool access.
-Supports: farmer advisory, officer analysis, field monitoring, autonomous alerts.
+Supports TWO AI backends — use whichever key is available:
+
+  Gemini  (google-generativeai REST API) — FREE tier, recommended default
+  Claude  (Anthropic SDK)                — optional upgrade, better reasoning
+
+Both run a ReAct (Reason → Act → Observe) loop with the same 12 satellite tools.
 """
-import json, logging, time
+import json, logging, os, requests, time
 from datetime import datetime
 from typing import Generator
 
 log = logging.getLogger(__name__)
 
-MAX_TOOL_CALLS = 8          # cost guard per conversation turn
-MAX_ITERATIONS = 10         # loop iteration limit
-MODEL_SMART    = "claude-sonnet-4-6"   # main reasoning
-MODEL_FAST     = "claude-haiku-4-5-20251001"   # tool execution / monitoring
+MAX_TOOL_CALLS = 8
+MAX_ITERATIONS = 10
+
+# Anthropic model names
+MODEL_SMART = "claude-sonnet-4-6"
+MODEL_FAST  = "claude-haiku-4-5-20251001"
+
+# Gemini model names (free tier)
+GEMINI_SMART = "gemini-1.5-flash"
+GEMINI_KEY   = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_URL   = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
+
+
+# ── Convert Claude tool schema → Gemini functionDeclarations format ────────────
+def _claude_tools_to_gemini(claude_tools: list) -> list:
+    """Gemini expects: [{"functionDeclarations": [{name, description, parameters}]}]"""
+    decls = []
+    for t in claude_tools:
+        schema = t.get("input_schema", {})
+        # Gemini doesn't support 'items' at top level — flatten if needed
+        props = {}
+        for k, v in schema.get("properties", {}).items():
+            prop = {"type": v.get("type","string").upper(),
+                    "description": v.get("description","")}
+            if v.get("type") == "array":
+                prop = {"type":"ARRAY","description":v.get("description",""),
+                        "items":{"type":"OBJECT"}}
+            props[k] = prop
+        decls.append({
+            "name":        t["name"],
+            "description": t["description"],
+            "parameters": {
+                "type": "OBJECT",
+                "properties": props,
+                "required": schema.get("required", []),
+            }
+        })
+    return [{"functionDeclarations": decls}]
+
+
+# ── Gemini ReAct loop ─────────────────────────────────────────────────────────
+def run_gemini_agent(
+    question:     str,
+    system:       str,
+    claude_tools: list,
+    tool_context: dict,
+    model:        str = GEMINI_SMART,
+) -> dict:
+    """
+    ReAct loop using Gemini (free). Converts tool schemas automatically.
+    Returns: {answer, tool_calls, iterations}
+    """
+    from agents.tools import execute_tool
+
+    gemini_tools  = _claude_tools_to_gemini(claude_tools)
+    tool_call_count = 0
+    all_tool_calls  = []
+    iterations      = 0
+
+    # Build initial message — prepend system prompt as first user turn
+    contents = [
+        {"role": "user",  "parts": [{"text": f"[System instructions]\n{system}\n\n[Question]\n{question}"}]},
+    ]
+
+    url = GEMINI_URL.format(model=model, key=GEMINI_KEY)
+
+    while iterations < MAX_ITERATIONS:
+        iterations += 1
+
+        payload = {
+            "contents":           contents,
+            "tools":              gemini_tools,
+            "generationConfig":   {"maxOutputTokens": 2048, "temperature": 0.2},
+        }
+
+        try:
+            resp = requests.post(url, json=payload, timeout=90)
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception as e:
+            log.error(f"Gemini API error: {e}")
+            return {"answer": f"Gemini API error: {e}", "tool_calls": all_tool_calls,
+                    "iterations": iterations}
+
+        candidates = data.get("candidates", [])
+        if not candidates:
+            break
+
+        candidate = candidates[0]
+        content   = candidate.get("content", {})
+        parts     = content.get("parts", [])
+        finish    = candidate.get("finishReason", "STOP")
+
+        # Append model response to history
+        contents.append({"role": "model", "parts": parts})
+
+        # Check for function calls
+        fn_calls = [p for p in parts if "functionCall" in p]
+        text_parts= [p["text"] for p in parts if "text" in p]
+
+        if not fn_calls:
+            # Final answer
+            answer = " ".join(text_parts).strip()
+            return {"answer": answer, "tool_calls": all_tool_calls,
+                    "iterations": iterations}
+
+        # Execute each function call and collect results
+        fn_responses = []
+        for part in fn_calls:
+            fc   = part["functionCall"]
+            name = fc["name"]
+            args = fc.get("args", {})
+
+            if tool_call_count >= MAX_TOOL_CALLS:
+                result = {"error": "Tool call limit reached"}
+            else:
+                tool_call_count += 1
+                log.info(f"[Gemini] Tool {tool_call_count}: {name}({str(args)[:80]})")
+                result_str = execute_tool(name, args, tool_context)
+                result     = json.loads(result_str) if result_str.startswith("{") else {"result": result_str}
+                all_tool_calls.append({"tool": name, "input": args, "output": result})
+
+            fn_responses.append({
+                "functionResponse": {
+                    "name":     name,
+                    "response": {"content": result},
+                }
+            })
+
+        contents.append({"role": "user", "parts": fn_responses})
+
+    return {"answer": "Agent reached max iterations.", "tool_calls": all_tool_calls,
+            "iterations": iterations}
+
+
+def run_gemini_streaming(
+    question:     str,
+    system:       str,
+    claude_tools: list,
+    tool_context: dict,
+    model:        str = GEMINI_SMART,
+) -> Generator[dict, None, None]:
+    """Streaming wrapper for Gemini agent — yields SSE-compatible dicts."""
+    from agents.tools import execute_tool
+
+    yield {"type": "thinking", "text": "Querying Gemini agent…"}
+
+    out = run_gemini_agent(question, system, claude_tools, tool_context, model)
+
+    for tc in out.get("tool_calls", []):
+        yield {"type": "tool_call", "tool": tc["tool"], "input": tc["input"]}
+        yield {"type": "tool_result","tool": tc["tool"], "data": tc["output"]}
+
+    yield {"type": "answer",    "text": out.get("answer", "")}
+    yield {"type": "done",      "iterations": out.get("iterations", 1),
+           "tool_calls": len(out.get("tool_calls", []))}
 
 
 def run_agent(
