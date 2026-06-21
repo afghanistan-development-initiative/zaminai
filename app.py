@@ -2262,18 +2262,99 @@ def officer_proxy_image():
 
 @app.route("/gadm/<iso>/<int:level>", methods=["GET"])
 def gadm_proxy(iso, level):
-    """Proxy GADM GeoJSON to avoid browser CORS restrictions."""
+    """Return admin boundaries using GEE's FAO/GAUL dataset (primary) or
+    GADM4.1 from ucdavis.edu (fallback).
+
+    GEE approach is preferred: it runs server-side (no large download),
+    supports every country, and beats Render's 30-second request limit.
+    """
     if level not in (1, 2, 3):
         return jsonify({"error": "Level must be 1, 2, or 3"}), 400
     iso = iso.upper()[:3]
+
+    # ── Primary: GEE FAO/GAUL global admin boundaries ────────────────────────
+    # ISO3 → country name as it appears in the GAUL dataset
+    ISO3_GAUL = {
+        "AFG":"Afghanistan","GHA":"Ghana","KEN":"Kenya","NGA":"Nigeria",
+        "ETH":"Ethiopia","TZA":"Tanzania","UGA":"Uganda","RWA":"Rwanda",
+        "MOZ":"Mozambique","ZMB":"Zambia","ZWE":"Zimbabwe","MWI":"Malawi",
+        "ZAF":"South Africa","NAM":"Namibia","BWA":"Botswana","LSO":"Lesotho",
+        "SWZ":"Swaziland","EGY":"Egypt","MAR":"Morocco","TUN":"Tunisia",
+        "DZA":"Algeria","LBY":"Libya","SDN":"Sudan","SSD":"South Sudan",
+        "SOM":"Somalia","DJI":"Djibouti","ERI":"Eritrea",
+        "CMR":"Cameroon","COD":"Democratic Republic of the Congo",
+        "COG":"Republic of Congo","GAB":"Gabon","CAF":"Central African Republic",
+        "SEN":"Senegal","MLI":"Mali","BFA":"Burkina Faso","NER":"Niger",
+        "CIV":"Côte d'Ivoire","LBR":"Liberia","SLE":"Sierra Leone",
+        "GIN":"Guinea","GNB":"Guinea-Bissau","GMB":"The Gambia","MRT":"Mauritania",
+        "BEN":"Benin","TGO":"Togo","TCH":"Chad","AGO":"Angola",
+        "IND":"India","PAK":"Pakistan","BGD":"Bangladesh","LKA":"Sri Lanka",
+        "NPL":"Nepal","BTN":"Bhutan","MDV":"Maldives","MMR":"Myanmar",
+        "THA":"Thailand","VNM":"Vietnam","KHM":"Cambodia","LAO":"Laos",
+        "MYS":"Malaysia","IDN":"Indonesia","PHL":"Philippines","PNG":"Papua New Guinea",
+        "CHN":"China","JPN":"Japan","KOR":"Republic of Korea","MNG":"Mongolia",
+        "IRN":"Iran","IRQ":"Iraq","SYR":"Syrian Arab Republic","JOR":"Jordan",
+        "SAU":"Saudi Arabia","YEM":"Yemen","OMN":"Oman","ARE":"United Arab Emirates",
+        "QAT":"Qatar","KWT":"Kuwait","BHR":"Bahrain","TUR":"Turkey",
+        "AZE":"Azerbaijan","ARM":"Armenia","GEO":"Georgia","KAZ":"Kazakhstan",
+        "UZB":"Uzbekistan","TKM":"Turkmenistan","KGZ":"Kyrgyzstan","TJK":"Tajikistan",
+        "RUS":"Russia","UKR":"Ukraine","BLR":"Belarus","MDA":"Moldova",
+        "POL":"Poland","CZE":"Czech Republic","SVK":"Slovakia","HUN":"Hungary",
+        "ROU":"Romania","BGR":"Bulgaria","SRB":"Serbia","HRV":"Croatia",
+        "BIH":"Bosnia and Herzegovina","ALB":"Albania","MKD":"North Macedonia",
+        "SVN":"Slovenia","MNE":"Montenegro","GRC":"Greece","CYP":"Cyprus",
+        "DEU":"Germany","FRA":"France","ESP":"Spain","PRT":"Portugal",
+        "ITA":"Italy","GBR":"United Kingdom","NLD":"Netherlands","BEL":"Belgium",
+        "LUX":"Luxembourg","CHE":"Switzerland","AUT":"Austria","DNK":"Denmark",
+        "SWE":"Sweden","NOR":"Norway","FIN":"Finland","ISL":"Iceland",
+        "IRL":"Ireland","MLT":"Malta","LVA":"Latvia","LTU":"Lithuania",
+        "EST":"Estonia","USA":"United States","CAN":"Canada","MEX":"Mexico",
+        "BRA":"Brazil","ARG":"Argentina","CHL":"Chile","COL":"Colombia",
+        "VEN":"Venezuela","PER":"Peru","BOL":"Bolivia","ECU":"Ecuador",
+        "PRY":"Paraguay","URY":"Uruguay","GUY":"Guyana","SUR":"Suriname",
+        "AUS":"Australia","NZL":"New Zealand","FJI":"Fiji",
+    }
+
+    if gee_ok and iso in ISO3_GAUL:
+        try:
+            import ee
+            country_name = ISO3_GAUL[iso]
+            gaul_col = {1: "FAO/GAUL/2015/level1", 2: "FAO/GAUL/2015/level2"}.get(level)
+            if gaul_col:
+                adm_key = f"ADM{level}_NAME"
+                fc = (ee.FeatureCollection(gaul_col)
+                      .filter(ee.Filter.eq("ADM0_NAME", country_name))
+                      .select([adm_key] + (["ADM2_NAME"] if level == 2 else []))
+                      .map(lambda f: f.simplify(maxError=1000)))  # ~1km — keeps file small
+
+                result  = fc.getInfo()
+                feats   = result.get("features", [])
+                # Remap GAUL property names → GADM-compatible names so frontend works
+                for feat in feats:
+                    p = feat["properties"]
+                    p["NAME_1"] = p.get("ADM1_NAME", "")
+                    if level == 2:
+                        p["NAME_2"] = p.get("ADM2_NAME", "")
+                    p["GID_1"]  = f"{iso}.{p['NAME_1'].replace(' ','_')}_1"
+                    if level == 2:
+                        p["GID_2"] = f"{iso}.{p['NAME_1'].replace(' ','_')}.{p['NAME_2'].replace(' ','_')}_1"
+
+                log.info(f"GAUL {iso} L{level}: {len(feats)} features")
+                return jsonify(result), 200, {"Content-Type": "application/json",
+                                              "Cache-Control": "public,max-age=86400"}
+        except Exception as e:
+            log.warning(f"GAUL GEE failed for {iso} L{level}: {e} — falling back to ucdavis")
+
+    # ── Fallback: GADM4.1 direct download (may be slow for large countries) ──
     url = f"https://geodata.ucdavis.edu/gadm/gadm4.1/json/gadm41_{iso}_{level}.json"
     try:
-        r = requests.get(url, timeout=60)
+        r = requests.get(url, timeout=25)
         if r.status_code != 200:
             return jsonify({"error": f"GADM returned {r.status_code} for {iso} L{level}"}), 404
-        return r.content, 200, {"Content-Type": "application/json"}
+        return r.content, 200, {"Content-Type": "application/json",
+                                 "Cache-Control": "public,max-age=86400"}
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"Boundary data unavailable for {iso}: {e}"}), 500
 
 
 # ── Async satellite layer tasks (Step 2) ─────────────────────────────────────
