@@ -2023,12 +2023,13 @@ def officer_detect_fields():
             # must still produce polygons. addBands(masked_image) would mask the
             # entire pixel so DW features would disappear. unmask(0) keeps them.
             ndvi_safe = ndvi.unmask(ee.Image(0).rename("ndvi"))
-            fc = dw_label.toInt().addBands(ndvi_safe).reduceToVectors(
+            fc = (dw_label.toInt().addBands(ndvi_safe).reduceToVectors(
                 geometry=poly, scale=seg_scale,
                 geometryType="polygon", eightConnected=True,
                 reducer=ee.Reducer.mean(),
                 labelProperty="lc",
                 maxPixels=1e10, bestEffort=True, tileScale=4)
+                .limit(4000))   # GEE hard limit is 5000; stay under it
         else:
             ndvi_q = (ndvi.multiply(20).floor().int()
                       .updateMask(ndvi.gt(0.10).And(ndvi.lt(0.95))))
@@ -2038,7 +2039,8 @@ def officer_detect_fields():
                 reducer=ee.Reducer.mean(),
                 labelProperty="field",
                 maxPixels=1e10, bestEffort=True, tileScale=4)
-                .filter(ee.Filter.gte("mean", 0.10)))
+                .filter(ee.Filter.gte("mean", 0.10))
+                .limit(4000))
 
         task_id = str(uuid.uuid4())
         _detect_tasks[task_id] = {"status": "pending"}
@@ -2386,9 +2388,9 @@ def _fetch_gadm_boundaries(iso, level, province_filter=None):
 
             # Simplify geometry properly — setGeometry keeps Polygon/MultiPolygon type
             error_m = 2000 if level == 1 else 1000
-            fc = fc.map(
-                lambda f: f.setGeometry(f.geometry().simplify(maxError=error_m))
-            )
+            fc = (fc.map(
+                lambda f: f.setGeometry(f.geometry().simplify(maxError=error_m)))
+                .limit(4000))   # GEE caps FeatureCollection.getInfo() at 5000
 
             result = fc.getInfo()
             feats  = result.get("features", [])
@@ -2609,12 +2611,13 @@ def officer_layer(layer_name):
 
         def _worker():
             try:
-                fc = label_with_ndvi.reduceToVectors(
+                fc = (label_with_ndvi.reduceToVectors(
                     geometry=poly, scale=seg_scale,
                     geometryType="polygon", eightConnected=True,
                     reducer=ee.Reducer.mean(),
                     labelProperty=label_prop,
                     maxPixels=1e10, bestEffort=True, tileScale=4)
+                    .limit(4000))
                 result = fc.getInfo()
                 count  = len(result.get("features", []))
                 log.info(f"layer/{layer_name} task {task_id[:8]}: {count} polygons")

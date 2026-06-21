@@ -330,15 +330,24 @@ async function sendMessage(){
       })
     });
 
-    // Always parse as text first to avoid JSON parse crash on HTML errors
-    const raw = await resp.text();
+    // Parse response — retry once on 5xx (Render cold-start takes ~30s)
+    let raw = await resp.text();
     let data;
+    if (!resp.ok && resp.status >= 500) {
+      // Wait 20s then retry once
+      document.getElementById('agent-status').textContent = '⏳ Server waking up, retrying…';
+      await new Promise(r => setTimeout(r, 20000));
+      const retry = await fetch(`${API}/agent/chat`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ question:q, session_id:currentSession,
+                               role:currentRole, language:currentLang })
+      });
+      raw = await retry.text();
+    }
     try { data = JSON.parse(raw); }
     catch(e) {
       removeThinking(thinkId);
-      appendBubble('bot',
-        `⚠️ Server error (${resp.status}). The agent service may still be deploying — ` +
-        `try again in 30 seconds.`);
+      appendBubble('bot', `⚠️ Server error. Try again in 30 seconds (Render cold-start).`);
       return;
     }
     removeThinking(thinkId);
