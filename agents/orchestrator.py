@@ -20,34 +20,43 @@ MAX_ITERATIONS = 10
 MODEL_SMART = "claude-sonnet-4-6"
 MODEL_FAST  = "claude-haiku-4-5-20251001"
 
-# Gemini model names (free tier)
-GEMINI_SMART = "gemini-1.5-flash"
+# Gemini model names — try newest first, fall back to older
+GEMINI_MODELS = [
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-exp",
+    "gemini-1.5-flash-latest",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-001",
+]
 GEMINI_KEY   = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_URL   = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
 
 
 # ── Convert Claude tool schema → Gemini functionDeclarations format ────────────
 def _claude_tools_to_gemini(claude_tools: list) -> list:
-    """Gemini expects: [{"functionDeclarations": [{name, description, parameters}]}]"""
+    """Gemini REST API expects functionDeclarations with uppercase type strings."""
+    TYPE_MAP = {"string":"STRING","integer":"INTEGER","number":"NUMBER",
+                "boolean":"BOOLEAN","object":"OBJECT","array":"ARRAY"}
+
+    def _prop(v):
+        t = TYPE_MAP.get(v.get("type","string"), "STRING")
+        p = {"type": t, "description": v.get("description","")}
+        # Arrays: Gemini needs items schema; use STRING for coords to avoid complexity
+        if t == "ARRAY":
+            p["items"] = {"type": "STRING"}
+        return p
+
     decls = []
     for t in claude_tools:
         schema = t.get("input_schema", {})
-        # Gemini doesn't support 'items' at top level — flatten if needed
-        props = {}
-        for k, v in schema.get("properties", {}).items():
-            prop = {"type": v.get("type","string").upper(),
-                    "description": v.get("description","")}
-            if v.get("type") == "array":
-                prop = {"type":"ARRAY","description":v.get("description",""),
-                        "items":{"type":"OBJECT"}}
-            props[k] = prop
+        props  = {k: _prop(v) for k, v in schema.get("properties", {}).items()}
         decls.append({
             "name":        t["name"],
             "description": t["description"],
             "parameters": {
-                "type": "OBJECT",
+                "type":       "OBJECT",
                 "properties": props,
-                "required": schema.get("required", []),
+                "required":   schema.get("required", []),
             }
         })
     return [{"functionDeclarations": decls}]
@@ -59,7 +68,7 @@ def run_gemini_agent(
     system:       str,
     claude_tools: list,
     tool_context: dict,
-    model:        str = GEMINI_SMART,
+    model:        str = None,   # None = auto-select from GEMINI_MODELS list
 ) -> dict:
     """
     ReAct loop using Gemini (free). Converts tool schemas automatically.
@@ -67,17 +76,38 @@ def run_gemini_agent(
     """
     from agents.tools import execute_tool
 
-    gemini_tools  = _claude_tools_to_gemini(claude_tools)
+    # Find a working Gemini model
+    models_to_try = [model] if model else GEMINI_MODELS
+    working_model = None
+    for m in models_to_try:
+        test_url = GEMINI_URL.format(model=m, key=GEMINI_KEY)
+        try:
+            probe = requests.post(test_url, json={
+                "contents": [{"role":"user","parts":[{"text":"hi"}]}],
+                "generationConfig": {"maxOutputTokens": 5}
+            }, timeout=15)
+            if probe.status_code == 200:
+                working_model = m
+                log.info(f"[Gemini] Using model: {m}")
+                break
+            log.warning(f"[Gemini] Model {m}: HTTP {probe.status_code}")
+        except Exception as e:
+            log.warning(f"[Gemini] Model {m}: {e}")
+
+    if not working_model:
+        return {"answer": "No working Gemini model found. Check your GEMINI_API_KEY.",
+                "tool_calls": [], "iterations": 0}
+
+    gemini_tools    = _claude_tools_to_gemini(claude_tools)
     tool_call_count = 0
     all_tool_calls  = []
     iterations      = 0
 
-    # Build initial message — prepend system prompt as first user turn
     contents = [
-        {"role": "user",  "parts": [{"text": f"[System instructions]\n{system}\n\n[Question]\n{question}"}]},
+        {"role": "user", "parts": [{"text": f"[System]\n{system}\n\n[Question]\n{question}"}]},
     ]
 
-    url = GEMINI_URL.format(model=model, key=GEMINI_KEY)
+    url = GEMINI_URL.format(model=working_model, key=GEMINI_KEY)
 
     while iterations < MAX_ITERATIONS:
         iterations += 1
@@ -153,7 +183,7 @@ def run_gemini_streaming(
     system:       str,
     claude_tools: list,
     tool_context: dict,
-    model:        str = GEMINI_SMART,
+    model:        str = None,
 ) -> Generator[dict, None, None]:
     """Streaming wrapper for Gemini agent — yields SSE-compatible dicts."""
     from agents.tools import execute_tool
