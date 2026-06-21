@@ -2835,7 +2835,8 @@ def _build_tool_context():
         "get_all_fields_fn":   _get_all_fields_fn,
         "get_farmer_fields_fn":_get_farmer_fields_fn,
         "save_alert_fn":       _save_alert_fn,
-        "detect_crop_fn":      detect_crop,
+        # Wrap detect_crop — it needs 7 args; tools.py calls it with 5
+        "detect_crop_fn": lambda nd,ev,ls,sv,mo: detect_crop(nd,ev,sv,0,ls,mo,""),
     }
 
 
@@ -2861,63 +2862,70 @@ def agent_chat():
     if not question:
         return jsonify({"error": "Question required"}), 400
 
-    client = _get_anthropic()
-    if not client:
-        # Graceful fallback without Anthropic
-        answer = smart_fallback(question, language)
-        return jsonify({"answer": answer, "tool_calls": [], "fallback": True})
+    try:
+        client = _get_anthropic()
 
-    from agents.tools       import TOOLS
-    from agents.prompts     import ORCHESTRATOR_PROMPT, OFFICER_AGENT_PROMPT
-    from agents.orchestrator import run_agent, run_streaming_agent
+        if not client:
+            # Graceful fallback: try Gemini, otherwise basic response
+            prompt = f"You are a helpful agricultural AI assistant. Answer this farming question briefly and practically: {question}"
+            answer = call_gemini(prompt) or (
+                "I can answer farming questions when the AI service is connected. "
+                "Please check that the ANTHROPIC_API_KEY environment variable is set on the server."
+            )
+            return jsonify({"answer": answer, "tool_calls": [], "fallback": True,
+                            "session_id": session_id})
 
-    # Prepend field coords context to question if provided
-    if coords:
-        question = f"[Field coordinates: {coords[:3]}...] {question}"
+        from agents.tools        import TOOLS
+        from agents.prompts      import ORCHESTRATOR_PROMPT, OFFICER_AGENT_PROMPT
+        from agents.orchestrator import run_agent, run_streaming_agent
 
-    system   = OFFICER_AGENT_PROMPT if role == "officer" else ORCHESTRATOR_PROMPT
-    history  = _agent_sessions.get(session_id, [])
-    tool_ctx = _build_tool_context()
+        if coords:
+            question = f"[Field coordinates provided: {coords[:3]}…] {question}"
 
-    if stream:
-        def generate():
-            for event in run_streaming_agent(
-                question, system, TOOLS, tool_ctx, client, history=history
-            ):
-                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+        system   = OFFICER_AGENT_PROMPT if role == "officer" else ORCHESTRATOR_PROMPT
+        history  = _agent_sessions.get(session_id, [])
+        tool_ctx = _build_tool_context()
 
-        return Response(generate(),
-                        mimetype="text/event-stream",
-                        headers={"Cache-Control":"no-cache","X-Accel-Buffering":"no"})
+        if stream:
+            def generate():
+                for event in run_streaming_agent(
+                    question, system, TOOLS, tool_ctx, client, history=history
+                ):
+                    yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+            return Response(generate(), mimetype="text/event-stream",
+                            headers={"Cache-Control":"no-cache","X-Accel-Buffering":"no"})
 
-    out = run_agent(question, system, TOOLS, tool_ctx, client, history=history)
+        out = run_agent(question, system, TOOLS, tool_ctx, client, history=history)
 
-    # Save to conversation history (keep last 10 turns)
-    history.append({"role": "user", "content": question})
-    history.append({"role": "assistant",
-                    "content": out.get("answer","")})
-    _agent_sessions[session_id] = history[-20:]
+        # Persist conversation history in memory (last 20 messages)
+        history.append({"role": "user",      "content": question})
+        history.append({"role": "assistant", "content": out.get("answer","")})
+        _agent_sessions[session_id] = history[-20:]
 
-    # Save to Supabase if farmer identified
-    if sb_ok and farmer_id:
-        try:
-            sb.table("conversations").insert({
-                "farmer_id": farmer_id,
-                "question":  question,
-                "answer":    out.get("answer",""),
-                "tool_calls":json.dumps(out.get("tool_calls",[])),
-                "created_at":datetime.now().isoformat(),
-            }).execute()
-        except Exception as e:
-            log.warning(f"Save conversation failed: {e}")
+        # Persist to Supabase if farmer identified
+        if sb_ok and farmer_id:
+            try:
+                sb.table("conversations").insert({
+                    "farmer_id":  farmer_id,
+                    "question":   question,
+                    "answer":     out.get("answer",""),
+                    "tool_calls": json.dumps(out.get("tool_calls",[])),
+                    "created_at": datetime.now().isoformat(),
+                }).execute()
+            except Exception as e:
+                log.warning(f"Save conversation: {e}")
 
-    return jsonify({
-        "answer":      out.get("answer"),
-        "tool_calls":  out.get("tool_calls", []),
-        "iterations":  out.get("iterations"),
-        "session_id":  session_id,
-        "usage":       out.get("usage"),
-    })
+        return jsonify({
+            "answer":     out.get("answer"),
+            "tool_calls": out.get("tool_calls", []),
+            "iterations": out.get("iterations"),
+            "session_id": session_id,
+            "usage":      out.get("usage"),
+        })
+
+    except Exception as e:
+        log.error(f"/agent/chat error: {e}")
+        return jsonify({"error": str(e), "session_id": session_id}), 500
 
 
 @app.route("/agent/stream", methods=["POST","OPTIONS"])

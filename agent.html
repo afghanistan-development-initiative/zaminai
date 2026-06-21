@@ -329,7 +329,18 @@ async function sendMessage(){
         language:   currentLang,
       })
     });
-    const data = await resp.json();
+
+    // Always parse as text first to avoid JSON parse crash on HTML errors
+    const raw = await resp.text();
+    let data;
+    try { data = JSON.parse(raw); }
+    catch(e) {
+      removeThinking(thinkId);
+      appendBubble('bot',
+        `⚠️ Server error (${resp.status}). The agent service may still be deploying — ` +
+        `try again in 30 seconds.`);
+      return;
+    }
     removeThinking(thinkId);
 
     if (data.error) {
@@ -337,10 +348,12 @@ async function sendMessage(){
       return;
     }
 
-    const meta = {tool_calls: data.tool_calls, usage: data.usage, iterations: data.iterations};
-    appendBubble('bot', data.answer || data.fallback_answer || '(no answer)', meta);
+    const answer = data.answer || data.fallback_answer || '(no answer)';
+    const meta   = {tool_calls: data.tool_calls, usage: data.usage,
+                    iterations: data.iterations, fallback: data.fallback};
+    appendBubble('bot', answer, meta);
     if (sessions[currentSession])
-      sessions[currentSession].history.push({role:'bot',content:data.answer,meta});
+      sessions[currentSession].history.push({role:'bot', content:answer, meta});
 
   } catch(e){
     removeThinking(thinkId);
@@ -507,9 +520,19 @@ async function checkStatus(){
     const ok = d.anthropic && d.gee;
     document.getElementById('status-dot').className = 'status-dot' + (ok?'':' off');
     document.getElementById('status-txt').textContent =
-      ok ? `AI + GEE ready` :
-      !d.anthropic ? 'AI key missing' :
-      !d.gee ? 'GEE offline' : 'degraded';
+      ok           ? 'AI + GEE ready' :
+      !d.anthropic ? 'AI key not set — Gemini fallback active' :
+      !d.gee       ? 'GEE offline' : 'partial';
+
+    // Show banner if Anthropic key missing
+    if (!d.anthropic){
+      const msgs = document.getElementById('messages');
+      const banner = document.createElement('div');
+      banner.style.cssText='padding:.6rem 1rem;background:#1c1400;border:1px solid #f39c12;border-radius:8px;font-size:.82rem;color:#f6ad55;margin:.5rem';
+      banner.innerHTML='⚠️ <b>ANTHROPIC_API_KEY not set on server</b> — Gemini fallback active. ' +
+        'Set the key in Render environment variables to enable full agent with satellite tools.';
+      msgs.querySelector('.examples')?.prepend(banner);
+    }
   } catch(e){
     document.getElementById('status-dot').className = 'status-dot off';
     document.getElementById('status-txt').textContent = 'offline';
