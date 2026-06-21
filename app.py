@@ -2769,6 +2769,9 @@ def officer_analyse_result(task_id):
 # MULTI-AGENT SYSTEM
 # ════════════════════════════════════════════════════════════════════════════════
 
+# Agent task store — same async pattern as GEE analysis tasks
+_agent_tasks = {}
+
 # Lazy-load Anthropic client (avoids import error if key not set)
 _anthropic_client = None
 def _get_anthropic():
@@ -2849,101 +2852,104 @@ _agent_sessions = {}
 
 @app.route("/agent/chat", methods=["POST","OPTIONS"])
 def agent_chat():
-    """Main agentic chat endpoint. Supports farmer advisory and officer analysis.
-    Runs Claude ReAct loop with satellite tools. Streams events via SSE."""
+    """Main agentic chat endpoint — async task pattern.
+    Returns {task_id} immediately; client polls /agent/result/<task_id>.
+    This avoids Render's reverse-proxy 60s timeout on long Claude+GEE calls."""
     if request.method == "OPTIONS": return jsonify({}), 200
 
     data       = request.get_json(force=True)
     question   = data.get("question", "").strip()
     session_id = data.get("session_id", str(uuid.uuid4()))
-    role       = data.get("role", "farmer")   # farmer | officer
+    role       = data.get("role", "farmer")
     language   = data.get("language", "en")
     stream     = data.get("stream", False)
-    coords     = data.get("coords")            # optional pre-set field coords
+    coords     = data.get("coords")
     farmer_id  = data.get("farmer_id")
 
     if not question:
         return jsonify({"error": "Question required"}), 400
 
-    try:
-        from agents.tools        import TOOLS
-        from agents.prompts      import ORCHESTRATOR_PROMPT, OFFICER_AGENT_PROMPT
-
-        if coords:
-            question = f"[Field coordinates provided: {coords[:3]}…] {question}"
-
-        system   = OFFICER_AGENT_PROMPT if role == "officer" else ORCHESTRATOR_PROMPT
-        history  = _agent_sessions.get(session_id, [])
-        tool_ctx = _build_tool_context()
-
-        # ── Choose AI backend: Anthropic (premium) or Gemini (free default) ──
-        anthropic_client = _get_anthropic()
-        use_gemini       = bool(GEMINI_KEY) and not anthropic_client
-
-        if not anthropic_client and not GEMINI_KEY:
-            return jsonify({
-                "answer":     "No AI key configured. Set GEMINI_API_KEY (free) or ANTHROPIC_API_KEY in Render environment variables.",
-                "tool_calls": [], "fallback": True, "session_id": session_id
-            })
-
-        if stream:
-            if anthropic_client:
-                from agents.orchestrator import run_streaming_agent
-                def generate():
-                    for ev in run_streaming_agent(question, system, TOOLS, tool_ctx,
-                                                   anthropic_client, history=history):
-                        yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
-            else:
-                from agents.orchestrator import run_gemini_streaming
-                def generate():
-                    for ev in run_gemini_streaming(question, system, TOOLS, tool_ctx):
-                        yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
-            return Response(generate(), mimetype="text/event-stream",
-                            headers={"Cache-Control":"no-cache","X-Accel-Buffering":"no"})
-
-        # Non-streaming
-        if anthropic_client:
-            from agents.orchestrator import run_agent
-            out     = run_agent(question, system, TOOLS, tool_ctx,
-                                anthropic_client, history=history)
-            backend = "anthropic"
-        else:
-            from agents.orchestrator import run_gemini_agent
-            out     = run_gemini_agent(question, system, TOOLS, tool_ctx)
-            backend = "gemini"
-
-        log.info(f"[Agent] backend={backend} tools={len(out.get('tool_calls',[]))} iter={out.get('iterations')}")
-
-        # Persist conversation history
-        history.append({"role": "user",      "content": question})
-        history.append({"role": "assistant", "content": out.get("answer","")})
-        _agent_sessions[session_id] = history[-20:]
-
-        # Save to Supabase
-        if sb_ok and farmer_id:
-            try:
-                sb.table("conversations").insert({
-                    "farmer_id":  farmer_id,
-                    "question":   question,
-                    "answer":     out.get("answer",""),
-                    "tool_calls": json.dumps(out.get("tool_calls",[])),
-                    "created_at": datetime.now().isoformat(),
-                }).execute()
-            except Exception as e:
-                log.warning(f"Save conversation: {e}")
-
+    anthropic_client = _get_anthropic()
+    if not anthropic_client and not GEMINI_KEY:
         return jsonify({
-            "answer":     out.get("answer"),
-            "tool_calls": out.get("tool_calls", []),
-            "iterations": out.get("iterations"),
-            "session_id": session_id,
-            "backend":    backend,
-            "usage":      out.get("usage"),
+            "answer":     "No AI key configured. Set GEMINI_API_KEY (free) or ANTHROPIC_API_KEY.",
+            "tool_calls": [], "fallback": True, "session_id": session_id
         })
 
-    except Exception as e:
-        log.error(f"/agent/chat error: {e}")
-        return jsonify({"error": str(e), "session_id": session_id}), 500
+    # Start background task — returns task_id immediately (avoids 60s proxy timeout)
+    task_id = str(uuid.uuid4())
+    _agent_tasks[task_id] = {"status": "pending"}
+
+    def _worker():
+        try:
+            from agents.tools        import TOOLS
+            from agents.prompts      import ORCHESTRATOR_PROMPT, OFFICER_AGENT_PROMPT
+
+            q = question
+            if coords:
+                q = f"[Field coordinates: {coords[:3]}…] {q}"
+
+            system   = OFFICER_AGENT_PROMPT if role == "officer" else ORCHESTRATOR_PROMPT
+            history  = _agent_sessions.get(session_id, [])
+            tool_ctx = _build_tool_context()
+
+            if anthropic_client:
+                from agents.orchestrator import run_agent
+                out     = run_agent(q, system, TOOLS, tool_ctx, anthropic_client, history=history)
+                backend = "anthropic"
+            else:
+                from agents.orchestrator import run_gemini_agent
+                out     = run_gemini_agent(q, system, TOOLS, tool_ctx)
+                backend = "gemini"
+
+            log.info(f"[Agent] backend={backend} tools={len(out.get('tool_calls',[]))} iter={out.get('iterations')}")
+
+            history.append({"role":"user",      "content":q})
+            history.append({"role":"assistant", "content":out.get("answer","")})
+            _agent_sessions[session_id] = history[-20:]
+
+            if sb_ok and farmer_id:
+                try:
+                    sb.table("conversations").insert({
+                        "farmer_id":  farmer_id, "question": q,
+                        "answer":     out.get("answer",""),
+                        "tool_calls": json.dumps(out.get("tool_calls",[])),
+                        "created_at": datetime.now().isoformat(),
+                    }).execute()
+                except Exception as e:
+                    log.warning(f"Save conversation: {e}")
+
+            _agent_tasks[task_id] = {
+                "status":  "done",
+                "answer":  out.get("answer",""),
+                "tool_calls": out.get("tool_calls",[]),
+                "iterations": out.get("iterations"),
+                "session_id": session_id,
+                "backend":    backend,
+                "usage":      out.get("usage"),
+            }
+        except Exception as e:
+            log.error(f"agent worker: {e}")
+            _agent_tasks[task_id] = {"status": "error", "error": str(e),
+                                      "session_id": session_id}
+
+    threading.Thread(target=_worker, daemon=True).start()
+    return jsonify({"status": "pending", "task_id": task_id,
+                    "session_id": session_id}), 202
+
+
+@app.route("/agent/result/<task_id>", methods=["GET"])
+def agent_result(task_id):
+    """Poll for async agent response."""
+    task = _agent_tasks.get(task_id)
+    if not task:
+        return jsonify({"status": "error", "error": "Task not found"}), 404
+    if task["status"] == "pending":
+        return jsonify({"status": "pending"})
+    _agent_tasks.pop(task_id, None)
+    if task["status"] == "error":
+        return jsonify({"status": "error", "error": task.get("error","Unknown")}), 500
+    return jsonify({"status": "done", **task})
 
 
 @app.route("/agent/stream", methods=["POST","OPTIONS"])

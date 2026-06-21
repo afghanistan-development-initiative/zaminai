@@ -319,6 +319,7 @@ async function sendMessage(){
   setRunning(true);
 
   try {
+    // Step 1: start async task (returns task_id immediately — avoids proxy timeout)
     const resp = await fetch(`${API}/agent/chat`, {
       method:  'POST',
       headers: {'Content-Type':'application/json'},
@@ -330,43 +331,49 @@ async function sendMessage(){
       })
     });
 
-    // Parse response — retry once on 5xx (Render cold-start takes ~30s)
-    let raw = await resp.text();
-    let data;
-    if (!resp.ok && resp.status >= 500) {
-      // Wait 20s then retry once
-      document.getElementById('agent-status').textContent = '⏳ Server waking up, retrying…';
-      await new Promise(r => setTimeout(r, 20000));
-      const retry = await fetch(`${API}/agent/chat`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ question:q, session_id:currentSession,
-                               role:currentRole, language:currentLang })
-      });
-      raw = await retry.text();
-    }
-    try { data = JSON.parse(raw); }
-    catch(e) {
+    const init = await resp.json().catch(() => null);
+    if (!init) { appendBubble('bot','⚠️ Server error. Try again.'); return; }
+
+    // Instant fallback answer (no key configured)
+    if (init.answer && !init.task_id) {
       removeThinking(thinkId);
-      appendBubble('bot', `⚠️ Server error. Try again in 30 seconds (Render cold-start).`);
+      appendBubble('bot', init.answer, {});
       return;
     }
+
+    if (init.error) { removeThinking(thinkId); appendBubble('bot', `⚠️ ${init.error}`); return; }
+
+    const taskId = init.task_id;
+
+    // Step 2: poll /agent/result/<task_id> every 4 seconds
+    let data = null;
+    for (let i = 0; i < 60 && !data; i++) {
+      await new Promise(res => setTimeout(res, 4000));
+      if (i === 5)  document.getElementById('agent-status').textContent = '⏳ Querying satellite data…';
+      if (i === 15) document.getElementById('agent-status').textContent = '⏳ Agent reasoning…';
+      if (i === 30) document.getElementById('agent-status').textContent = '⏳ Still working (complex query)…';
+
+      const poll = await fetch(`${API}/agent/result/${taskId}`).catch(() => null);
+      if (!poll) continue;
+      const pd = await poll.json().catch(() => null);
+      if (!pd) continue;
+      if (pd.status === 'done')  { data = pd; break; }
+      if (pd.status === 'error') { throw new Error(pd.error || 'Agent error'); }
+    }
+
     removeThinking(thinkId);
+    if (!data) { appendBubble('bot','⚠️ Agent timed out. Try a simpler question.'); return; }
 
-    if (data.error) {
-      appendBubble('bot', `⚠️ ${data.error}`);
-      return;
-    }
-
-    const answer = data.answer || data.fallback_answer || '(no answer)';
+    const answer = data.answer || '(no answer)';
     const meta   = {tool_calls: data.tool_calls, usage: data.usage,
-                    iterations: data.iterations, fallback: data.fallback};
+                    iterations: data.iterations, backend: data.backend};
     appendBubble('bot', answer, meta);
     if (sessions[currentSession])
       sessions[currentSession].history.push({role:'bot', content:answer, meta});
 
   } catch(e){
     removeThinking(thinkId);
-    appendBubble('bot', `⚠️ Network error: ${e.message}`);
+    appendBubble('bot', `⚠️ Error: ${e.message}`);
   } finally {
     setRunning(false);
   }
