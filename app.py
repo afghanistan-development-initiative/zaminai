@@ -2306,42 +2306,65 @@ _ISO3_GAUL = {
 }
 
 
-def _fetch_gadm_boundaries(iso, level):
-    """Background worker: fetch GAUL boundaries from GEE, cache result."""
-    cache_key = f"{iso}_{level}"
+def _remap_gaul_props(feats, iso, level):
+    """Remap FAO/GAUL property names to GADM-compatible names the frontend expects."""
+    for feat in feats:
+        p = feat["properties"]
+        adm1 = p.get("ADM1_NAME", "")
+        adm2 = p.get("ADM2_NAME", "")
+        p["NAME_1"] = adm1
+        p["GID_1"]  = f"{iso}.{adm1.replace(' ','_')}_1"
+        if level >= 2:
+            p["NAME_2"] = adm2
+            p["GID_2"]  = f"{iso}.{adm1.replace(' ','_')}.{adm2.replace(' ','_')}_1"
+        if level >= 3:
+            adm3 = p.get("ADM3_NAME", "")
+            p["NAME_3"] = adm3
+            p["GID_3"]  = (f"{iso}.{adm1.replace(' ','_')}"
+                           f".{adm2.replace(' ','_')}.{adm3.replace(' ','_')}_1")
+
+
+def _fetch_gadm_boundaries(iso, level, province_filter=None):
+    """Background worker: fetch FAO/GAUL/2015 boundaries from GEE.
+    province_filter: ADM1_NAME string to restrict level-2/3 to one province only
+                     (avoids loading thousands of districts for large countries).
+    """
+    cache_key = f"{iso}_{level}_{province_filter or ''}"
+    if cache_key in _gadm_cache:
+        return _gadm_cache[cache_key]
+
     try:
         import ee
         country_name = _ISO3_GAUL.get(iso)
         if gee_ok and country_name:
-            # Use FAO/GAUL_SIMPLIFIED_500m — pre-simplified polygons, correct geometry types
-            gaul_col = {
-                1: "FAO/GAUL_SIMPLIFIED_500m/2015/level1",
-                2: "FAO/GAUL_SIMPLIFIED_500m/2015/level2",
-            }.get(level)
+            # FAO/GAUL/2015 — confirmed GEE dataset, full global coverage
+            gaul_col = f"FAO/GAUL/2015/level{min(level, 2)}"
 
-            if gaul_col:
-                fc = (ee.FeatureCollection(gaul_col)
-                      .filter(ee.Filter.eq("ADM0_NAME", country_name)))
-                result = fc.getInfo()
-                feats  = result.get("features", [])
+            fc = (ee.FeatureCollection(gaul_col)
+                  .filter(ee.Filter.eq("ADM0_NAME", country_name)))
 
-                if feats:
-                    # Remap GAUL → GADM-compatible property names for the frontend
-                    for feat in feats:
-                        p = feat["properties"]
-                        p["NAME_1"] = p.get("ADM1_NAME", "")
-                        p["GID_1"]  = f"{iso}.{p['NAME_1'].replace(' ','_')}_1"
-                        if level == 2:
-                            p["NAME_2"] = p.get("ADM2_NAME", "")
-                            p["GID_2"]  = (f"{iso}.{p['NAME_1'].replace(' ','_')}"
-                                           f".{p['NAME_2'].replace(' ','_')}_1")
-                    log.info(f"GAUL_SIMPLIFIED {iso} L{level}: {len(feats)} features")
-                    _gadm_cache[cache_key] = result
-                    return result
+            # For level 2/3 scope to one province to keep response small and fast
+            if province_filter and level >= 2:
+                fc = fc.filter(ee.Filter.eq("ADM1_NAME", province_filter))
 
-        # GEE unavailable or country not in lookup → try ucdavis direct download
+            # Simplify geometry properly — setGeometry keeps Polygon/MultiPolygon type
+            error_m = 2000 if level == 1 else 1000
+            fc = fc.map(
+                lambda f: f.setGeometry(f.geometry().simplify(maxError=error_m))
+            )
+
+            result = fc.getInfo()
+            feats  = result.get("features", [])
+            if feats:
+                _remap_gaul_props(feats, iso, level)
+                log.info(f"GAUL {iso} L{level} prov={province_filter}: {len(feats)} features")
+                _gadm_cache[cache_key] = result
+                return result
+            log.warning(f"GAUL returned 0 features for {iso} L{level} country='{country_name}'")
+
+        # Fallback: ucdavis direct download (only works for small countries fast enough)
         url = f"https://geodata.ucdavis.edu/gadm/gadm4.1/json/gadm41_{iso}_{level}.json"
-        r   = requests.get(url, timeout=25)
+        r = requests.get(url, timeout=20)
         if r.status_code == 200:
             data = r.json()
             _gadm_cache[cache_key] = data
@@ -2355,30 +2378,35 @@ def _fetch_gadm_boundaries(iso, level):
 
 @app.route("/gadm/<iso>/<int:level>", methods=["GET"])
 def gadm_proxy(iso, level):
-    """Return admin boundaries.  Uses async task pattern so Render's
-    30-second request limit is never hit."""
+    """Return admin boundaries async. Render's 30s limit is never hit.
+    Optional ?province=<ADM1_NAME> narrows level-2/3 to one province only.
+    """
     if level not in (1, 2, 3):
         return jsonify({"error": "Level must be 1, 2, or 3"}), 400
-    iso = iso.upper()[:3]
+    iso      = iso.upper()[:3]
+    province = request.args.get("province", "").strip() or None
+    cache_key = f"{iso}_{level}_{province or ''}"
 
-    # Serve from cache instantly if we already have this country+level
-    cache_key = f"{iso}_{level}"
+    # Serve instantly from cache
     if cache_key in _gadm_cache:
         return jsonify(_gadm_cache[cache_key]), 200, {
             "Content-Type": "application/json", "Cache-Control": "public,max-age=86400"
         }
 
-    # Not cached — start async task and tell the frontend to poll
+    # Start async fetch
     task_id = str(uuid.uuid4())
     _gadm_tasks[task_id] = {"status": "pending"}
 
     def _worker():
-        result = _fetch_gadm_boundaries(iso, level)
+        result = _fetch_gadm_boundaries(iso, level, province)
         if result:
             _gadm_tasks[task_id] = {"status": "done", "data": result}
         else:
-            _gadm_tasks[task_id] = {"status": "error",
-                                     "error": f"No boundary data for {iso} L{level}"}
+            _gadm_tasks[task_id] = {
+                "status": "error",
+                "error": f"No boundary data for {iso} L{level}"
+                         + (f" province={province}" if province else "")
+            }
 
     threading.Thread(target=_worker, daemon=True).start()
     return jsonify({"status": "pending", "task_id": task_id}), 202
