@@ -2260,101 +2260,146 @@ def officer_proxy_image():
         return str(e), 500
 
 
+# In-memory cache for boundary data (key: "ISO_level", value: geojson dict)
+_gadm_cache  = {}
+_gadm_tasks  = {}   # task_id -> {status, data/error}
+
+# ISO3 → country name in FAO/GAUL dataset
+_ISO3_GAUL = {
+    "AFG":"Afghanistan","GHA":"Ghana","KEN":"Kenya","NGA":"Nigeria",
+    "ETH":"Ethiopia","TZA":"Tanzania","UGA":"Uganda","RWA":"Rwanda",
+    "MOZ":"Mozambique","ZMB":"Zambia","ZWE":"Zimbabwe","MWI":"Malawi",
+    "ZAF":"South Africa","NAM":"Namibia","BWA":"Botswana","LSO":"Lesotho",
+    "SWZ":"Swaziland","EGY":"Egypt","MAR":"Morocco","TUN":"Tunisia",
+    "DZA":"Algeria","LBY":"Libya","SDN":"Sudan","SSD":"South Sudan",
+    "SOM":"Somalia","DJI":"Djibouti","ERI":"Eritrea","CMR":"Cameroon",
+    "COD":"Democratic Republic of the Congo","COG":"Republic of Congo",
+    "GAB":"Gabon","CAF":"Central African Republic","SEN":"Senegal",
+    "MLI":"Mali","BFA":"Burkina Faso","NER":"Niger","CIV":"Cote d Ivoire",
+    "LBR":"Liberia","SLE":"Sierra Leone","GIN":"Guinea","GNB":"Guinea-Bissau",
+    "GMB":"Gambia","MRT":"Mauritania","BEN":"Benin","TGO":"Togo",
+    "TCD":"Chad","AGO":"Angola","IND":"India","PAK":"Pakistan",
+    "BGD":"Bangladesh","LKA":"Sri Lanka","NPL":"Nepal","MMR":"Myanmar",
+    "THA":"Thailand","VNM":"Viet Nam","KHM":"Cambodia","LAO":"Lao PDR",
+    "MYS":"Malaysia","IDN":"Indonesia","PHL":"Philippines","PNG":"Papua New Guinea",
+    "CHN":"China","JPN":"Japan","KOR":"Republic of Korea","MNG":"Mongolia",
+    "IRN":"Iran  (Islamic Republic of)","IRQ":"Iraq","SYR":"Syrian Arab Republic",
+    "JOR":"Jordan","SAU":"Saudi Arabia","YEM":"Yemen","OMN":"Oman",
+    "ARE":"United Arab Emirates","QAT":"Qatar","KWT":"Kuwait","TUR":"Turkey",
+    "AZE":"Azerbaijan","ARM":"Armenia","GEO":"Georgia","KAZ":"Kazakhstan",
+    "UZB":"Uzbekistan","TKM":"Turkmenistan","KGZ":"Kyrgyzstan","TJK":"Tajikistan",
+    "RUS":"Russian Federation","UKR":"Ukraine","BLR":"Belarus","MDA":"Republic of Moldova",
+    "POL":"Poland","CZE":"Czech Republic","SVK":"Slovakia","HUN":"Hungary",
+    "ROU":"Romania","BGR":"Bulgaria","SRB":"Serbia","HRV":"Croatia",
+    "BIH":"Bosnia and Herzegovina","ALB":"Albania","MKD":"The former Yugoslav Republic of Macedonia",
+    "SVN":"Slovenia","MNE":"Montenegro","GRC":"Greece","CYP":"Cyprus",
+    "DEU":"Germany","FRA":"France","ESP":"Spain","PRT":"Portugal",
+    "ITA":"Italy","GBR":"United Kingdom of Great Britain and Northern Ireland",
+    "NLD":"Netherlands","BEL":"Belgium","LUX":"Luxembourg","CHE":"Switzerland",
+    "AUT":"Austria","DNK":"Denmark","SWE":"Sweden","NOR":"Norway",
+    "FIN":"Finland","IRL":"Ireland","LVA":"Latvia","LTU":"Lithuania",
+    "EST":"Estonia","USA":"United States of America","CAN":"Canada",
+    "MEX":"Mexico","BRA":"Brazil","ARG":"Argentina","CHL":"Chile",
+    "COL":"Colombia","VEN":"Venezuela","PER":"Peru","BOL":"Bolivia",
+    "ECU":"Ecuador","PRY":"Paraguay","URY":"Uruguay","AUS":"Australia",
+    "NZL":"New Zealand",
+}
+
+
+def _fetch_gadm_boundaries(iso, level):
+    """Background worker: fetch GAUL boundaries from GEE, cache result."""
+    cache_key = f"{iso}_{level}"
+    try:
+        import ee
+        country_name = _ISO3_GAUL.get(iso)
+        if gee_ok and country_name:
+            # Use FAO/GAUL_SIMPLIFIED_500m — pre-simplified polygons, correct geometry types
+            gaul_col = {
+                1: "FAO/GAUL_SIMPLIFIED_500m/2015/level1",
+                2: "FAO/GAUL_SIMPLIFIED_500m/2015/level2",
+            }.get(level)
+
+            if gaul_col:
+                fc = (ee.FeatureCollection(gaul_col)
+                      .filter(ee.Filter.eq("ADM0_NAME", country_name)))
+                result = fc.getInfo()
+                feats  = result.get("features", [])
+
+                if feats:
+                    # Remap GAUL → GADM-compatible property names for the frontend
+                    for feat in feats:
+                        p = feat["properties"]
+                        p["NAME_1"] = p.get("ADM1_NAME", "")
+                        p["GID_1"]  = f"{iso}.{p['NAME_1'].replace(' ','_')}_1"
+                        if level == 2:
+                            p["NAME_2"] = p.get("ADM2_NAME", "")
+                            p["GID_2"]  = (f"{iso}.{p['NAME_1'].replace(' ','_')}"
+                                           f".{p['NAME_2'].replace(' ','_')}_1")
+                    log.info(f"GAUL_SIMPLIFIED {iso} L{level}: {len(feats)} features")
+                    _gadm_cache[cache_key] = result
+                    return result
+
+        # GEE unavailable or country not in lookup → try ucdavis direct download
+        url = f"https://geodata.ucdavis.edu/gadm/gadm4.1/json/gadm41_{iso}_{level}.json"
+        r   = requests.get(url, timeout=25)
+        if r.status_code == 200:
+            data = r.json()
+            _gadm_cache[cache_key] = data
+            return data
+        return None
+
+    except Exception as e:
+        log.error(f"_fetch_gadm_boundaries {iso} L{level}: {e}")
+        return None
+
+
 @app.route("/gadm/<iso>/<int:level>", methods=["GET"])
 def gadm_proxy(iso, level):
-    """Return admin boundaries using GEE's FAO/GAUL dataset (primary) or
-    GADM4.1 from ucdavis.edu (fallback).
-
-    GEE approach is preferred: it runs server-side (no large download),
-    supports every country, and beats Render's 30-second request limit.
-    """
+    """Return admin boundaries.  Uses async task pattern so Render's
+    30-second request limit is never hit."""
     if level not in (1, 2, 3):
         return jsonify({"error": "Level must be 1, 2, or 3"}), 400
     iso = iso.upper()[:3]
 
-    # ── Primary: GEE FAO/GAUL global admin boundaries ────────────────────────
-    # ISO3 → country name as it appears in the GAUL dataset
-    ISO3_GAUL = {
-        "AFG":"Afghanistan","GHA":"Ghana","KEN":"Kenya","NGA":"Nigeria",
-        "ETH":"Ethiopia","TZA":"Tanzania","UGA":"Uganda","RWA":"Rwanda",
-        "MOZ":"Mozambique","ZMB":"Zambia","ZWE":"Zimbabwe","MWI":"Malawi",
-        "ZAF":"South Africa","NAM":"Namibia","BWA":"Botswana","LSO":"Lesotho",
-        "SWZ":"Swaziland","EGY":"Egypt","MAR":"Morocco","TUN":"Tunisia",
-        "DZA":"Algeria","LBY":"Libya","SDN":"Sudan","SSD":"South Sudan",
-        "SOM":"Somalia","DJI":"Djibouti","ERI":"Eritrea",
-        "CMR":"Cameroon","COD":"Democratic Republic of the Congo",
-        "COG":"Republic of Congo","GAB":"Gabon","CAF":"Central African Republic",
-        "SEN":"Senegal","MLI":"Mali","BFA":"Burkina Faso","NER":"Niger",
-        "CIV":"Côte d'Ivoire","LBR":"Liberia","SLE":"Sierra Leone",
-        "GIN":"Guinea","GNB":"Guinea-Bissau","GMB":"The Gambia","MRT":"Mauritania",
-        "BEN":"Benin","TGO":"Togo","TCH":"Chad","AGO":"Angola",
-        "IND":"India","PAK":"Pakistan","BGD":"Bangladesh","LKA":"Sri Lanka",
-        "NPL":"Nepal","BTN":"Bhutan","MDV":"Maldives","MMR":"Myanmar",
-        "THA":"Thailand","VNM":"Vietnam","KHM":"Cambodia","LAO":"Laos",
-        "MYS":"Malaysia","IDN":"Indonesia","PHL":"Philippines","PNG":"Papua New Guinea",
-        "CHN":"China","JPN":"Japan","KOR":"Republic of Korea","MNG":"Mongolia",
-        "IRN":"Iran","IRQ":"Iraq","SYR":"Syrian Arab Republic","JOR":"Jordan",
-        "SAU":"Saudi Arabia","YEM":"Yemen","OMN":"Oman","ARE":"United Arab Emirates",
-        "QAT":"Qatar","KWT":"Kuwait","BHR":"Bahrain","TUR":"Turkey",
-        "AZE":"Azerbaijan","ARM":"Armenia","GEO":"Georgia","KAZ":"Kazakhstan",
-        "UZB":"Uzbekistan","TKM":"Turkmenistan","KGZ":"Kyrgyzstan","TJK":"Tajikistan",
-        "RUS":"Russia","UKR":"Ukraine","BLR":"Belarus","MDA":"Moldova",
-        "POL":"Poland","CZE":"Czech Republic","SVK":"Slovakia","HUN":"Hungary",
-        "ROU":"Romania","BGR":"Bulgaria","SRB":"Serbia","HRV":"Croatia",
-        "BIH":"Bosnia and Herzegovina","ALB":"Albania","MKD":"North Macedonia",
-        "SVN":"Slovenia","MNE":"Montenegro","GRC":"Greece","CYP":"Cyprus",
-        "DEU":"Germany","FRA":"France","ESP":"Spain","PRT":"Portugal",
-        "ITA":"Italy","GBR":"United Kingdom","NLD":"Netherlands","BEL":"Belgium",
-        "LUX":"Luxembourg","CHE":"Switzerland","AUT":"Austria","DNK":"Denmark",
-        "SWE":"Sweden","NOR":"Norway","FIN":"Finland","ISL":"Iceland",
-        "IRL":"Ireland","MLT":"Malta","LVA":"Latvia","LTU":"Lithuania",
-        "EST":"Estonia","USA":"United States","CAN":"Canada","MEX":"Mexico",
-        "BRA":"Brazil","ARG":"Argentina","CHL":"Chile","COL":"Colombia",
-        "VEN":"Venezuela","PER":"Peru","BOL":"Bolivia","ECU":"Ecuador",
-        "PRY":"Paraguay","URY":"Uruguay","GUY":"Guyana","SUR":"Suriname",
-        "AUS":"Australia","NZL":"New Zealand","FJI":"Fiji",
+    # Serve from cache instantly if we already have this country+level
+    cache_key = f"{iso}_{level}"
+    if cache_key in _gadm_cache:
+        return jsonify(_gadm_cache[cache_key]), 200, {
+            "Content-Type": "application/json", "Cache-Control": "public,max-age=86400"
+        }
+
+    # Not cached — start async task and tell the frontend to poll
+    task_id = str(uuid.uuid4())
+    _gadm_tasks[task_id] = {"status": "pending"}
+
+    def _worker():
+        result = _fetch_gadm_boundaries(iso, level)
+        if result:
+            _gadm_tasks[task_id] = {"status": "done", "data": result}
+        else:
+            _gadm_tasks[task_id] = {"status": "error",
+                                     "error": f"No boundary data for {iso} L{level}"}
+
+    threading.Thread(target=_worker, daemon=True).start()
+    return jsonify({"status": "pending", "task_id": task_id}), 202
+
+
+@app.route("/gadm-result/<task_id>", methods=["GET"])
+def gadm_result(task_id):
+    """Poll for async GADM boundary result."""
+    task = _gadm_tasks.get(task_id)
+    if not task:
+        return jsonify({"status": "error", "error": "Task not found"}), 404
+    if task["status"] == "pending":
+        return jsonify({"status": "pending"})
+    if task["status"] == "error":
+        _gadm_tasks.pop(task_id, None)
+        return jsonify({"status": "error", "error": task["error"]}), 500
+    data = task["data"]
+    _gadm_tasks.pop(task_id, None)
+    return jsonify(data), 200, {
+        "Content-Type": "application/json", "Cache-Control": "public,max-age=86400"
     }
-
-    if gee_ok and iso in ISO3_GAUL:
-        try:
-            import ee
-            country_name = ISO3_GAUL[iso]
-            gaul_col = {1: "FAO/GAUL/2015/level1", 2: "FAO/GAUL/2015/level2"}.get(level)
-            if gaul_col:
-                adm_key = f"ADM{level}_NAME"
-                fc = (ee.FeatureCollection(gaul_col)
-                      .filter(ee.Filter.eq("ADM0_NAME", country_name))
-                      .select([adm_key] + (["ADM2_NAME"] if level == 2 else []))
-                      .map(lambda f: f.simplify(maxError=1000)))  # ~1km — keeps file small
-
-                result  = fc.getInfo()
-                feats   = result.get("features", [])
-                # Remap GAUL property names → GADM-compatible names so frontend works
-                for feat in feats:
-                    p = feat["properties"]
-                    p["NAME_1"] = p.get("ADM1_NAME", "")
-                    if level == 2:
-                        p["NAME_2"] = p.get("ADM2_NAME", "")
-                    p["GID_1"]  = f"{iso}.{p['NAME_1'].replace(' ','_')}_1"
-                    if level == 2:
-                        p["GID_2"] = f"{iso}.{p['NAME_1'].replace(' ','_')}.{p['NAME_2'].replace(' ','_')}_1"
-
-                log.info(f"GAUL {iso} L{level}: {len(feats)} features")
-                return jsonify(result), 200, {"Content-Type": "application/json",
-                                              "Cache-Control": "public,max-age=86400"}
-        except Exception as e:
-            log.warning(f"GAUL GEE failed for {iso} L{level}: {e} — falling back to ucdavis")
-
-    # ── Fallback: GADM4.1 direct download (may be slow for large countries) ──
-    url = f"https://geodata.ucdavis.edu/gadm/gadm4.1/json/gadm41_{iso}_{level}.json"
-    try:
-        r = requests.get(url, timeout=25)
-        if r.status_code != 200:
-            return jsonify({"error": f"GADM returned {r.status_code} for {iso} L{level}"}), 404
-        return r.content, 200, {"Content-Type": "application/json",
-                                 "Cache-Control": "public,max-age=86400"}
-    except Exception as e:
-        return jsonify({"error": f"Boundary data unavailable for {iso}: {e}"}), 500
 
 
 # ── Async satellite layer tasks (Step 2) ─────────────────────────────────────

@@ -1053,10 +1053,28 @@ async function onCountrySelected(country){
   document.getElementById('detect-btn').disabled = true;
   closeResults();
   try {
+    setStatus('⏳ Loading boundaries…');
+    // GADM endpoint returns {task_id} for async fetch or cached data directly
     const url = `${API}/gadm/${country.iso}/1`;
-    const r = await fetch(url);
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    l1Data = await r.json();
+    const init = await fetch(url);
+    let l1Raw;
+    if (init.status === 202) {
+      // Async — poll until done
+      const { task_id } = await init.json();
+      for (let i = 0; i < 40; i++) {
+        await new Promise(res => setTimeout(res, 3000));
+        const poll = await fetch(`${API}/gadm-result/${task_id}`);
+        const pd   = await poll.json();
+        if (pd.status === 'done' || pd.features) { l1Raw = pd.features ? pd : pd; break; }
+        if (pd.status === 'error') throw new Error(pd.error);
+      }
+      if (!l1Raw) throw new Error('Boundary load timed out — try again');
+    } else if (init.ok) {
+      l1Raw = await init.json();
+    } else {
+      throw new Error(`HTTP ${init.status}`);
+    }
+    l1Data = l1Raw;
     const names = [...new Set(l1Data.features.map(f => f.properties.NAME_1).filter(Boolean))].sort();
     ps.innerHTML = `<option value="">— select —</option>`;
     names.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; ps.appendChild(o); });
@@ -1104,14 +1122,30 @@ function onProvClicked(feat){
   loadDistricts(curISO, feat.properties.GID_1);
 }
 
+async function _gadmFetch(iso, level){
+  const init = await fetch(`${API}/gadm/${iso}/${level}`);
+  if (init.status === 202){
+    const { task_id } = await init.json();
+    for (let i=0; i<40; i++){
+      await new Promise(res=>setTimeout(res,3000));
+      const poll = await fetch(`${API}/gadm-result/${task_id}`);
+      const pd   = await poll.json();
+      if (pd.features || pd.status==='done') return pd.features ? pd : pd;
+      if (pd.status==='error') throw new Error(pd.error);
+    }
+    throw new Error('Boundary load timed out');
+  }
+  if (!init.ok) throw new Error(`HTTP ${init.status}`);
+  return await init.json();
+}
+
 async function loadDistricts(iso, gid1){
   const ds = document.getElementById('dist-sel');
   try {
     if (!l2Data){
-      const url = `${API}/gadm/${iso}/2`;
-      const r = await fetch(url);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      l2Data = await r.json();
+      setStatus('⏳ Loading districts…');
+      l2Data = await _gadmFetch(iso, 2);
+      setStatus('');
     }
     const feats = l2Data.features.filter(f => f.properties.GID_1 === gid1);
     if (!feats.length){ ds.innerHTML = '<option value="">No district data</option>'; return; }
@@ -1141,10 +1175,8 @@ async function loadVillages(iso, gid2){
   const vs = document.getElementById('vil-sel');
   try {
     if (!l3Data){
-      setStatus(t('loading'));
-      const r = await fetch(`${API}/gadm/${iso}/3`);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      l3Data = await r.json();
+      setStatus('⏳ Loading villages…');
+      l3Data = await _gadmFetch(iso, 3);
       setStatus('');
     }
     const feats = l3Data.features.filter(f => f.properties.GID_2 === gid2);
