@@ -2762,6 +2762,262 @@ def officer_analyse_result(task_id):
     return jsonify({"status": "done", "data": data})
 
 
+# ════════════════════════════════════════════════════════════════════════════════
+# MULTI-AGENT SYSTEM
+# ════════════════════════════════════════════════════════════════════════════════
+
+# Lazy-load Anthropic client (avoids import error if key not set)
+_anthropic_client = None
+def _get_anthropic():
+    global _anthropic_client
+    if _anthropic_client is None and ANTHROPIC_KEY:
+        import anthropic
+        _anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
+    return _anthropic_client
+
+
+def _build_tool_context():
+    """Build the context dict passed to every tool execution."""
+    def _monthly_rain_fn(lat, lon, year):
+        try:
+            import ee
+            pt  = ee.Geometry.Point([lon, lat])
+            out = {}
+            for mo in range(1, 13):
+                mo_end = f"{year}-{(mo%12)+1:02d}-01" if mo < 12 else f"{year+1}-01-01"
+                rain = (ee.ImageCollection("UCSB-CHG/CHIRPS/DAILY")
+                        .filterDate(f"{year}-{mo:02d}-01", mo_end)
+                        .sum().sample(pt, 5000).first()
+                        .get("precipitation").getInfo())
+                out[mo] = round(float(rain), 1) if rain else None
+            return {"monthly_mm": out, "annual_mm": round(sum(v for v in out.values() if v),1)}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def _soil_fn(lat, lon):
+        try:
+            url = (f"https://rest.isric.org/soilgrids/v2.0/properties/query"
+                   f"?lon={lon}&lat={lat}&property=phh2o&property=soc&property=clay&depth=0-30cm&value=mean")
+            r = requests.get(url, timeout=10)
+            return r.json() if r.ok else {"error": f"SoilGrids {r.status_code}"}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def _get_all_fields_fn():
+        if not sb_ok: return []
+        try:
+            r = sb.table("fields").select("id,farmer_id,label,coords,province").limit(200).execute()
+            return r.data or []
+        except: return []
+
+    def _get_farmer_fields_fn(farmer_id):
+        if not sb_ok: return []
+        try:
+            r = sb.table("fields").select("*").eq("farmer_id", farmer_id).execute()
+            return r.data or []
+        except: return []
+
+    def _save_alert_fn(farmer_id, field_id=None, message="", severity="info", language="en"):
+        if not sb_ok: return
+        try:
+            sb.table("farmer_alerts").insert({
+                "farmer_id": farmer_id, "field_id": field_id,
+                "message": message, "severity": severity,
+                "created_at": datetime.now().isoformat(),
+            }).execute()
+        except Exception as e:
+            log.warning(f"save_alert failed: {e}")
+
+    return {
+        "gee_analyse_officer": gee_analyse_officer if gee_ok else None,
+        "monthly_rain_fn":     _monthly_rain_fn,
+        "soil_fn":             _soil_fn,
+        "get_all_fields_fn":   _get_all_fields_fn,
+        "get_farmer_fields_fn":_get_farmer_fields_fn,
+        "save_alert_fn":       _save_alert_fn,
+        "detect_crop_fn":      detect_crop,
+    }
+
+
+# In-memory conversation history (keyed by session_id)
+_agent_sessions = {}
+
+
+@app.route("/agent/chat", methods=["POST","OPTIONS"])
+def agent_chat():
+    """Main agentic chat endpoint. Supports farmer advisory and officer analysis.
+    Runs Claude ReAct loop with satellite tools. Streams events via SSE."""
+    if request.method == "OPTIONS": return jsonify({}), 200
+
+    data       = request.get_json(force=True)
+    question   = data.get("question", "").strip()
+    session_id = data.get("session_id", str(uuid.uuid4()))
+    role       = data.get("role", "farmer")   # farmer | officer
+    language   = data.get("language", "en")
+    stream     = data.get("stream", False)
+    coords     = data.get("coords")            # optional pre-set field coords
+    farmer_id  = data.get("farmer_id")
+
+    if not question:
+        return jsonify({"error": "Question required"}), 400
+
+    client = _get_anthropic()
+    if not client:
+        # Graceful fallback without Anthropic
+        answer = smart_fallback(question, language)
+        return jsonify({"answer": answer, "tool_calls": [], "fallback": True})
+
+    from agents.tools       import TOOLS
+    from agents.prompts     import ORCHESTRATOR_PROMPT, OFFICER_AGENT_PROMPT
+    from agents.orchestrator import run_agent, run_streaming_agent
+
+    # Prepend field coords context to question if provided
+    if coords:
+        question = f"[Field coordinates: {coords[:3]}...] {question}"
+
+    system   = OFFICER_AGENT_PROMPT if role == "officer" else ORCHESTRATOR_PROMPT
+    history  = _agent_sessions.get(session_id, [])
+    tool_ctx = _build_tool_context()
+
+    if stream:
+        def generate():
+            for event in run_streaming_agent(
+                question, system, TOOLS, tool_ctx, client, history=history
+            ):
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+
+        return Response(generate(),
+                        mimetype="text/event-stream",
+                        headers={"Cache-Control":"no-cache","X-Accel-Buffering":"no"})
+
+    out = run_agent(question, system, TOOLS, tool_ctx, client, history=history)
+
+    # Save to conversation history (keep last 10 turns)
+    history.append({"role": "user", "content": question})
+    history.append({"role": "assistant",
+                    "content": out.get("answer","")})
+    _agent_sessions[session_id] = history[-20:]
+
+    # Save to Supabase if farmer identified
+    if sb_ok and farmer_id:
+        try:
+            sb.table("conversations").insert({
+                "farmer_id": farmer_id,
+                "question":  question,
+                "answer":    out.get("answer",""),
+                "tool_calls":json.dumps(out.get("tool_calls",[])),
+                "created_at":datetime.now().isoformat(),
+            }).execute()
+        except Exception as e:
+            log.warning(f"Save conversation failed: {e}")
+
+    return jsonify({
+        "answer":      out.get("answer"),
+        "tool_calls":  out.get("tool_calls", []),
+        "iterations":  out.get("iterations"),
+        "session_id":  session_id,
+        "usage":       out.get("usage"),
+    })
+
+
+@app.route("/agent/stream", methods=["POST","OPTIONS"])
+def agent_stream():
+    """SSE streaming agent chat — events arrive word-by-word."""
+    if request.method == "OPTIONS": return jsonify({}), 200
+    data = request.get_json(force=True)
+    data["stream"] = True
+    # Re-use agent_chat with stream=True via internal redirect
+    with app.test_request_context(
+        "/agent/chat", method="POST",
+        data=json.dumps(data), content_type="application/json"
+    ):
+        return agent_chat()
+
+
+@app.route("/agent/monitor", methods=["POST","OPTIONS"])
+def agent_monitor():
+    """Trigger autonomous field monitoring loop (can be called by cron).
+    Checks all registered fields, detects NDVI drops, issues alerts."""
+    if request.method == "OPTIONS": return jsonify({}), 200
+    client = _get_anthropic()
+    if not client:
+        return jsonify({"error": "Anthropic API key required for monitoring"}), 503
+
+    task_id = str(uuid.uuid4())
+    _analyse_farmer_tasks[task_id] = {"status": "pending"}
+
+    def _worker():
+        try:
+            from agents.orchestrator import run_field_monitor
+            results = run_field_monitor(_build_tool_context(), client)
+            _analyse_farmer_tasks[task_id] = {"status":"done","data":results}
+        except Exception as e:
+            _analyse_farmer_tasks[task_id] = {"status":"error","error":str(e)}
+
+    threading.Thread(target=_worker, daemon=True).start()
+    return jsonify({"task_id": task_id, "status": "pending",
+                    "message": "Monitoring loop started — poll /analyse-result/<task_id>"})
+
+
+@app.route("/agent/weekly-report", methods=["POST","OPTIONS"])
+def agent_weekly_report():
+    """Generate a weekly satellite intelligence report for a province."""
+    if request.method == "OPTIONS": return jsonify({}), 200
+    data     = request.get_json(force=True)
+    province = data.get("province", "Kunduz")
+    country  = data.get("country",  "Afghanistan")
+    client   = _get_anthropic()
+    if not client:
+        return jsonify({"error": "Anthropic API key required"}), 503
+
+    task_id = str(uuid.uuid4())
+    _analyse_farmer_tasks[task_id] = {"status":"pending"}
+
+    def _worker():
+        try:
+            from agents.orchestrator import run_weekly_officer_report
+            result = run_weekly_officer_report(
+                province, country, _build_tool_context(), client
+            )
+            _analyse_farmer_tasks[task_id] = {"status":"done","data":result}
+        except Exception as e:
+            _analyse_farmer_tasks[task_id] = {"status":"error","error":str(e)}
+
+    threading.Thread(target=_worker, daemon=True).start()
+    return jsonify({"task_id": task_id, "status": "pending",
+                    "province": province, "country": country})
+
+
+@app.route("/agent/history/<session_id>", methods=["GET"])
+def agent_history(session_id):
+    """Return conversation history for a session."""
+    history = _agent_sessions.get(session_id, [])
+    return jsonify({"session_id": session_id, "turns": len(history)//2,
+                    "history": history[-10:]})
+
+
+@app.route("/agent/status", methods=["GET"])
+def agent_status():
+    """Return agent system status."""
+    return jsonify({
+        "anthropic":    bool(_get_anthropic()),
+        "gee":          gee_ok,
+        "database":     sb_ok,
+        "active_sessions": len(_agent_sessions),
+        "tools_available": 12,
+        "models": {
+            "main":  "claude-sonnet-4-6",
+            "fast":  "claude-haiku-4-5-20251001",
+        }
+    })
+
+
+@app.route("/agent")
+def agent_ui():
+    """Serve the agentic chat UI."""
+    return send_from_directory(".", "agent.html")
+
+
 if __name__=="__main__":
     port=int(os.environ.get("PORT",5000))
     log.info(f"ZaminAI API v7.0 starting on port {port}")
