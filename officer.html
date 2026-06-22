@@ -1714,7 +1714,7 @@ async function apSend(preText){
         question:   contextQ,
         session_id: _apSession,
         role:       'officer',
-        language:   appLang || 'en',
+        language:   (typeof appLang !== 'undefined' ? appLang : null) || lang || 'en',
         coords:     selFeat ? extractCoords(selFeat).slice(0,20) : null,
       })
     });
