@@ -2267,6 +2267,9 @@ function notify(m,d=3000){const n=document.getElementById('notif');n.textContent
 .fw-lb{background:transparent;border:1px solid #163352;border-radius:5px;
   color:#5a8fc0;font-size:.7rem;padding:.15rem .45rem;cursor:pointer;transition:all .15s}
 .fw-lb.active,.fw-lb:hover{border-color:#22c55e;color:#22c55e}
+#fw-mic-btn:hover{border-color:#ef4444;color:#ef4444}
+#fw-speak-btn.speaking{border-color:#22c55e;animation:pulse-green 1s infinite}
+@keyframes pulse-green{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.4)}50%{box-shadow:0 0 0 6px rgba(34,197,94,0)}}
 @media(max-width:480px){
   #ai-chat-widget{width:calc(100vw - 2rem);right:1rem}
 }
@@ -2301,8 +2304,16 @@ function notify(m,d=3000){const n=document.getElementById('notif');n.textContent
     <button class="fw-lb" data-lang="ps" onclick="fwSetLang('ps',this)">پښتو</button>
   </div>
   <div class="fw-input-row">
-    <input class="fw-inp" id="fw-inp" placeholder="Ask about your field…"
+    <button id="fw-mic-btn" onclick="fwToggleMic()"
+      style="background:#040d1a;border:1px solid #163352;border-radius:8px;
+             width:34px;height:34px;cursor:pointer;font-size:1rem;flex-shrink:0;
+             transition:all .2s" title="Voice input">🎙️</button>
+    <input class="fw-inp" id="fw-inp" placeholder="🎙️ Speak or type your question…"
            onkeydown="if(event.key==='Enter')fwSend()">
+    <button id="fw-speak-btn" onclick="_speaking?fwStopSpeak():null"
+      style="background:#040d1a;border:1px solid #163352;border-radius:8px;
+             width:34px;height:34px;cursor:pointer;font-size:1rem;flex-shrink:0;
+             transition:all .2s" title="Read answer aloud">🔊</button>
     <button class="fw-send" id="fw-send-btn" onclick="fwSend()">↑</button>
   </div>
 </div>
@@ -2313,14 +2324,112 @@ let _fwRunning = false;
 let _fwSession = 'farmer_' + Date.now();
 let _fwLang    = 'en';
 
+// Speech language codes per app language
+const SPEECH_LANG = { en:'en-US', fa:'fa-IR', ps:'ps-AF' };
+
 function fwSetLang(l, btn){
   _fwLang = l;
   document.querySelectorAll('.fw-lb').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   const inp = document.getElementById('fw-inp');
-  inp.placeholder = l==='fa' ? 'سوال بپرسید — د ساحې د روغتیا بار بوله…' :
-                    l==='ps' ? 'پوښتنه وکړئ — د خپل ځمکې مالومات ترلاسه کړئ…' :
-                               'Ask about your field or any location…';
+  inp.placeholder = l==='fa' ? '🎙️ بگویید یا بنویسید…' :
+                    l==='ps' ? '🎙️ ووایاست یا ولیکئ…' :
+                               '🎙️ Speak or type your question…';
+}
+
+// ── Voice Input (Speech Recognition) ─────────────────────────────────────────
+let _recognition = null;
+let _isListeningFW = false;
+
+function fwToggleMic(){
+  const btn = document.getElementById('fw-mic-btn');
+  if (_isListeningFW) {
+    _recognition?.stop();
+    return;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    alert('Voice input not supported in this browser. Try Chrome.');
+    return;
+  }
+  _recognition = new SR();
+  _recognition.lang = SPEECH_LANG[_fwLang] || 'en-US';
+  _recognition.continuous = false;
+  _recognition.interimResults = true;
+
+  _recognition.onstart = () => {
+    _isListeningFW = true;
+    btn.style.background = '#dc2626';
+    btn.textContent = '🔴';
+    document.getElementById('fw-inp').placeholder =
+      _fwLang==='fa'?'در حال گوش دادن…':_fwLang==='ps'?'اوریدل کیږي…':'Listening…';
+  };
+  _recognition.onresult = (e) => {
+    const transcript = Array.from(e.results).map(r=>r[0].transcript).join('');
+    document.getElementById('fw-inp').value = transcript;
+  };
+  _recognition.onend = () => {
+    _isListeningFW = false;
+    btn.style.background = '';
+    btn.textContent = '🎙️';
+    fwSetLang(_fwLang, document.querySelector(`.fw-lb[data-lang="${_fwLang}"]`) || document.querySelector('.fw-lb'));
+    const val = document.getElementById('fw-inp').value.trim();
+    if (val) fwSend(); // auto-send on speech end
+  };
+  _recognition.onerror = () => {
+    _isListeningFW = false;
+    btn.style.background = '';
+    btn.textContent = '🎙️';
+  };
+  _recognition.start();
+}
+
+// ── Voice Output (Text-to-Speech) ─────────────────────────────────────────────
+let _speaking = false;
+
+function fwSpeak(text){
+  if (!window.speechSynthesis) return;
+  // Strip markdown
+  const plain = text
+    .replace(/\*\*(.+?)\*\*/g,'$1')
+    .replace(/\*(.+?)\*/g,'$1')
+    .replace(/`(.+?)`/g,'$1')
+    .replace(/^#{1,4} /gm,'')
+    .replace(/\|.*\|/g,'')      // strip table rows
+    .replace(/[-•]\s/g,'')
+    .replace(/<[^>]+>/g,'')
+    .replace(/\s{2,}/g,' ')
+    .trim()
+    .slice(0, 600); // limit to 600 chars for TTS
+
+  if (!plain) return;
+
+  window.speechSynthesis.cancel();
+  const utt  = new SpeechSynthesisUtterance(plain);
+  utt.lang   = SPEECH_LANG[_fwLang] || 'en-US';
+  utt.rate   = 0.92;
+  utt.pitch  = 1.0;
+
+  // Pick a natural voice if available
+  const voices = window.speechSynthesis.getVoices();
+  const match  = voices.find(v => v.lang.startsWith(utt.lang.split('-')[0]));
+  if (match) utt.voice = match;
+
+  utt.onstart = () => {
+    _speaking = true;
+    document.getElementById('fw-speak-btn')?.classList.add('speaking');
+  };
+  utt.onend = utt.onerror = () => {
+    _speaking = false;
+    document.getElementById('fw-speak-btn')?.classList.remove('speaking');
+  };
+  window.speechSynthesis.speak(utt);
+}
+
+function fwStopSpeak(){
+  window.speechSynthesis?.cancel();
+  _speaking = false;
+  document.getElementById('fw-speak-btn')?.classList.remove('speaking');
 }
 
 // Warm-up: ping /health on page load so the server is awake before user needs it
@@ -2501,8 +2610,17 @@ async function fwSend(){
       });
       b.appendChild(tr);
     }
-    msgs.appendChild(b);
-    msgs.scrollTop=msgs.scrollHeight;
+    // Speaker button to re-read answer
+    const spkBtn=document.createElement('button');
+    spkBtn.textContent='🔊';
+    spkBtn.style.cssText='background:none;border:none;cursor:pointer;font-size:.9rem;opacity:.5;margin-top:.3rem';
+    spkBtn.onclick=()=>fwSpeak(data.answer||'');
+    b.appendChild(spkBtn);
+    const msgs2=document.getElementById('fw-messages');
+    msgs2.appendChild(b);
+    msgs2.scrollTop=msgs2.scrollHeight;
+    // Auto-read aloud
+    fwSpeak(data.answer||'');
 
   }catch(e){
     document.getElementById('fw-think')?.remove();

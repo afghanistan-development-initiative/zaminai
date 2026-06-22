@@ -190,8 +190,12 @@ nav{background:#0c1a30;border-bottom:1px solid #163352;padding:.7rem 1.2rem;disp
 
     <div class="input-area">
       <div class="input-row">
-        <textarea class="input-box" id="q-input"
-          placeholder="Ask about your field, crop, or region…"
+        <button id="mic-btn" onclick="toggleMic()"
+        style="background:#040d1a;border:1px solid #163352;border-radius:10px;
+               color:#dde4f0;width:44px;height:44px;cursor:pointer;font-size:1.1rem;
+               flex-shrink:0;transition:all .2s" title="Voice input">🎙️</button>
+      <textarea class="input-box" id="q-input"
+          placeholder="🎙️ Speak or type — name any place, ask any question…"
           rows="1"
           onkeydown="onKey(event)"
           oninput="autoResize(this)"></textarea>
@@ -295,6 +299,11 @@ function setLang(lang, btn){
   currentLang = lang;
   document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
+  // Update mic language and placeholder
+  const inp = document.getElementById('q-input');
+  inp.placeholder = lang==='fa'?'🎙️ بگویید یا بنویسید…':
+                    lang==='ps'?'🎙️ ووایاست یا ولیکئ…':
+                    '🎙️ Speak or type — name any place…';
 }
 
 function setRole(role){
@@ -390,6 +399,8 @@ async function sendMessage(){
     appendBubble('bot', answer, meta);
     if (sessions[currentSession])
       sessions[currentSession].history.push({role:'bot', content:answer, meta});
+    // Read answer aloud
+    agentSpeak(answer);
 
   } catch(e){
     removeThinking(thinkId);
@@ -578,6 +589,54 @@ async function checkStatus(){
     document.getElementById('status-dot').className = 'status-dot off';
     document.getElementById('status-txt').textContent = 'offline';
   }
+}
+
+// ── Voice support ─────────────────────────────────────────────────────────────
+const AGENT_SPEECH_LANG = {en:'en-US',fa:'fa-IR',ps:'ps-AF'};
+let _agentRec = null, _agentListening = false;
+
+function toggleMic(){
+  const btn = document.getElementById('mic-btn');
+  if(_agentListening){ _agentRec?.stop(); return; }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ alert('Voice not supported. Try Chrome.'); return; }
+  _agentRec = new SR();
+  _agentRec.lang = AGENT_SPEECH_LANG[currentLang] || 'en-US';
+  _agentRec.continuous = false;
+  _agentRec.interimResults = true;
+  _agentRec.onstart = () => {
+    _agentListening=true; btn.textContent='🔴';
+    btn.style.borderColor='#ef4444';
+    document.getElementById('q-input').placeholder='Listening…';
+  };
+  _agentRec.onresult = (e) => {
+    const t=Array.from(e.results).map(r=>r[0].transcript).join('');
+    document.getElementById('q-input').value=t;
+    autoResize(document.getElementById('q-input'));
+  };
+  _agentRec.onend = () => {
+    _agentListening=false; btn.textContent='🎙️'; btn.style.borderColor='#163352';
+    document.getElementById('q-input').placeholder='🎙️ Speak or type…';
+    if(document.getElementById('q-input').value.trim()) sendMessage();
+  };
+  _agentRec.onerror = ()=>{ _agentListening=false; btn.textContent='🎙️'; };
+  _agentRec.start();
+}
+
+function agentSpeak(text){
+  if(!window.speechSynthesis) return;
+  const plain = text.replace(/\*\*(.+?)\*\*/g,'$1').replace(/`(.+?)`/g,'$1')
+    .replace(/^#{1,4} /gm,'').replace(/\|.*\|/g,'').replace(/<[^>]+>/g,'')
+    .replace(/\s{2,}/g,' ').trim().slice(0,500);
+  if(!plain) return;
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(plain);
+  utt.lang  = AGENT_SPEECH_LANG[currentLang] || 'en-US';
+  utt.rate  = 0.92;
+  const voices = window.speechSynthesis.getVoices();
+  const match  = voices.find(v=>v.lang.startsWith(utt.lang.split('-')[0]));
+  if(match) utt.voice = match;
+  window.speechSynthesis.speak(utt);
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
