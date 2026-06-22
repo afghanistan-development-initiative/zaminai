@@ -2922,31 +2922,31 @@ def agent_chat():
                     log.warning(f"Save conversation: {e}")
 
             # Extract location data from satellite tool calls for map display
-        map_data = None
-        for tc in out.get("tool_calls", []):
-            if tc.get("tool") == "query_satellite_data" and tc.get("output"):
-                o = tc["output"]
-                if o.get("ndvi") is not None:
-                    map_data = {
-                        "ndvi":     o.get("ndvi"),
-                        "rain":     o.get("rainfall_mm"),
-                        "lat":      o.get("lat"),
-                        "lon":      o.get("lon"),
-                        "area_km2": o.get("area_km2"),
-                        "land_cover": o.get("land_cover"),
-                        "population": o.get("population"),
-                    }
-                    break
+            map_data = None
+            for tc in out.get("tool_calls", []):
+                if tc.get("tool") == "query_satellite_data" and tc.get("output"):
+                    o = tc["output"]
+                    if o.get("ndvi") is not None:
+                        map_data = {
+                            "ndvi":       o.get("ndvi"),
+                            "rain":       o.get("rainfall_mm"),
+                            "lat":        o.get("lat"),
+                            "lon":        o.get("lon"),
+                            "area_km2":   o.get("area_km2"),
+                            "land_cover": o.get("land_cover"),
+                            "population": o.get("population"),
+                        }
+                        break
 
-        _agent_tasks[task_id] = {
-                "status":  "done",
-                "answer":  out.get("answer",""),
+            _agent_tasks[task_id] = {
+                "status":     "done",
+                "answer":     out.get("answer",""),
                 "tool_calls": out.get("tool_calls",[]),
                 "iterations": out.get("iterations"),
                 "session_id": session_id,
                 "backend":    backend,
                 "usage":      out.get("usage"),
-                "map_data":   map_data,   # sent to frontend for map rendering
+                "map_data":   map_data,
             }
         except Exception as e:
             log.error(f"agent worker: {e}")
