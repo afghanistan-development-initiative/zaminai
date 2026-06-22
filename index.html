@@ -2596,6 +2596,21 @@ async function fwSend(){
       msgs.appendChild(b); return;
     }
 
+    // Show location on map if agent queried satellite data for a place
+    if(data.map_data?.lat && data.map_data?.lon && window.appMap){
+      const lat=data.map_data.lat, lon=data.map_data.lon;
+      appMap.setView([lat,lon], Math.max(appMap.getZoom(),9));
+      // Show a marker with satellite data
+      if(window._agentMarker) window._agentMarker.remove();
+      const ndvi = data.map_data.ndvi;
+      const col  = ndvi>=0.5?'#16a34a':ndvi>=0.3?'#ca8a04':'#dc2626';
+      window._agentMarker = L.circleMarker([lat,lon],{
+        radius:18,color:col,fillColor:col,fillOpacity:.25,weight:2.5
+      }).addTo(appMap)
+        .bindPopup(`<b>AI Analysis</b><br>NDVI: ${ndvi?.toFixed(3)||'—'}<br>Rainfall: ${data.map_data.rain?Math.round(data.map_data.rain)+'mm':'—'}`)
+        .openPopup();
+    }
+
     // Bot bubble
     const b=document.createElement('div');
     b.className='fw-bubble bot';
@@ -2619,8 +2634,7 @@ async function fwSend(){
     const msgs2=document.getElementById('fw-messages');
     msgs2.appendChild(b);
     msgs2.scrollTop=msgs2.scrollHeight;
-    // Auto-read aloud
-    fwSpeak(data.answer||'');
+    // Voice output is opt-in only — tap 🔊 to hear the answer
 
   }catch(e){
     document.getElementById('fw-think')?.remove();

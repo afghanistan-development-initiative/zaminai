@@ -247,6 +247,8 @@ def _query_satellite_data(inputs: dict, ctx: dict) -> dict:
     try:
         result = gee_analyse(coords, year, province, country)
         # Summarise key fields for the agent
+        lats = [c[0] for c in coords]
+        lons = [c[1] for c in coords]
         return {
             "ndvi":        result.get("ndvi"),
             "evi":         result.get("evi"),
@@ -261,6 +263,8 @@ def _query_satellite_data(inputs: dict, ctx: dict) -> dict:
             "population":  result.get("population", {}).get("total"),
             "terrain":     result.get("terrain"),
             "source":      result.get("source", "gee"),
+            "lat":         result.get("lat") or (round(sum(lats)/len(lats),5) if lats else None),
+            "lon":         result.get("lon") or (round(sum(lons)/len(lons),5) if lons else None),
         }
     except Exception as e:
         return {"error": str(e)}

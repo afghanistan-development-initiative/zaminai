@@ -399,8 +399,7 @@ async function sendMessage(){
     appendBubble('bot', answer, meta);
     if (sessions[currentSession])
       sessions[currentSession].history.push({role:'bot', content:answer, meta});
-    // Read answer aloud
-    agentSpeak(answer);
+    // Voice is opt-in — user taps 🔊 on the bubble to hear it
 
   } catch(e){
     removeThinking(thinkId);

@@ -82,6 +82,7 @@ def run_gemini_agent(
     tool_context: dict,
     model:        str = None,
     language:     str = "en",
+    history:      list = None,   # conversation history for multi-turn chat
 ) -> dict:
     """
     ReAct loop using Gemini (free). Converts tool schemas automatically.
@@ -117,9 +118,20 @@ def run_gemini_agent(
     iterations      = 0
 
     system_with_lang = _inject_lang(system, language)
-    contents = [
-        {"role": "user", "parts": [{"text": f"[System]\n{system_with_lang}\n\n[Question]\n{question}"}]},
-    ]
+
+    # Build contents: system (first user turn) + prior conversation + current question
+    contents = [{"role":"user","parts":[{"text":f"[System instructions]\n{system_with_lang}"}]},
+                {"role":"model","parts":[{"text":"Understood. I am ready to help."}]}]
+
+    # Inject conversation history so agent remembers prior turns
+    for h in (history or []):
+        gem_role = "model" if h.get("role") == "assistant" else "user"
+        txt = h.get("content","")
+        if txt:
+            contents.append({"role": gem_role, "parts": [{"text": txt}]})
+
+    # Current question
+    contents.append({"role":"user","parts":[{"text": question}]})
 
     url = GEMINI_URL.format(model=working_model, key=GEMINI_KEY)
 

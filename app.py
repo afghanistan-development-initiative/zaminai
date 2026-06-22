@@ -2900,7 +2900,8 @@ def agent_chat():
                 backend = "anthropic"
             else:
                 from agents.orchestrator import run_gemini_agent
-                out     = run_gemini_agent(q, system, TOOLS, tool_ctx, language=language)
+                out     = run_gemini_agent(q, system, TOOLS, tool_ctx,
+                                           language=language, history=history)
                 backend = "gemini"
 
             log.info(f"[Agent] backend={backend} tools={len(out.get('tool_calls',[]))} iter={out.get('iterations')}")
@@ -2920,7 +2921,24 @@ def agent_chat():
                 except Exception as e:
                     log.warning(f"Save conversation: {e}")
 
-            _agent_tasks[task_id] = {
+            # Extract location data from satellite tool calls for map display
+        map_data = None
+        for tc in out.get("tool_calls", []):
+            if tc.get("tool") == "query_satellite_data" and tc.get("output"):
+                o = tc["output"]
+                if o.get("ndvi") is not None:
+                    map_data = {
+                        "ndvi":     o.get("ndvi"),
+                        "rain":     o.get("rainfall_mm"),
+                        "lat":      o.get("lat"),
+                        "lon":      o.get("lon"),
+                        "area_km2": o.get("area_km2"),
+                        "land_cover": o.get("land_cover"),
+                        "population": o.get("population"),
+                    }
+                    break
+
+        _agent_tasks[task_id] = {
                 "status":  "done",
                 "answer":  out.get("answer",""),
                 "tool_calls": out.get("tool_calls",[]),
@@ -2928,6 +2946,7 @@ def agent_chat():
                 "session_id": session_id,
                 "backend":    backend,
                 "usage":      out.get("usage"),
+                "map_data":   map_data,   # sent to frontend for map rendering
             }
         except Exception as e:
             log.error(f"agent worker: {e}")
