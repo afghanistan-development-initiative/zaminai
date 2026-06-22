@@ -2323,6 +2323,11 @@ function fwSetLang(l, btn){
                                'Ask about your field or any location…';
 }
 
+// Warm-up: ping /health on page load so the server is awake before user needs it
+(function warmUp(){
+  setTimeout(() => fetch('/health').catch(()=>{}), 1500);
+})();
+
 function toggleWidget(){
   const w = document.getElementById('ai-chat-widget');
   const ov= document.getElementById('fw-overlay');
@@ -2404,8 +2409,15 @@ async function fwSend(){
 
   try{
     let raw, initResp;
-    // Retry once if server returns HTML (cold-start)
-    for(let attempt=0; attempt<2; attempt++){
+    const WAIT_MSG = {
+      en: (s) => `⏳ Server starting up — retrying in ${s}s…`,
+      fa: (s) => `⏳ سرور در حال راه‌اندازی است — ${s} ثانیه دیگر دوباره تلاش می‌شود…`,
+      ps: (s) => `⏳ سرور پیلیږي — د ${s} ثانیو وروسته بیا هڅه کیږي…`,
+    };
+    const waitFn = WAIT_MSG[_fwLang] || WAIT_MSG.en;
+    let waitBubble = null;
+
+    for(let attempt=0; attempt<3; attempt++){
       initResp = await fetch(`${FW_API}/agent/chat`,{
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
@@ -2418,22 +2430,33 @@ async function fwSend(){
       });
       raw = await initResp.text();
       if(raw.trim().startsWith('{')) break;
-      if(attempt===0){
-        // Server cold-starting — wait 20s and retry
-        const msgs=document.getElementById('fw-messages');
-        const w=document.createElement('div');
-        w.className='fw-bubble bot';
-        w.innerHTML=_fwLang==='fa'?'⏳ سرور در حال بارگذاری است، لطفاً صبر کنید…':
-                    _fwLang==='ps'?'⏳ سرور چالیږي، مهرباني وکړئ انتظار وکړئ…':
-                    '⏳ Server waking up, retrying in 20s…';
-        msgs.appendChild(w); msgs.scrollTop=msgs.scrollHeight;
-        await new Promise(r=>setTimeout(r,20000));
+      if(attempt < 2){
+        const msgs = document.getElementById('fw-messages');
+        let secs = 45;
+        if(!waitBubble){
+          waitBubble = document.createElement('div');
+          waitBubble.className='fw-bubble bot';
+          msgs.appendChild(waitBubble);
+        }
+        // Countdown
+        const countdown = setInterval(() => {
+          waitBubble.innerHTML = fwMarkdown(waitFn(secs--));
+          if(secs < 0) clearInterval(countdown);
+        }, 1000);
+        waitBubble.innerHTML = fwMarkdown(waitFn(secs));
+        msgs.scrollTop = msgs.scrollHeight;
+        await new Promise(r=>setTimeout(r, 46000));
+        clearInterval(countdown);
       }
     }
+    if(waitBubble) waitBubble.remove();
     if(!raw || !raw.trim().startsWith('{')){
-      throw new Error(_fwLang==='fa'?'سرور در دسترس نیست، دوباره امتحان کنید':
-                      _fwLang==='ps'?'سرور شتون نلري، بيا هڅه وکړئ':
-                      'Server unavailable. Try again in 30s.');
+      const errTxt = {
+        en:'Could not reach the AI server. Please wait 1 minute and try again.',
+        fa:'سرور هوش مصنوعی در دسترس نیست. یک دقیقه صبر کنید و دوباره امتحان کنید.',
+        ps:'د AI سرور سره اړیکه نه شوه. یو دقیقه انتظار وکړئ بیا هڅه وکړئ.',
+      };
+      throw new Error(errTxt[_fwLang] || errTxt.en);
     }
     const init = JSON.parse(raw);
 
