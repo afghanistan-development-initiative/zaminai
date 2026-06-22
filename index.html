@@ -1507,6 +1507,8 @@ else console.error('Report panel not found');
   document.getElementById('rp-info').textContent=aJ+' jereb · '+aHa+' ha · '+new Date().getFullYear();
   btn.innerHTML='🛰️ '+(appLang==='fa'?'تحلیل دوباره':appLang==='ps'?'بیا تحلیل':'Re-analyse');btn.disabled=false;
   updateAICtx();
+  // Auto-open agent chat with field context after analysis
+  fwOpenWithField();
 
   // Fetch soil in background
   fetch(API+'/soil',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lat:clat,lon:clon,province:fieldData.prov||'Afghanistan'})})
@@ -2225,18 +2227,19 @@ function notify(m,d=3000){const n=document.getElementById('notif');n.textContent
   border:none;color:#fff;font-size:1.5rem;cursor:pointer;
   box-shadow:0 4px 16px rgba(22,163,74,.5);transition:transform .2s}
 #ai-fab:hover{transform:scale(1.1)}
-#ai-chat-widget{position:fixed;bottom:5rem;right:1.5rem;z-index:999;
-  width:360px;max-height:520px;background:#080f1e;border:1px solid #163352;
-  border-radius:16px;display:flex;flex-direction:column;
-  box-shadow:0 8px 32px rgba(0,0,0,.5);
-  transform:scale(0.8) translateY(20px);opacity:0;pointer-events:none;
-  transition:all .2s ease}
-#ai-chat-widget.open{transform:scale(1) translateY(0);opacity:1;pointer-events:all}
+#ai-chat-widget{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%) translateY(100%);
+  z-index:995;width:min(600px,100vw);max-height:80vh;
+  background:#080f1e;border:1px solid #163352;
+  border-radius:20px 20px 0 0;display:flex;flex-direction:column;
+  box-shadow:0 -4px 40px rgba(0,0,0,.6);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);opacity:0;pointer-events:none}
+#ai-chat-widget.open{transform:translateX(-50%) translateY(0);opacity:1;pointer-events:all}
 .fw-header{background:#0c1a30;border-bottom:1px solid #163352;padding:.7rem 1rem;
   border-radius:16px 16px 0 0;display:flex;align-items:center;gap:.5rem}
 .fw-title{font-weight:700;color:#22c55e;font-size:.92rem;flex:1}
 .fw-messages{flex:1;overflow-y:auto;padding:.75rem;display:flex;flex-direction:column;
-  gap:.6rem;max-height:340px}
+  gap:.6rem;min-height:180px;max-height:48vh}
 .fw-bubble{padding:.6rem .8rem;border-radius:10px;font-size:.82rem;line-height:1.45}
 .fw-bubble.user{background:#0d2233;border:1px solid #163352;color:#bee3f8;
   align-self:flex-end;max-width:90%;border-radius:10px 2px 10px 10px}
@@ -2271,6 +2274,10 @@ function notify(m,d=3000){const n=document.getElementById('notif');n.textContent
 
 <button id="ai-fab" onclick="toggleWidget()" title="Ask AI Agent">🤖</button>
 
+<!-- ── Full-screen chat panel (slides up from bottom) ── -->
+<div id="fw-overlay" onclick="toggleWidget()"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:990"></div>
+
 <div id="ai-chat-widget">
   <div class="fw-header">
     <span>🌿</span>
@@ -2289,9 +2296,9 @@ function notify(m,d=3000){const n=document.getElementById('notif');n.textContent
     </div>
   </div>
   <div style="padding:.2rem .6rem;display:flex;gap:.3rem;border-top:1px solid #163352;background:#040d1a">
-    <button class="fw-lb active" onclick="fwSetLang('en',this)">EN</button>
-    <button class="fw-lb" onclick="fwSetLang('fa',this)">دری</button>
-    <button class="fw-lb" onclick="fwSetLang('ps',this)">پښتو</button>
+    <button class="fw-lb active" data-lang="en" onclick="fwSetLang('en',this)">EN</button>
+    <button class="fw-lb" data-lang="fa" onclick="fwSetLang('fa',this)">دری</button>
+    <button class="fw-lb" data-lang="ps" onclick="fwSetLang('ps',this)">پښتو</button>
   </div>
   <div class="fw-input-row">
     <input class="fw-inp" id="fw-inp" placeholder="Ask about your field…"
@@ -2317,7 +2324,46 @@ function fwSetLang(l, btn){
 }
 
 function toggleWidget(){
-  document.getElementById('ai-chat-widget').classList.toggle('open');
+  const w = document.getElementById('ai-chat-widget');
+  const ov= document.getElementById('fw-overlay');
+  const open = w.classList.toggle('open');
+  ov.style.display = open ? 'block' : 'none';
+}
+
+// Called automatically after field analysis — opens chat pre-loaded with field data
+function fwOpenWithField(){
+  const w  = document.getElementById('ai-chat-widget');
+  const ov = document.getElementById('fw-overlay');
+  if(w.classList.contains('open')) return; // already open
+  w.classList.add('open');
+  ov.style.display = 'block';
+
+  // Sync language with app
+  _fwLang = appLang || 'en';
+  document.querySelectorAll('.fw-lb').forEach(b => b.classList.remove('active'));
+  const activeBtn = document.querySelector(`.fw-lb[data-lang="${_fwLang}"]`);
+  if(activeBtn) activeBtn.classList.add('active');
+
+  // Build context-aware greeting
+  const ndvi = fieldData?.ndvi;
+  const area = fieldData?.area_ha || 0;
+  const prov = fieldData?.prov || '';
+  const ndviTxt = ndvi ? ndvi.toFixed(3) : '—';
+
+  const greet = {
+    en: `🛰️ Field analysed! NDVI: **${ndviTxt}** · Area: **${area} ha**${prov?' · '+prov:''}.\n\nAsk me anything about this field — irrigation, crop advice, health status, what to do next.`,
+    fa: `🛰️ ساحه تحلیل شد! شاخص NDVI: **${ndviTxt}** · مساحت: **${area} هکتار**${prov?' · '+prov:''}.\n\nهر سوالی دارید بپرسید — آبیاری، کشت، صحت زمین، یا کار بعدی.`,
+    ps: `🛰️ ډګر تحلیل شو! د NDVI شاخص: **${ndviTxt}** · مساحت: **${area} هکتار**${prov?' · '+prov:''}.\n\nکومه پوښتنه چې لرئ وکړئ — اوبه ورکول، کرنه، د ځمکې روغتیا، یا راتلونکی کار.`,
+  };
+
+  const msgs = document.getElementById('fw-messages');
+  // Clear and add greeting
+  msgs.innerHTML = '';
+  const b = document.createElement('div');
+  b.className = 'fw-bubble bot';
+  b.innerHTML = fwMarkdown(greet[_fwLang] || greet.en);
+  msgs.appendChild(b);
+  document.getElementById('fw-inp').focus();
 }
 
 function fwMarkdown(t){
@@ -2357,26 +2403,50 @@ async function fwSend(){
   try{ if(window.drawnCoords && drawnCoords.length>=3) coords=drawnCoords; }catch(e){}
 
   try{
-    const r = await fetch(`${FW_API}/agent/chat`,{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        question:   q,
-        session_id: _fwSession,
-        role:       'farmer',
-        language:   _fwLang || window.appLang || 'en',
-        coords,
-      })
-    });
-    const init = await r.json();
+    let raw, initResp;
+    // Retry once if server returns HTML (cold-start)
+    for(let attempt=0; attempt<2; attempt++){
+      initResp = await fetch(`${FW_API}/agent/chat`,{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          question:   q,
+          session_id: _fwSession,
+          role:       'farmer',
+          language:   _fwLang || window.appLang || 'en',
+          coords,
+        })
+      });
+      raw = await initResp.text();
+      if(raw.trim().startsWith('{')) break;
+      if(attempt===0){
+        // Server cold-starting — wait 20s and retry
+        const msgs=document.getElementById('fw-messages');
+        const w=document.createElement('div');
+        w.className='fw-bubble bot';
+        w.innerHTML=_fwLang==='fa'?'⏳ سرور در حال بارگذاری است، لطفاً صبر کنید…':
+                    _fwLang==='ps'?'⏳ سرور چالیږي، مهرباني وکړئ انتظار وکړئ…':
+                    '⏳ Server waking up, retrying in 20s…';
+        msgs.appendChild(w); msgs.scrollTop=msgs.scrollHeight;
+        await new Promise(r=>setTimeout(r,20000));
+      }
+    }
+    if(!raw || !raw.trim().startsWith('{')){
+      throw new Error(_fwLang==='fa'?'سرور در دسترس نیست، دوباره امتحان کنید':
+                      _fwLang==='ps'?'سرور شتون نلري، بيا هڅه وکړئ':
+                      'Server unavailable. Try again in 30s.');
+    }
+    const init = JSON.parse(raw);
 
     if(init.answer && !init.task_id){
       document.getElementById('fw-think')?.remove();
       const b=document.createElement('div');
       b.className='fw-bubble bot'; b.innerHTML=fwMarkdown(init.answer);
-      msgs.appendChild(b); msgs.scrollTop=msgs.scrollHeight;
+      const msgs2=document.getElementById('fw-messages');
+      msgs2.appendChild(b); msgs2.scrollTop=msgs2.scrollHeight;
       return;
     }
     if(init.error){ throw new Error(init.error); }
+    if(!init.task_id){ throw new Error('No task ID returned'); }
 
     // Poll
     let data=null;
@@ -2413,13 +2483,16 @@ async function fwSend(){
 
   }catch(e){
     document.getElementById('fw-think')?.remove();
+    const errMsgs = document.getElementById('fw-messages');
     const b=document.createElement('div');
-    b.className='fw-bubble bot'; b.textContent=`⚠️ ${e.message}`;
-    msgs.appendChild(b);
+    b.className='fw-bubble bot';
+    b.textContent = `⚠️ ${e.message}`;
+    errMsgs.appendChild(b); errMsgs.scrollTop=errMsgs.scrollHeight;
   }finally{
     _fwRunning=false;
     document.getElementById('fw-send-btn').disabled=false;
-    msgs.scrollTop=msgs.scrollHeight;
+    const m=document.getElementById('fw-messages');
+    if(m) m.scrollTop=m.scrollHeight;
   }
 }
 </script>
