@@ -2217,5 +2217,192 @@ function showTip(m){const t=document.getElementById('drawTip');t.textContent=m;t
 function hideTip(){document.getElementById('drawTip').classList.remove('show');}
 function notify(m,d=3000){const n=document.getElementById('notif');n.textContent=m;n.classList.add('show');setTimeout(()=>n.classList.remove('show'),d);}
 </script>
+
+<!-- ── Floating AI Chat Widget ─────────────────────────────────────────── -->
+<style>
+#ai-fab{position:fixed;bottom:1.5rem;right:1.5rem;z-index:1000;
+  width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#16a34a,#22c55e);
+  border:none;color:#fff;font-size:1.5rem;cursor:pointer;
+  box-shadow:0 4px 16px rgba(22,163,74,.5);transition:transform .2s}
+#ai-fab:hover{transform:scale(1.1)}
+#ai-chat-widget{position:fixed;bottom:5rem;right:1.5rem;z-index:999;
+  width:360px;max-height:520px;background:#080f1e;border:1px solid #163352;
+  border-radius:16px;display:flex;flex-direction:column;
+  box-shadow:0 8px 32px rgba(0,0,0,.5);
+  transform:scale(0.8) translateY(20px);opacity:0;pointer-events:none;
+  transition:all .2s ease}
+#ai-chat-widget.open{transform:scale(1) translateY(0);opacity:1;pointer-events:all}
+.fw-header{background:#0c1a30;border-bottom:1px solid #163352;padding:.7rem 1rem;
+  border-radius:16px 16px 0 0;display:flex;align-items:center;gap:.5rem}
+.fw-title{font-weight:700;color:#22c55e;font-size:.92rem;flex:1}
+.fw-messages{flex:1;overflow-y:auto;padding:.75rem;display:flex;flex-direction:column;
+  gap:.6rem;max-height:340px}
+.fw-bubble{padding:.6rem .8rem;border-radius:10px;font-size:.82rem;line-height:1.45}
+.fw-bubble.user{background:#0d2233;border:1px solid #163352;color:#bee3f8;
+  align-self:flex-end;max-width:90%;border-radius:10px 2px 10px 10px}
+.fw-bubble.bot{background:#0c1a30;border:1px solid #163352;color:#dde4f0;
+  border-radius:2px 10px 10px 10px}
+.fw-bubble.bot b,.fw-bubble.bot strong{color:#f6ad55}
+.fw-think{display:flex;gap:.25rem;padding:.4rem .6rem;background:#0c1a30;
+  border:1px solid #163352;border-radius:8px;align-items:center}
+.fw-think span{width:5px;height:5px;border-radius:50%;background:#22c55e;
+  animation:bounce .9s infinite}
+.fw-think span:nth-child(2){animation-delay:.2s}
+.fw-think span:nth-child(3){animation-delay:.4s}
+.fw-tools{margin-top:.35rem;display:flex;flex-wrap:wrap;gap:3px}
+.fw-tool{background:#061a0e;border:1px solid #22c55e;border-radius:10px;
+  padding:.12rem .4rem;font-size:.68rem;color:#22c55e}
+.fw-input-row{padding:.6rem;border-top:1px solid #163352;
+  display:flex;gap:.4rem;border-radius:0 0 16px 16px}
+.fw-inp{flex:1;background:#040d1a;border:1px solid #163352;border-radius:8px;
+  color:#dde4f0;padding:.45rem .65rem;font-size:.82rem;font-family:inherit}
+.fw-inp:focus{outline:none;border-color:#22c55e}
+.fw-send{background:#22c55e;border:none;border-radius:8px;color:#052e16;
+  width:34px;height:34px;cursor:pointer;font-size:.95rem;flex-shrink:0}
+.fw-send:hover{background:#16a34a}
+.fw-send:disabled{background:#163352;color:#334a60;cursor:not-allowed}
+@media(max-width:480px){
+  #ai-chat-widget{width:calc(100vw - 2rem);right:1rem}
+}
+</style>
+
+<button id="ai-fab" onclick="toggleWidget()" title="Ask AI Agent">🤖</button>
+
+<div id="ai-chat-widget">
+  <div class="fw-header">
+    <span>🌿</span>
+    <span class="fw-title">ZaminAI Agent</span>
+    <span style="font-size:.7rem;color:#5a8fc0" id="fw-status">AI + GEE</span>
+    <button onclick="toggleWidget()" style="background:none;border:none;color:#5a8fc0;cursor:pointer;font-size:1rem">✕</button>
+  </div>
+  <div class="fw-messages" id="fw-messages">
+    <div class="fw-bubble bot">
+      👋 سلام! Hi! I can answer any farming question.<br>
+      Ask me about your field, crops, weather, irrigation, or any place in the world.<br><br>
+      <strong>Try:</strong><br>
+      • "What is the NDVI in Kunduz right now?"<br>
+      • "When should I plant wheat in Balkh?"<br>
+      • "Is there drought in Helmand province?"
+    </div>
+  </div>
+  <div class="fw-input-row">
+    <input class="fw-inp" id="fw-inp" placeholder="Ask about your field…"
+           onkeydown="if(event.key==='Enter')fwSend()">
+    <button class="fw-send" id="fw-send-btn" onclick="fwSend()">↑</button>
+  </div>
+</div>
+
+<script>
+const FW_API = '';
+let _fwRunning = false;
+let _fwSession = 'farmer_' + Date.now();
+
+function toggleWidget(){
+  document.getElementById('ai-chat-widget').classList.toggle('open');
+}
+
+function fwMarkdown(t){
+  if(!t) return '';
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/`(.+?)`/g,'<code style="background:#040d1a;padding:.1rem .3rem;border-radius:3px;color:#22c55e">$1</code>')
+    .replace(/^#{1,3} (.+)$/gm,'<div style="font-weight:700;color:#22c55e;margin:.3rem 0 .15rem">$1</div>')
+    .replace(/^[-*] (.+)$/gm,'<div>• $1</div>')
+    .replace(/\n{2,}/g,'<br><br>').replace(/\n/g,'<br>');
+}
+
+async function fwSend(){
+  const inp = document.getElementById('fw-inp');
+  const q   = inp.value.trim();
+  if(!q || _fwRunning) return;
+  inp.value = '';
+
+  const msgs = document.getElementById('fw-messages');
+
+  // User bubble
+  const ub = document.createElement('div');
+  ub.className = 'fw-bubble user'; ub.textContent = q;
+  msgs.appendChild(ub);
+
+  // Thinking
+  const th = document.createElement('div');
+  th.className='fw-think'; th.id='fw-think';
+  th.innerHTML='<span></span><span></span><span></span><span style="font-size:.72rem;color:#5a8fc0;margin-left:.3rem">Querying satellite data…</span>';
+  msgs.appendChild(th); msgs.scrollTop=msgs.scrollHeight;
+
+  _fwRunning=true;
+  document.getElementById('fw-send-btn').disabled=true;
+
+  // Include drawn field coords if available
+  let coords = null;
+  try{ if(window.drawnCoords && drawnCoords.length>=3) coords=drawnCoords; }catch(e){}
+
+  try{
+    const r = await fetch(`${FW_API}/agent/chat`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        question:   q,
+        session_id: _fwSession,
+        role:       'farmer',
+        language:   window.appLang || 'en',
+        coords,
+      })
+    });
+    const init = await r.json();
+
+    if(init.answer && !init.task_id){
+      document.getElementById('fw-think')?.remove();
+      const b=document.createElement('div');
+      b.className='fw-bubble bot'; b.innerHTML=fwMarkdown(init.answer);
+      msgs.appendChild(b); msgs.scrollTop=msgs.scrollHeight;
+      return;
+    }
+    if(init.error){ throw new Error(init.error); }
+
+    // Poll
+    let data=null;
+    for(let i=0;i<50&&!data;i++){
+      await new Promise(res=>setTimeout(res,4000));
+      const poll=await fetch(`${FW_API}/agent/result/${init.task_id}`);
+      const pd=await poll.json();
+      if(pd.status==='done') data=pd;
+      if(pd.status==='error') throw new Error(pd.error);
+    }
+    document.getElementById('fw-think')?.remove();
+    if(!data){
+      const b=document.createElement('div');
+      b.className='fw-bubble bot'; b.textContent='⏳ Took too long. Please try again.';
+      msgs.appendChild(b); return;
+    }
+
+    // Bot bubble
+    const b=document.createElement('div');
+    b.className='fw-bubble bot';
+    b.innerHTML=fwMarkdown(data.answer||'');
+    if(data.tool_calls?.length){
+      const tr=document.createElement('div');
+      tr.className='fw-tools';
+      data.tool_calls.forEach(tc=>{
+        const s=document.createElement('span');
+        s.className='fw-tool'; s.textContent='✓ '+tc.tool.replace(/_/g,' ');
+        tr.appendChild(s);
+      });
+      b.appendChild(tr);
+    }
+    msgs.appendChild(b);
+    msgs.scrollTop=msgs.scrollHeight;
+
+  }catch(e){
+    document.getElementById('fw-think')?.remove();
+    const b=document.createElement('div');
+    b.className='fw-bubble bot'; b.textContent=`⚠️ ${e.message}`;
+    msgs.appendChild(b);
+  }finally{
+    _fwRunning=false;
+    document.getElementById('fw-send-btn').disabled=false;
+    msgs.scrollTop=msgs.scrollHeight;
+  }
+}
+</script>
 </body>
 </html>
