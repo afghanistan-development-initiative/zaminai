@@ -2434,13 +2434,24 @@ function fwStopSpeak(){
 
 // ── Server warm-up manager ────────────────────────────────────────────────────
 let _serverReady = false;
+let _serverReadyAt = 0;   // timestamp of last confirmed-awake
+
+// Keep server awake: ping every 8 min (Render sleeps after 15 min inactivity)
+setInterval(() => {
+  fetch('/health', {cache:'no-cache'})
+    .then(r => { if(r.ok){ _serverReady=true; _serverReadyAt=Date.now(); }
+                 else { _serverReady=false; } })
+    .catch(() => { _serverReady=false; });
+}, 8 * 60 * 1000);
 
 async function _waitForServer(onStatus){
-  if(_serverReady) return true;
+  // If confirmed awake within last 5 minutes, trust it
+  if(_serverReady && (Date.now()-_serverReadyAt) < 5*60*1000) return true;
+  _serverReady = false;
   for(let i=0; i<20; i++){
     try{
       const r = await fetch('/health', {cache:'no-cache'});
-      if(r.ok){ _serverReady=true; return true; }
+      if(r.ok){ _serverReady=true; _serverReadyAt=Date.now(); return true; }
     }catch(e){}
     const secs = 60 - i*3;
     if(onStatus) onStatus(secs);
@@ -2563,11 +2574,34 @@ async function fwSend(){
         coords,
       })
     });
-    const raw = await initResp.text();
+    let raw = await initResp.text();
+
+    // Server returned HTML (went back to sleep) — auto-wake and retry once
     if(!raw.trim().startsWith('{')){
-      _serverReady = false; // force re-check next time
-      throw new Error(_fwLang==='fa'?'خطای سرور. لطفاً دوباره امتحان کنید':
-                      _fwLang==='ps'?'د سرور خطا. بيا هڅه وکړئ':'Server error. Please try again.');
+      _serverReady = false;
+      const msgs2 = document.getElementById('fw-messages');
+      const wb2 = document.createElement('div'); wb2.className='fw-bubble bot';
+      const retryMsg = {en:'⏳ Server restarting — retrying automatically…',
+                        fa:'⏳ سرور در حال راه‌اندازی مجدد است…',
+                        ps:'⏳ سرور بیا پیلیږي…'};
+      wb2.textContent = retryMsg[_fwLang]||retryMsg.en;
+      msgs2.appendChild(wb2); msgs2.scrollTop=msgs2.scrollHeight;
+
+      const ok = await _waitForServer(null);
+      wb2.remove();
+      if(!ok) throw new Error(_fwLang==='fa'?'سرور در دسترس نیست. یک دقیقه دیگر تلاش کنید':
+                              _fwLang==='ps'?'سرور شتون نلري. بيا هڅه وکړئ':
+                              'Server unavailable. Try again in 1 minute.');
+
+      // Retry the request
+      const retry = await fetch(`${FW_API}/agent/chat`,{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ question:q, session_id:_fwSession,
+                               role:'farmer', language:_fwLang||window.appLang||'en', coords })
+      });
+      raw = await retry.text();
+      if(!raw.trim().startsWith('{'))
+        throw new Error(_fwLang==='fa'?'خطای سرور':_fwLang==='ps'?'سرور خطا':'Server error. Please try again.');
     }
     const init = JSON.parse(raw);
 
