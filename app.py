@@ -2895,11 +2895,12 @@ def agent_chat():
 
             if anthropic_client:
                 from agents.orchestrator import run_agent
-                out     = run_agent(q, system, TOOLS, tool_ctx, anthropic_client, history=history)
+                out     = run_agent(q, system, TOOLS, tool_ctx, anthropic_client,
+                                    history=history, language=language)
                 backend = "anthropic"
             else:
                 from agents.orchestrator import run_gemini_agent
-                out     = run_gemini_agent(q, system, TOOLS, tool_ctx)
+                out     = run_gemini_agent(q, system, TOOLS, tool_ctx, language=language)
                 backend = "gemini"
 
             log.info(f"[Agent] backend={backend} tools={len(out.get('tool_calls',[]))} iter={out.get('iterations')}")

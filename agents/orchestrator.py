@@ -63,12 +63,25 @@ def _claude_tools_to_gemini(claude_tools: list) -> list:
 
 
 # ── Gemini ReAct loop ─────────────────────────────────────────────────────────
+LANG_INSTRUCTION = {
+    "fa": "\n\nمهم: تمام پاسخ خود را به زبان دری بنویسید. هیچ انگلیسی استفاده نکنید.",
+    "ps": "\n\nمهم: ټول ځواب دې پښتو ژبه ولیکئ. انګلیسي مه کاروئ.",
+    "en": "",
+}
+
+
+def _inject_lang(system: str, language: str) -> str:
+    """Append language instruction to system prompt."""
+    return system + LANG_INSTRUCTION.get(language, "")
+
+
 def run_gemini_agent(
     question:     str,
     system:       str,
     claude_tools: list,
     tool_context: dict,
-    model:        str = None,   # None = auto-select from GEMINI_MODELS list
+    model:        str = None,
+    language:     str = "en",
 ) -> dict:
     """
     ReAct loop using Gemini (free). Converts tool schemas automatically.
@@ -103,8 +116,9 @@ def run_gemini_agent(
     all_tool_calls  = []
     iterations      = 0
 
+    system_with_lang = _inject_lang(system, language)
     contents = [
-        {"role": "user", "parts": [{"text": f"[System]\n{system}\n\n[Question]\n{question}"}]},
+        {"role": "user", "parts": [{"text": f"[System]\n{system_with_lang}\n\n[Question]\n{question}"}]},
     ]
 
     url = GEMINI_URL.format(model=working_model, key=GEMINI_KEY)
@@ -184,13 +198,15 @@ def run_gemini_streaming(
     claude_tools: list,
     tool_context: dict,
     model:        str = None,
+    language:     str = "en",
 ) -> Generator[dict, None, None]:
     """Streaming wrapper for Gemini agent — yields SSE-compatible dicts."""
     from agents.tools import execute_tool
 
     yield {"type": "thinking", "text": "Querying Gemini agent…"}
 
-    out = run_gemini_agent(question, system, claude_tools, tool_context, model)
+    out = run_gemini_agent(question, system, claude_tools, tool_context,
+                           model=model, language=language)
 
     for tc in out.get("tool_calls", []):
         yield {"type": "tool_call", "tool": tc["tool"], "input": tc["input"]}
@@ -210,15 +226,17 @@ def run_agent(
     model:       str = MODEL_SMART,
     history:     list = None,
     max_tokens:  int  = 2048,
+    language:    str  = "en",
 ) -> dict:
     """
     Run a single agentic turn: ReAct loop until Claude returns a final answer.
     Returns: {answer, tool_calls, usage, iterations}
     """
-    messages = list(history or []) + [{"role": "user", "content": question}]
-    tool_call_count = 0
-    all_tool_calls  = []
-    iterations      = 0
+    messages         = list(history or []) + [{"role": "user", "content": question}]
+    tool_call_count  = 0
+    all_tool_calls   = []
+    iterations       = 0
+    system_with_lang = _inject_lang(system, language)
 
     from agents.tools import execute_tool
 
@@ -228,7 +246,7 @@ def run_agent(
         response = anthropic_client.messages.create(
             model      = model,
             max_tokens = max_tokens,
-            system     = system,
+            system     = system_with_lang,
             tools      = tools,
             messages   = messages,
         )

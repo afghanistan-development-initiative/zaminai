@@ -2261,6 +2261,9 @@ function notify(m,d=3000){const n=document.getElementById('notif');n.textContent
   width:34px;height:34px;cursor:pointer;font-size:.95rem;flex-shrink:0}
 .fw-send:hover{background:#16a34a}
 .fw-send:disabled{background:#163352;color:#334a60;cursor:not-allowed}
+.fw-lb{background:transparent;border:1px solid #163352;border-radius:5px;
+  color:#5a8fc0;font-size:.7rem;padding:.15rem .45rem;cursor:pointer;transition:all .15s}
+.fw-lb.active,.fw-lb:hover{border-color:#22c55e;color:#22c55e}
 @media(max-width:480px){
   #ai-chat-widget{width:calc(100vw - 2rem);right:1rem}
 }
@@ -2285,6 +2288,11 @@ function notify(m,d=3000){const n=document.getElementById('notif');n.textContent
       • "Is there drought in Helmand province?"
     </div>
   </div>
+  <div style="padding:.2rem .6rem;display:flex;gap:.3rem;border-top:1px solid #163352;background:#040d1a">
+    <button class="fw-lb active" onclick="fwSetLang('en',this)">EN</button>
+    <button class="fw-lb" onclick="fwSetLang('fa',this)">دری</button>
+    <button class="fw-lb" onclick="fwSetLang('ps',this)">پښتو</button>
+  </div>
   <div class="fw-input-row">
     <input class="fw-inp" id="fw-inp" placeholder="Ask about your field…"
            onkeydown="if(event.key==='Enter')fwSend()">
@@ -2296,6 +2304,17 @@ function notify(m,d=3000){const n=document.getElementById('notif');n.textContent
 const FW_API = '';
 let _fwRunning = false;
 let _fwSession = 'farmer_' + Date.now();
+let _fwLang    = 'en';
+
+function fwSetLang(l, btn){
+  _fwLang = l;
+  document.querySelectorAll('.fw-lb').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const inp = document.getElementById('fw-inp');
+  inp.placeholder = l==='fa' ? 'سوال بپرسید — د ساحې د روغتیا بار بوله…' :
+                    l==='ps' ? 'پوښتنه وکړئ — د خپل ځمکې مالومات ترلاسه کړئ…' :
+                               'Ask about your field or any location…';
+}
 
 function toggleWidget(){
   document.getElementById('ai-chat-widget').classList.toggle('open');
@@ -2344,7 +2363,7 @@ async function fwSend(){
         question:   q,
         session_id: _fwSession,
         role:       'farmer',
-        language:   window.appLang || 'en',
+        language:   _fwLang || window.appLang || 'en',
         coords,
       })
     });

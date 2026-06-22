@@ -148,6 +148,9 @@ body[dir=rtl] .ctrl{direction:rtl}
   width:36px;height:36px;cursor:pointer;font-size:1rem;flex-shrink:0}
 .ap-send:hover{background:#2ecc71}
 .ap-send:disabled{background:#163352;color:#334a60;cursor:not-allowed}
+.ap-lang-btn{background:transparent;border:1px solid #163352;border-radius:5px;
+  color:#5a8fc0;font-size:.72rem;padding:.18rem .5rem;cursor:pointer;transition:all .15s}
+.ap-lang-btn.active,.ap-lang-btn:hover{border-color:#27ae60;color:#27ae60}
 .ap-examples{padding:.5rem;display:flex;flex-direction:column;gap:.35rem}
 .ap-ex{background:#040d1a;border:1px solid #163352;border-radius:7px;
   padding:.5rem .7rem;cursor:pointer;font-size:.78rem;color:#8aa8c0;
@@ -320,8 +323,14 @@ body[dir=rtl] #parcel-panel{left:0;right:330px}
         </div>
       </div>
     </div>
+    <div style="padding:.25rem .65rem;display:flex;gap:.35rem;border-top:1px solid #163352">
+      <button class="ap-lang-btn active" onclick="setApLang('en',this)">EN</button>
+      <button class="ap-lang-btn" onclick="setApLang('fa',this)">دری</button>
+      <button class="ap-lang-btn" onclick="setApLang('ps',this)">پښتو</button>
+    </div>
     <div class="ap-input-row">
-      <input class="ap-input" id="ap-input" placeholder="Type a place or question…"
+      <input class="ap-input" id="ap-input"
+             placeholder="Type a place or question… / یک سوال بپرسید"
              onkeydown="if(event.key==='Enter')apSend()">
       <button class="ap-send" id="ap-send-btn" onclick="apSend()">↑</button>
     </div>
@@ -1596,6 +1605,17 @@ const _LC_DEF_LBL = {water:'Water',trees:'Forest',grass:'Grass',flooded_veg:'Flo
 // ── AI Agent Panel ────────────────────────────────────────────────────────────
 let _apRunning = false;
 let _apSession = 'officer_' + Date.now();
+let _apLang    = 'en';
+
+function setApLang(l, btn){
+  _apLang = l;
+  document.querySelectorAll('.ap-lang-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const inp = document.getElementById('ap-input');
+  inp.placeholder = l==='fa' ? 'سوال بپرسید یا نام ولایت را بنویسید…' :
+                    l==='ps' ? 'پوښتنه وکړئ یا د ولسوالۍ نوم ولیکئ…' :
+                               'Type a place or question…';
+}
 
 function toggleAgentPanel(){
   document.getElementById('agent-panel').classList.toggle('open');
@@ -1698,13 +1718,14 @@ async function apSend(preText){
   _apRunning = true;
   document.getElementById('ap-send-btn').disabled = true;
 
-  // Include current map location as context
+  // Include current map location + language hint in context
   const mapCenter = map?.getCenter();
-  const contextQ  = selFeat
+  const langHint  = _apLang==='fa'?'[پاسخ به زبان دری بده]':_apLang==='ps'?'[ځواب پښتو کې راکه]':'';
+  const contextQ  = langHint + (selFeat
     ? `[Current selection: ${selFeat.properties?.NAME_1||''} ${selFeat.properties?.NAME_2||''}, coords: ${extractCoords(selFeat).slice(0,4)}] ${q}`
     : mapCenter
       ? `[Map centred on lat:${mapCenter.lat.toFixed(3)} lon:${mapCenter.lng.toFixed(3)}] ${q}`
-      : q;
+      : q);
 
   try{
     // Step 1: start task
@@ -1714,7 +1735,7 @@ async function apSend(preText){
         question:   contextQ,
         session_id: _apSession,
         role:       'officer',
-        language:   (typeof appLang !== 'undefined' ? appLang : null) || lang || 'en',
+        language:   _apLang || lang || 'en',
         coords:     selFeat ? extractCoords(selFeat).slice(0,20) : null,
       })
     });
