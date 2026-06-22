@@ -2432,10 +2432,25 @@ function fwStopSpeak(){
   document.getElementById('fw-speak-btn')?.classList.remove('speaking');
 }
 
-// Warm-up: ping /health on page load so the server is awake before user needs it
-(function warmUp(){
-  setTimeout(() => fetch('/health').catch(()=>{}), 1500);
-})();
+// ── Server warm-up manager ────────────────────────────────────────────────────
+let _serverReady = false;
+
+async function _waitForServer(onStatus){
+  if(_serverReady) return true;
+  for(let i=0; i<20; i++){
+    try{
+      const r = await fetch('/health', {cache:'no-cache'});
+      if(r.ok){ _serverReady=true; return true; }
+    }catch(e){}
+    const secs = 60 - i*3;
+    if(onStatus) onStatus(secs);
+    await new Promise(res=>setTimeout(res, 3000));
+  }
+  return false;
+}
+
+// Ping on page load to start the warm-up immediately
+_waitForServer(null).then(() => { _serverReady=true; });
 
 function toggleWidget(){
   const w = document.getElementById('ai-chat-widget');
@@ -2517,55 +2532,42 @@ async function fwSend(){
   try{ if(window.drawnCoords && drawnCoords.length>=3) coords=drawnCoords; }catch(e){}
 
   try{
-    let raw, initResp;
-    const WAIT_MSG = {
-      en: (s) => `⏳ Server starting up — retrying in ${s}s…`,
-      fa: (s) => `⏳ سرور در حال راه‌اندازی است — ${s} ثانیه دیگر دوباره تلاش می‌شود…`,
-      ps: (s) => `⏳ سرور پیلیږي — د ${s} ثانیو وروسته بیا هڅه کیږي…`,
-    };
-    const waitFn = WAIT_MSG[_fwLang] || WAIT_MSG.en;
-    let waitBubble = null;
-
-    for(let attempt=0; attempt<3; attempt++){
-      initResp = await fetch(`${FW_API}/agent/chat`,{
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          question:   q,
-          session_id: _fwSession,
-          role:       'farmer',
-          language:   _fwLang || window.appLang || 'en',
-          coords,
-        })
-      });
-      raw = await initResp.text();
-      if(raw.trim().startsWith('{')) break;
-      if(attempt < 2){
-        const msgs = document.getElementById('fw-messages');
-        let secs = 45;
-        if(!waitBubble){
-          waitBubble = document.createElement('div');
-          waitBubble.className='fw-bubble bot';
-          msgs.appendChild(waitBubble);
-        }
-        // Countdown
-        const countdown = setInterval(() => {
-          waitBubble.innerHTML = fwMarkdown(waitFn(secs--));
-          if(secs < 0) clearInterval(countdown);
-        }, 1000);
-        waitBubble.innerHTML = fwMarkdown(waitFn(secs));
-        msgs.scrollTop = msgs.scrollHeight;
-        await new Promise(r=>setTimeout(r, 46000));
-        clearInterval(countdown);
-      }
-    }
-    if(waitBubble) waitBubble.remove();
-    if(!raw || !raw.trim().startsWith('{')){
-      const errTxt = {
-        en:'Could not reach the AI server. Please wait 1 minute and try again.',
-        fa:'سرور هوش مصنوعی در دسترس نیست. یک دقیقه صبر کنید و دوباره امتحان کنید.',
-        ps:'د AI سرور سره اړیکه نه شوه. یو دقیقه انتظار وکړئ بیا هڅه وکړئ.',
+    // Wait for server to be fully awake before sending — shows countdown
+    if(!_serverReady){
+      const msgs = document.getElementById('fw-messages');
+      const wb = document.createElement('div');
+      wb.className = 'fw-bubble bot'; msgs.appendChild(wb);
+      const WAKE = {
+        en: s=>`⏳ Server starting up (${s}s)… your question will send automatically`,
+        fa: s=>`⏳ سرور در حال راه‌اندازی است (${s} ثانیه)… سوال شما به‌طور خودکار ارسال می‌شود`,
+        ps: s=>`⏳ سرور پیلیږي (${s} ثانیه)… ستاسې پوښتنه به اتوماتیک ولیږل شي`,
       };
-      throw new Error(errTxt[_fwLang] || errTxt.en);
+      const wfn = WAKE[_fwLang] || WAKE.en;
+      let secs = 60;
+      const cd = setInterval(()=>{ wb.innerHTML=fwMarkdown(wfn(secs--)); msgs.scrollTop=msgs.scrollHeight; }, 1000);
+      wb.innerHTML = fwMarkdown(wfn(secs));
+      const ok = await _waitForServer(s=>{ secs=s; });
+      clearInterval(cd); wb.remove();
+      if(!ok) throw new Error(_fwLang==='fa'?'سرور در دسترس نیست. دقیقه‌ای دیگر تلاش کنید':
+                              _fwLang==='ps'?'سرور شتون نلري. بيا هڅه وکړئ':'Server unavailable. Try again in 1 minute.');
+    }
+
+    // Server is awake — send the question
+    const initResp = await fetch(`${FW_API}/agent/chat`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        question:   q,
+        session_id: _fwSession,
+        role:       'farmer',
+        language:   _fwLang || window.appLang || 'en',
+        coords,
+      })
+    });
+    const raw = await initResp.text();
+    if(!raw.trim().startsWith('{')){
+      _serverReady = false; // force re-check next time
+      throw new Error(_fwLang==='fa'?'خطای سرور. لطفاً دوباره امتحان کنید':
+                      _fwLang==='ps'?'د سرور خطا. بيا هڅه وکړئ':'Server error. Please try again.');
     }
     const init = JSON.parse(raw);
 

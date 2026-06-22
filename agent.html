@@ -348,20 +348,21 @@ async function sendMessage(){
       })
     });
 
-    // Parse safely — retry if server was cold-starting (returned HTML)
-    let raw = await resp.text();
-    if (!raw.trim().startsWith('{')) {
-      document.getElementById('agent-status').textContent = '⏳ Server starting, retrying in 45s…';
-      await new Promise(r => setTimeout(r, 45000));
-      const r2  = await fetch(`${API}/agent/chat`, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ question:q, session_id:currentSession,
-                               role:currentRole, language:currentLang })
-      });
-      raw = await r2.text();
+    // Ensure server is awake before sending
+    if(!_srvReady){
+      document.getElementById('agent-status').textContent='⏳ Server starting up…';
+      const ok = await _ensureServer();
+      if(!ok){ removeThinking(thinkId); appendBubble('bot','⚠️ Server unavailable. Try again in 1 minute.'); return; }
     }
+
+    const raw  = await resp.text();
     const init = raw.trim().startsWith('{') ? JSON.parse(raw) : null;
-    if (!init) { removeThinking(thinkId); appendBubble('bot','⚠️ Server unavailable. Wait 1 minute and try again.'); return; }
+    if (!init) {
+      _srvReady=false;
+      removeThinking(thinkId);
+      appendBubble('bot','⚠️ Server error. Please try again.');
+      return;
+    }
 
     // Instant fallback answer (no key configured)
     if (init.answer && !init.task_id) {
@@ -638,9 +639,19 @@ function agentSpeak(text){
   window.speechSynthesis.speak(utt);
 }
 
+// ── Server readiness ──────────────────────────────────────────────────────────
+let _srvReady = false;
+async function _ensureServer(){
+  if(_srvReady) return true;
+  for(let i=0;i<20;i++){
+    try{ const r=await fetch(`${API}/health`,{cache:'no-cache'}); if(r.ok){_srvReady=true;return true;} }catch(e){}
+    await new Promise(r=>setTimeout(r,3000));
+  }
+  return false;
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
-// Warm up Render server so it's ready when user sends first message
-setTimeout(() => fetch(`${API}/health`).catch(()=>{}), 1000);
+_ensureServer(); // start warming up immediately on page load
 checkStatus();
 newSession();
 document.getElementById('q-input').addEventListener('input', function(){
