@@ -1246,10 +1246,11 @@ function gpsAutoDraw(){
   const lat=parseFloat(document.getElementById('gLat').value),lon=parseFloat(document.getElementById('gLon').value);
   if(!lat||!lon){notify('Please enter GPS coordinates');return;}
   const ha=selSize,latD=Math.sqrt(ha*1e4)/111320,lonD=Math.sqrt(ha*1e4)/(111320*Math.cos(lat*Math.PI/180));
-  tbClear();pts=[[lat-latD/2,lon-lonD/2],[lat-latD/2,lon+lonD/2],[lat+latD/2,lon+lonD/2],[lat+latD/2,lon-lonD/2]];
-  polyLayer=L.polygon(pts,{color:'#16a34a',fillColor:'#16a34a',fillOpacity:.2,weight:2.5}).addTo(appMap);
-  appMap.flyTo([lat,lon],15);hideGPS();document.getElementById('tb-analyse').disabled=false;
-  notify('✓ '+(ha*5).toFixed(1)+' jereb field drawn');
+  tbClear();
+  pts=[[lat-latD/2,lon-lonD/2],[lat-latD/2,lon+lonD/2],[lat+latD/2,lon+lonD/2],[lat+latD/2,lon-lonD/2]];
+  hideGPS();
+  finishPoly();
+  appMap.flyTo([lat,lon],15);
 }
 
 // ── REGIONAL DATABASE ─────────────────────────────────────────────────────────

@@ -2790,7 +2790,7 @@ function renderResults(d, country, province, district, village){
       <div class="admin-row">
         <div class="ai"><div class="ak">${t('adminLevel')}</div><div class="av">${adminLvl}: ${adminName}</div></div>
         <div class="ai"><div class="ak">${t('area')}</div><div class="av">${d.area_km2?Math.round(d.area_km2).toLocaleString():'—'} ${t('km2')}</div></div>
-        <div class="ai"><div class="ak">${t('coords')}</div><div class="av" id="oc-coords-val"><span style="color:#5a8fc0;font-size:11px">${d.lat!=null?d.lat.toFixed(4):'—'}°, ${d.lon!=null?d.lon.toFixed(4):'—'}°</span></div></div>
+        <div class="ai"><div class="ak">${t('coords')}</div><div class="av" id="oc-coords-val"><span style="color:#5a8fc0;font-size:11px">${d.lat!=null?Number(d.lat).toFixed(4):'—'}°, ${d.lon!=null?Number(d.lon).toFixed(4):'—'}°</span></div></div>
         ${farmerRow}
         <div class="ai"><div class="ak">${t('source')}</div><div class="av" style="font-size:10px">${d.source||'—'} · ${d.image_date||''} · ${d.analysis_scale_m?d.analysis_scale_m+'m':'—'}</div></div>
       </div>
@@ -2913,7 +2913,7 @@ function renderResults(d, country, province, district, village){
   if(d.lat!=null&&d.lon!=null){
     reverseGeocode(d.lat,d.lon).then(loc=>{
       const el=document.getElementById('oc-coords-val');
-      if(el&&loc)el.innerHTML=`${loc}<br><span style="color:#5a8fc0;font-size:10px">${d.lat.toFixed(4)}°, ${d.lon.toFixed(4)}°</span>`;
+      if(el&&loc)el.innerHTML=`${loc}<br><span style="color:#5a8fc0;font-size:10px">${Number(d.lat).toFixed(4)}°, ${Number(d.lon).toFixed(4)}°</span>`;
     });
   }
 
