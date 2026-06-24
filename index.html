@@ -313,10 +313,16 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
 /* MULTIPLE FIELDS PANEL */
 .fields-panel{position:absolute;top:0;left:-360px;bottom:0;width:340px;z-index:400;background:var(--w);border-right:1px solid var(--gbr);box-shadow:6px 0 32px rgba(0,0,0,.1);overflow-y:auto;transition:left .4s cubic-bezier(.4,0,.2,1);}
 .fields-panel.open{left:0;}
-.fp-head{background:var(--gd);padding:1rem 1.1rem;position:sticky;top:0;z-index:10;}
+.fp-head{background:var(--gd);padding:.85rem 1.1rem;position:sticky;top:0;z-index:10;display:flex;align-items:flex-start;justify-content:space-between;}
 .fp-title{font-family:var(--D);font-size:20px;color:#4ade80;letter-spacing:.05em;}
 .fp-sub{font-family:var(--M);font-size:11px;color:rgba(255,255,255,.55);margin-top:2px;}
-.fp-close{position:absolute;top:10px;right:12px;background:rgba(255,255,255,.1);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;color:#fff;}
+.fp-close{background:rgba(255,255,255,.1);border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:14px;color:#fff;flex-shrink:0;}
+.fp-head-right{display:flex;gap:5px;align-items:center;flex-shrink:0;margin-top:2px;}
+.fp-act{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:4px 9px;color:#4ade80;cursor:pointer;font-family:var(--M);font-size:11px;letter-spacing:.02em;white-space:nowrap;}
+.fp-act:hover{background:rgba(255,255,255,.22);}
+.ao-user{font-family:var(--M);font-size:11px;color:var(--m2);display:flex;align-items:center;gap:5px;}
+.ao-user-sw{background:transparent;border:1px solid var(--gbr);border-radius:5px;padding:2px 7px;font-family:var(--M);font-size:10px;color:var(--m2);cursor:pointer;}
+.ao-user-sw:hover{border-color:var(--g);color:var(--g);}
 .fp-body{padding:.9rem;}
 .fp-empty{text-align:center;padding:2.5rem 1rem;color:var(--m2);}
 .fp-empty .ic{font-size:42px;margin-bottom:.5rem;}
@@ -686,7 +692,7 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
     width:100%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
     <div style="text-align:center;margin-bottom:1.5rem">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:#16a34a;letter-spacing:.05em">🌱 ZaminAI</div>
-      <div style="font-family:'DM Mono',monospace;font-size:11px;color:#6b9e74;letter-spacing:.1em;text-transform:uppercase;margin-top:4px">Save your fields between visits</div>
+      <div id="login-sub" style="font-family:'DM Mono',monospace;font-size:12px;color:#6b9e74;letter-spacing:.04em;margin-top:4px;line-height:1.6">Draw multiple fields · Track all your land · Return anytime</div>
     </div>
     <div style="margin-bottom:1rem">
       <label style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:#3d6b47;display:block;margin-bottom:6px">📱 Phone number</label>
@@ -698,8 +704,11 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
         onblur="this.style.borderColor='#c8e6cc'">
     </div>
     <div id="loginError" style="display:none;background:#fef2f2;color:#dc2626;border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:10px;font-family:'DM Mono',monospace"></div>
-    <div style="background:#f0fdf4;border-radius:8px;padding:10px 12px;margin-bottom:1rem;font-size:12px;color:#3d6b47;line-height:1.6">
-      🔒 Your number is only used to save your fields.<br>No password. No spam. Works on any phone.
+    <div style="background:#f0fdf4;border-radius:8px;padding:10px 12px;margin-bottom:1rem;font-size:12px;color:#3d6b47;line-height:1.9">
+      🔒 No password — just your phone number<br>
+      📂 Draw and save as many fields as you have<br>
+      🗺️ See all your fields on the map at once<br>
+      🛰️ Come back anytime — your fields are saved
     </div>
     <button onclick="loginFarmer()" id="loginBtn"
       style="width:100%;padding:13px;background:#16a34a;color:#fff;border:none;border-radius:10px;
@@ -722,20 +731,32 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
 <div class="app-overlay" id="appOverlay">
   <div class="ao-nav">
     <div class="ao-logo" onclick="closeApp()">🌱 ZaminAI</div>
-    <div class="ao-lang">
-      <button class="on" onclick="appLangSet('en',this)">EN</button>
-      <button onclick="appLangSet('fa',this)">دری</button>
-      <button onclick="appLangSet('ps',this)">پښتو</button>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div id="ao-user-info" class="ao-user" style="display:none">
+        <span id="ao-user-phone"></span>
+        <button class="ao-user-sw" onclick="logoutFarmer()" title="Switch account">Switch</button>
+      </div>
+      <div class="ao-lang">
+        <button class="on" onclick="appLangSet('en',this)">EN</button>
+        <button onclick="appLangSet('fa',this)">دری</button>
+        <button onclick="appLangSet('ps',this)">پښتو</button>
+      </div>
+      <button class="ao-close" onclick="closeApp()">✕ Close</button>
     </div>
-    <button class="ao-close" onclick="closeApp()">✕ Close</button>
   </div>
   <div class="ao-body">
     <div id="map"></div>
     <div class="fields-panel" id="fieldsPanel">
       <div class="fp-head">
-        <div class="fp-title">📂 <span id="fp-title-txt">My Fields</span></div>
-        <div class="fp-sub" id="fp-count">No fields yet</div>
-        <button class="fp-close" onclick="toggleFieldsPanel()">✕</button>
+        <div>
+          <div class="fp-title">📂 <span id="fp-title-txt">My Fields</span></div>
+          <div class="fp-sub" id="fp-count">No fields yet</div>
+        </div>
+        <div class="fp-head-right">
+          <button class="fp-act" onclick="showAllFieldsOnMap()" id="fp-btn-all" title="Show all fields on map">🗺️ All</button>
+          <button class="fp-act" onclick="toggleFieldsPanel();tbDraw()" title="Draw a new field">✏️ New</button>
+          <button class="fp-close" onclick="toggleFieldsPanel()">✕</button>
+        </div>
       </div>
       <div class="fp-body" id="fp-body">
         <div class="fp-empty">
@@ -981,12 +1002,16 @@ function openApp(){
 function translateLoginModal(){
   var l=pgCurrentLang||'en';
   var rtl=(l==='fa'||l==='ps');
-  var T2={en:{sub:'Save your fields between visits',phone:'📱 Phone number',note:'🔒 Your number is only used to save your fields.<br>No password. No spam. Works on any phone.',cont:'Continue →',skip:'Skip — use without saving'},fa:{sub:'زمین‌های خود را بین بازدیدها ذخیره کنید',phone:'📱 شماره تلفن',note:'🔒 شماره شما فقط برای ذخیره زمین‌ها استفاده می‌شود.<br>بدون رمز. بدون اسپم. روی هر تلفن کار می‌کند.',cont:'ادامه →',skip:'رد کردن — بدون ذخیره استفاده کنید'},ps:{sub:'خپلې ځمکې د لیدنو ترمنځ وساتئ',phone:'📱 د تلیفون شمیره',note:'🔒 ستاسو شمیره یوازې د ځمکو ساتلو لپاره کارول کیږي.<br>پټنوم نشته. سپام نشته. په هر تلیفون کار کوي.',cont:'دوام →',skip:'پرېښودل — پرته له ساتلو وکاروئ'}}[l]||{};
+  var T2={
+    en:{sub:'Draw multiple fields · Track all your land · Return anytime',phone:'📱 Phone number',note:'🔒 No password — just your phone number<br>📂 Draw and save as many fields as you have<br>🗺️ See all your fields on the map at once<br>🛰️ Come back anytime — your fields are saved',cont:'Continue →',skip:'Skip — use without saving'},
+    fa:{sub:'چند زمین رسم کنید · همه زمین‌هایتان را ردیابی کنید',phone:'📱 شماره تلفن',note:'🔒 بدون رمز — فقط شماره تلفن<br>📂 هر چند زمین که دارید رسم و ذخیره کنید<br>🗺️ همه زمین‌ها را یکجا روی نقشه ببینید<br>🛰️ هر وقت برگشتید زمین‌هایتان اینجاست',cont:'ادامه →',skip:'رد کردن — بدون ذخیره استفاده کنید'},
+    ps:{sub:'ډیرې ځمکې وکاږئ · ټولې ځمکې تعقیب کړئ',phone:'📱 د تلیفون شمیره',note:'🔒 پټنوم نشته — یوازې ستاسو شمیره<br>📂 هر څومره ځمکې لرئ رسم او وساتئ<br>🗺️ ټولې ځمکې یوځای نقشه کې وګورئ<br>🛰️ کله چې راستنیږئ ستاسو ځمکې دلته دي',cont:'دوام →',skip:'پرېښودل — پرته له ساتلو وکاروئ'}
+  }[l]||{};
   var modal=document.getElementById('loginModal');
   if(!modal)return;
   var box=modal.querySelector('div>div');
   if(box)box.dir=rtl?'rtl':'ltr';
-  var subEl=modal.querySelector('div[style*="text-transform:uppercase"]'); if(subEl)subEl.textContent=T2.sub;
+  var subEl=document.getElementById('login-sub'); if(subEl)subEl.textContent=T2.sub;
   var phoneLabel=modal.querySelector('label'); if(phoneLabel)phoneLabel.textContent=T2.phone;
   var noteEl=modal.querySelector('div[style*="background:#f0fdf4"]'); if(noteEl)noteEl.innerHTML=T2.note;
   var contBtn=document.getElementById('loginBtn'); if(contBtn)contBtn.textContent=T2.cont;
@@ -1012,9 +1037,12 @@ async function loginFarmer(){
       farmerPhone=phone;
       savedFields=d.fields||[];
       document.getElementById('loginModal').style.display='none';
+      const ui=document.getElementById('ao-user-info');
+      const up=document.getElementById('ao-user-phone');
+      if(ui&&up){up.textContent='👤 '+phone;ui.style.display='flex';}
       _doOpenApp();
       if(savedFields.length>0){
-        notify('Welcome back! Loading '+savedFields.length+' saved field(s)');
+        notify('Welcome back! '+savedFields.length+' field(s) loaded 📂');
         setTimeout(loadSavedFields,800);
       }else{
         notify('Welcome! Draw your first field to get started 🌱');
@@ -1093,6 +1121,14 @@ function autoDetectLocation(lat,lng){
   const ndvi=Math.round(Math.max(0.08,Math.min(0.45,0.06+lat*0.003+(lng-62)*0.002))*100)/100;
   return{name:'Afghanistan',ndvi,mndwi:-0.18,rain:Math.max(80,Math.min(480,Math.round(lat*8)))};
 }
+async function reverseGeocode(lat,lon){
+  try{
+    const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,{headers:{'Accept-Language':'en'}});
+    const d=await r.json();
+    const a=d.address||{};
+    return[a.village||a.hamlet||a.suburb||a.neighbourhood,a.city_district||a.county,a.state,a.country].filter(Boolean).join(', ')||null;
+  }catch(e){return null;}
+}
 
 function finishPoly(){
   if(polyLayer){appMap.removeLayer(polyLayer);polyLayer=null;}
@@ -1118,6 +1154,13 @@ function finishPoly(){
   hideTip();
   notify(`✓ ${j} jereb · ${prov.name} · ~${prov.rain}mm rain`);
   document.getElementById('tb-analyse').disabled=false;
+  reverseGeocode(clat,clon).then(loc=>{
+    if(loc&&polyLayer){
+      const wIcon2=prov.mndwi>-0.10?'💧 OK':'🔴 Low water';
+      polyLayer.setPopupContent(`<div style="font-family:monospace;font-size:12px;color:#052e16;min-width:175px;line-height:1.6"><b>✓ ${j} jereb · ${ha} ha</b><br>📍 <b>${loc}</b><br>🌧️ ~${prov.rain}mm/year<br>${wIcon2} · NDVI ~${prov.ndvi}<br><small style="color:#6b9e74;font-size:10px">Click Analyse for live satellite data</small></div>`);
+      window._geoAddress=loc;
+    }
+  });
 }
 function tbDraw(){pts=[];ptMarkers.forEach(m=>appMap.removeLayer(m));ptMarkers=[];if(polyLayer){appMap.removeLayer(polyLayer);polyLayer=null;}document.getElementById('tb-analyse').disabled=true;showTip('Click map to draw · Double-click to finish');}
 function drawFieldGrid(coords,ndvi,indexName){
@@ -1155,6 +1198,7 @@ function drawFieldGrid(coords,ndvi,indexName){
 }
 function loadSavedFields(){
   if(!savedFields||savedFields.length===0||!appMap)return;
+  clearSavedFieldLayers();
   savedFields.forEach(function(field){
     if(!field.coords||field.coords.length<3)return;
     let coords=field.coords;
@@ -1163,11 +1207,9 @@ function loadSavedFields(){
     const lastN=lastA?lastA.ndvi:null;
     const col=lastN>=0.30?'#16a34a':lastN>=0.18?'#d97706':'#dc2626';
 
-    // Draw the same pixel grid as a live analysis (not just a flat fill)
     drawFieldGrid(coords, lastN, 'NDVI');
 
-    // Transparent outline polygon — only for popup binding
-    const poly=L.polygon(coords,{color:col,weight:2,fillOpacity:0,dashArray:'5,4'}).addTo(appMap);
+    const poly=L.polygon(coords,{color:col,weight:2,fillOpacity:0,dashArray:'5,4',className:'saved-grid'}).addTo(appMap);
     const lastDate=lastA?(' · '+String(lastA.analysed_at||'').slice(0,10)):'';
     const popupDiv=document.createElement('div');
     popupDiv.style.cssText='font-family:monospace;font-size:12px;min-width:160px;line-height:1.6';
@@ -1464,9 +1506,19 @@ else console.error('Report panel not found');
 
   // Save field to database if logged in
   if(farmerId){
+    const _fieldLabel=(window._geoAddress||prov)+' Field';
+    window._geoAddress=null;
     fetch(API+'/db/field/save',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({farmer_id:farmerId,coords:pts,label:prov+' Field',province:prov,area_ha:aHa,area_jereb:aJ})})
-    .then(r=>r.json()).then(d=>{if(d.field&&d.field.id)fieldData.field_id=d.field.id;}).catch(()=>{});
+      body:JSON.stringify({farmer_id:farmerId,coords:pts,label:_fieldLabel,province:prov,area_ha:aHa,area_jereb:aJ})})
+    .then(function(r){return r.json();}).then(function(d){
+      if(d.field&&d.field.id){
+        fieldData.field_id=d.field.id;
+        if(!savedFields.find(function(f){return String(f.id)===String(d.field.id);})){
+          savedFields.unshift({id:d.field.id,label:_fieldLabel,province:prov,area_ha:aHa,area_jereb:parseFloat(aJ),coords:pts.slice(),analyses:[]});
+          refreshFieldsPanel();
+        }
+      }
+    }).catch(function(){});
   }
 
   // Call API
@@ -1560,7 +1612,8 @@ const RT={
     healthyCrops:'Healthy crops', stressedNeeds:'Stressed — needs attention',
     goodBiomass:'Good biomass', lowBiomass:'Low biomass', soilAdj:'Corrects for bare soil background',
     goodWater:'Good water', modWater:'Moderate', lowWaterSoon:'Low — irrigate soon',
-    goodCanopy:'Good canopy water', dryCanopy:'Dry canopy — water stress'
+    goodCanopy:'Good canopy water', dryCanopy:'Dry canopy — water stress',
+    drawNew:'✏️ Draw another field →'
   },
   fa:{
     field:'📍 زمین شما', jereb:'جریب', ha:'هکتار',
@@ -1602,7 +1655,8 @@ const RT={
     healthyCrops:'محصولات سالم', stressedNeeds:'تحت فشار — نیاز به توجه',
     goodBiomass:'زیست‌توده خوب', lowBiomass:'زیست‌توده کم', soilAdj:'اثر خاک لخت را تصحیح می‌کند',
     goodWater:'آب خوب', modWater:'متوسط', lowWaterSoon:'کم — به‌زودی آبیاری کنید',
-    goodCanopy:'آب کافی در پوشش', dryCanopy:'پوشش خشک — فشار آبی'
+    goodCanopy:'آب کافی در پوشش', dryCanopy:'پوشش خشک — فشار آبی',
+    drawNew:'✏️ رسم زمین دیگر →'
   },
   ps:{
     field:'📍 ستاسو ځمکه', jereb:'جریب', ha:'هکتار',
@@ -1644,7 +1698,8 @@ const RT={
     healthyCrops:'روغ محصولات', stressedNeeds:'تر فشار لاندې — پاملرنې ته اړتیا',
     goodBiomass:'ښه بایوماس', lowBiomass:'کم بایوماس', soilAdj:'د خالي خاورې اغیز سموي',
     goodWater:'ښه اوبه', modWater:'منځنی', lowWaterSoon:'کم — ژر اوبه ورکړئ',
-    goodCanopy:'په پوښښ کې ښه اوبه', dryCanopy:'وچ پوښښ — د اوبو فشار'
+    goodCanopy:'په پوښښ کې ښه اوبه', dryCanopy:'وچ پوښښ — د اوبو فشار',
+    drawNew:'✏️ بله ځمکه وکاږئ →'
   }
 };
 function rt(k){var t=RT[appLang]||RT.en;return (t[k]!=null?t[k]:RT.en[k]);}
@@ -1696,7 +1751,8 @@ function renderReport(){
     '<div class="rep-sec"><div class="rep-title">'+rt('bestCrops')+'</div><div class="crop-row">'+crpsHTML+'</div></div>'+
     '<div class="rep-sec"><div class="rep-title">'+rt('income')+'</div>'+iRows+'</div>'+
     rainHTML+soilHTML+seasonHTML+
-    '<div class="rep-sec"><button onclick="openAIPanel()" style="width:100%;padding:13px;background:var(--gd);color:#4ade80;border:none;border-radius:8px;font-family:var(--M);font-size:13px;cursor:pointer;letter-spacing:.04em">'+rt('askAI')+'</button></div>';
+    '<div class="rep-sec"><button onclick="openAIPanel()" style="width:100%;padding:13px;background:var(--gd);color:#4ade80;border:none;border-radius:8px;font-family:var(--M);font-size:13px;cursor:pointer;letter-spacing:.04em">'+rt('askAI')+'</button>'+
+    '<button onclick="closeRp();tbDraw()" style="width:100%;padding:11px;background:var(--bg);color:var(--g);border:1px solid var(--gbr);border-radius:8px;font-family:var(--M);font-size:12px;cursor:pointer;letter-spacing:.04em;margin-top:8px">'+rt('drawNew')+'</button></div>';
 
   setTimeout(initMiniMap,1000);
   setTimeout(()=>{const b=document.getElementById('sbdg');if(b){b.innerHTML=rt('saveComplete');b.style.background='var(--gb)';}},2000);
@@ -1773,6 +1829,29 @@ function toggleFieldsPanel(){
   if(!p)return;
   p.classList.toggle('open');
   if(p.classList.contains('open'))refreshFieldsPanel();
+}
+function clearSavedFieldLayers(){
+  if(!appMap)return;
+  var toRemove=[];
+  appMap.eachLayer(function(l){if(l.options&&l.options.className==='saved-grid')toRemove.push(l);});
+  toRemove.forEach(function(l){appMap.removeLayer(l);});
+}
+function showAllFieldsOnMap(){
+  if(!appMap)return;
+  if(!savedFields||savedFields.length===0){notify('No saved fields yet');return;}
+  loadSavedFields();
+  const p=document.getElementById('fieldsPanel');
+  if(p)p.classList.remove('open');
+}
+function logoutFarmer(){
+  const msg={en:'Switch to a different phone number?',fa:'به شماره دیگری تغییر دهید؟',ps:'بله شمیره ته بدل شئ؟'}[appLang]||'Switch account?';
+  if(!confirm(msg))return;
+  farmerId=null;farmerPhone=null;savedFields=[];
+  clearSavedFieldLayers();
+  refreshFieldsPanel();
+  const ui=document.getElementById('ao-user-info');if(ui)ui.style.display='none';
+  const modal=document.getElementById('loginModal');
+  if(modal){translateLoginModal();modal.style.display='flex';}
 }
 
 function refreshFieldsPanel(){
