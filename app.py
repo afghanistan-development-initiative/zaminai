@@ -833,11 +833,15 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 @app.route("/")
 @app.route("/index.html")
 def serve_index():
-    return send_from_directory(_HERE, "index.html")
+    resp = send_from_directory(_HERE, "index.html")
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    return resp
 
 @app.route("/officer.html")
 def serve_officer():
-    return send_from_directory(_HERE, "officer.html")
+    resp = send_from_directory(_HERE, "officer.html")
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    return resp
 
 
 @app.route("/health")
