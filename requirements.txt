@@ -16,3 +16,6 @@ streamlit>=1.35.0
 streamlit-folium>=0.20.0
 folium>=0.16.0
 plotly>=5.20.0
+ultralytics>=8.3.0
+Pillow>=10.2.0
+huggingface-hub>=0.24.0

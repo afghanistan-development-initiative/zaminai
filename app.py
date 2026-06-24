@@ -26,7 +26,7 @@
 ╚══════════════════════════════════════════════════════════════════════════════╝
 """
 
-import os, json, math, logging, requests, threading, uuid
+import os, json, math, logging, requests, threading, uuid, base64
 from datetime import datetime
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, send_from_directory, Response
@@ -856,7 +856,7 @@ def health():
         "telegram": bool(TELEGRAM_TOKEN),
         "endpoints": [
             "/health", "/analyse", "/ask", "/ndvi_tile",
-            "/crop_detect", "/monthly_rain", "/soil",
+            "/crop_detect", "/monthly_rain", "/soil", "/diagnose",
             "/db/farmer", "/db/field/save", "/db/fields/<id>",
             "/db/analysis/save", "/db/chat/save",
             "/alerts/save", "/alerts/<farmer_id>", "/alerts/delete",
@@ -3079,6 +3079,113 @@ def agent_status():
 def agent_ui():
     """Serve the agentic chat UI."""
     return send_from_directory(".", "agent.html")
+
+
+# ── CROP PHOTO DIAGNOSIS ──────────────────────────────────────────────────────
+
+@app.route("/diagnose", methods=["POST", "OPTIONS"])
+def diagnose():
+    """
+    Photo-based crop disease / pest detection.
+    Stage 1 — YOLO v8m (fast bounding-box detection, 38 disease classes).
+    Stage 2 — Claude Haiku (detailed multilingual diagnosis + treatment advice).
+    Body: {image: <base64 data-URL or raw base64>, language: "en|fa|ps", crop: "wheat|..."}
+    """
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    try:
+        d         = request.get_json(force=True)
+        image_b64 = d.get("image", "")
+        language  = d.get("language", "en")
+        crop_hint = d.get("crop", "").strip()
+
+        if not image_b64:
+            return jsonify({"error": "image required (base64)"}), 400
+
+        # Strip data-URL prefix if present (e.g. "data:image/jpeg;base64,...")
+        if "," in image_b64:
+            image_b64 = image_b64.split(",", 1)[1]
+        try:
+            image_bytes = base64.b64decode(image_b64)
+        except Exception as e:
+            return jsonify({"error": f"Invalid base64 image: {e}"}), 400
+
+        # ── Stage 1: YOLO fast detection ──────────────────────────────────────
+        try:
+            from crop_vision import run_inference
+            yolo_result = run_inference(image_bytes)
+        except Exception as e:
+            log.warning(f"YOLO import/run failed: {e}")
+            yolo_result = {"ok": False, "yolo_available": False, "detections": []}
+
+        # ── Stage 2: Claude Vision detailed diagnosis ─────────────────────────
+        claude_diagnosis = None
+        if ANTHROPIC_KEY:
+            try:
+                import anthropic
+                client = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
+
+                lang_inst = {
+                    "fa": "Respond ONLY in Dari (Afghan Persian). Use simple farming language a village farmer understands.",
+                    "ps": "Respond ONLY in Pashto. Use simple farming language a village farmer understands.",
+                }.get(language, "Respond in English. Use simple, practical language.")
+
+                yolo_ctx  = ""
+                if yolo_result.get("ok") and yolo_result.get("detections"):
+                    top = yolo_result["detections"][0]
+                    yolo_ctx = f"YOLO model detected: {top['label_en']} ({top['confidence']*100:.0f}% confidence). "
+
+                crop_ctx = f"The farmer says this is a {crop_hint} crop. " if crop_hint else ""
+
+                prompt = (
+                    f"{crop_ctx}{yolo_ctx}"
+                    "Examine this crop/plant photo carefully and answer:\n"
+                    "1. What disease, pest, or problem do you see? (if none, say the plant looks healthy)\n"
+                    "2. Severity: mild / moderate / severe\n"
+                    "3. What must the farmer do RIGHT NOW? (specific, numbered steps)\n"
+                    "4. Which product to apply, what dose, when?\n"
+                    "5. One sentence: how to prevent this next season.\n\n"
+                    f"{lang_inst}\n"
+                    "Be concise. Afghan smallholder farmers will act directly on this advice."
+                )
+
+                msg = client.messages.create(
+                    model="claude-haiku-4-5-20251001",
+                    max_tokens=600,
+                    messages=[{
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": "image/jpeg",
+                                    "data": image_b64,
+                                },
+                            },
+                            {"type": "text", "text": prompt},
+                        ],
+                    }],
+                )
+                claude_diagnosis = msg.content[0].text
+            except Exception as e:
+                log.error(f"Claude Vision error: {e}")
+
+        top = yolo_result["detections"][0] if yolo_result.get("detections") else None
+        return jsonify({
+            "ok":            True,
+            "detections":    yolo_result.get("detections", []),
+            "top_detection": top,
+            "is_healthy":    bool(top and top.get("is_healthy")),
+            "yolo_ok":       yolo_result.get("ok", False),
+            "yolo_available": yolo_result.get("yolo_available", False),
+            "diagnosis":     claude_diagnosis,
+            "model":         "yolov8m-plant-disease + claude-haiku-4-5",
+            "language":      language,
+        })
+    except Exception as e:
+        log.error(f"/diagnose: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__=="__main__":

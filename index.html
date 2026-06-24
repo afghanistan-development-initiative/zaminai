@@ -139,14 +139,16 @@ section{padding:7rem 5rem;}
 .lq{font-size:clamp(17px,3vw,32px);font-weight:300;color:rgba(255,255,255,.7);line-height:1.6;text-align:center;transition:all .35s;}
 .lt{font-family:var(--M);font-size:12px;color:rgba(255,255,255,.3);margin-top:.75rem;letter-spacing:.07em;}
 .yolo{background:var(--w);border-top:1px solid var(--gbr);}
-.yolo-grid{display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center;margin-top:3.5rem;}
-.yscreen{background:#030805;border-radius:12px;aspect-ratio:4/3;position:relative;overflow:hidden;}
-.ybox{position:absolute;border:2px solid;z-index:3;}
-.ylbl{position:absolute;font-family:var(--M);font-size:9px;letter-spacing:.06em;padding:2px 6px;z-index:4;animation:yblink 2.5s ease-in-out infinite;border-radius:2px;}
-.yg2{color:#4ade80;border-color:#4ade80;background:rgba(74,222,128,.15);}
-.yr2{color:#f87171;border-color:#f87171;background:rgba(248,113,113,.15);}
-.ya2{color:#fbbf24;border-color:#fbbf24;background:rgba(251,191,36,.15);}
-.yscan{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(74,222,128,.8),transparent);animation:scanAnim 3s linear infinite;z-index:5;}
+.yolo-grid{display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:start;margin-top:3.5rem;}
+.yupload-wrap{background:var(--gd);border-radius:16px;padding:1.5rem;}
+.yzone{border:2px dashed rgba(74,222,128,.35);border-radius:12px;padding:2rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;position:relative;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.85rem;}
+.yzone:hover,.yzone.ydrag{border-color:#4ade80;background:rgba(74,222,128,.04);}
+.yzone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.yzone-icon{font-size:32px;line-height:1;}
+.yzone-txt{font-family:var(--M);font-size:10px;color:rgba(255,255,255,.4);letter-spacing:.08em;}
+.ycam-btn{background:#16a34a;color:#fff;font-family:var(--M);font-size:10px;letter-spacing:.07em;padding:7px 18px;border-radius:6px;border:none;cursor:pointer;pointer-events:none;}
+.yprev-img{width:100%;border-radius:8px;max-height:240px;object-fit:contain;display:none;margin-top:.75rem;}
+.yresult-box{margin-top:.9rem;min-height:0;}
 .yf-list{display:flex;flex-direction:column;gap:1rem;}
 .yf{background:var(--bg);border:1px solid var(--gbr);border-left:4px solid var(--g);padding:1.25rem;border-radius:0 8px 8px 0;opacity:0;transform:translateX(20px);transition:all .5s;}
 .yf.vis{opacity:1;transform:translateX(0);}
@@ -561,7 +563,7 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
     <div class="fc"><span class="fi">🛰️</span><div class="fn">01 · Satellite</div><div class="ft" id="ff1">Field Analysis</div><p class="fd" id="fd1">Draw your field on satellite map. Real NDVI, water index, rainfall for your exact coordinates — updated every 5 days.</p><span class="ftag live">● Live</span></div>
     <div class="fc"><span class="fi">📊</span><div class="fn">02 · Economics</div><div class="ft" id="ff2">Yield + Profit</div><p class="fd" id="fd2">Predicts yield from NDVI and water data. Calculates all input costs and net profit before you plant.</p><span class="ftag live">● Live</span></div>
     <div class="fc"><span class="fi">🤖</span><div class="fn">03 · AI</div><div class="ft" id="ff3">Any Language</div><p class="fd" id="fd3">Ask in Dari, Pashto, or English. Voice in, voice out. Real satellite data powers every answer.</p><span class="ftag live">● Live</span></div>
-    <div class="fc"><span class="fi">📸</span><div class="fn">04 · Vision</div><div class="ft" id="ff4">YOLO Diagnosis</div><p class="fd" id="fd4">Upload plant photo. AI detects disease and pests with 90%+ accuracy from your phone camera.</p><span class="ftag soon">◐ Coming</span></div>
+    <div class="fc"><span class="fi">📸</span><div class="fn">04 · Vision</div><div class="ft" id="ff4">YOLO Diagnosis</div><p class="fd" id="fd4">Upload plant photo. AI detects disease and pests with 90%+ accuracy from your phone camera.</p><span class="ftag live">● Live</span></div>
     <div class="fc"><span class="fi">💧</span><div class="fn">05 · Water</div><div class="ft" id="ff5">Irrigation Guide</div><p class="fd" id="fd5">All 5 systems compared — drip, furrow, flood, sprinkler, karez. Satellite-based recommendation for your exact water availability.</p><span class="ftag live">● Live</span></div>
     <div class="fc"><span class="fi">🌱</span><div class="fn">06 · Knowledge</div><div class="ft" id="ff6">Seeds + Market</div><p class="fd" id="fd6">Best seed varieties for your soil. Current market prices. Where to sell. Government and NGO programs.</p><span class="ftag live">● Live</span></div>
   </div>
@@ -662,23 +664,19 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
   <h2 class="sh" id="yo-h">YOLO sees what<br>the eye misses</h2>
   <div class="yolo-grid">
     <div>
-      <div style="background:var(--gd);border-radius:16px;padding:1.5rem;">
-        <div class="yscreen">
-          <div style="position:absolute;inset:0;background:repeating-linear-gradient(172deg,rgba(8,25,10,.9) 0px,rgba(8,25,10,.9) 4px,rgba(5,15,6,.95) 4px,rgba(5,15,6,.95) 11px);z-index:1;"></div>
-          <div class="ybox yg2" style="top:18%;left:12%;width:26%;height:28%;"></div>
-          <div class="ylbl yg2" style="top:16%;left:12%;">Healthy · 94%</div>
-          <div class="ybox yr2" style="top:33%;left:53%;width:22%;height:26%;"></div>
-          <div class="ylbl yr2" style="top:31%;left:53%;">Wheat rust · 89%</div>
-          <div class="ybox ya2" style="top:58%;left:28%;width:24%;height:22%;"></div>
-          <div class="ylbl ya2" style="top:56%;left:28%;">Water stress · 76%</div>
-          <div class="yscan"></div>
-          <div style="position:absolute;top:8px;left:8px;width:14px;height:14px;border-top:2px solid #4ade80;border-left:2px solid #4ade80;z-index:5;"></div>
-          <div style="position:absolute;top:8px;right:8px;width:14px;height:14px;border-top:2px solid #4ade80;border-right:2px solid #4ade80;z-index:5;"></div>
-          <div style="position:absolute;bottom:8px;left:8px;width:14px;height:14px;border-bottom:2px solid #4ade80;border-left:2px solid #4ade80;z-index:5;"></div>
-          <div style="position:absolute;bottom:8px;right:8px;width:14px;height:14px;border-bottom:2px solid #4ade80;border-right:2px solid #4ade80;z-index:5;"></div>
-          <div style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);font-family:var(--M);font-size:9px;color:#4ade80;letter-spacing:.1em;z-index:5;white-space:nowrap;">ZAMINAI · YOLO VISION · LIVE</div>
+      <div class="yupload-wrap">
+        <div class="yzone" id="yZone"
+             ondragover="event.preventDefault();this.classList.add('ydrag')"
+             ondragleave="this.classList.remove('ydrag')"
+             ondrop="yDrop(event)">
+          <input type="file" id="yFileInput" accept="image/*" onchange="yOnFile(this.files[0])">
+          <span class="yzone-icon">📸</span>
+          <div class="yzone-txt">DRAG PHOTO HERE OR TAP TO UPLOAD</div>
+          <span class="ycam-btn">Open Camera / Gallery</span>
         </div>
-        <div style="font-family:var(--M);font-size:11px;color:rgba(255,255,255,.5);margin-top:1rem">📸 Upload photo → instant detection · 94ms inference</div>
+        <img id="yPreview" class="yprev-img" alt="crop photo">
+        <div id="yResult" class="yresult-box"></div>
+        <div style="font-family:var(--M);font-size:9px;color:rgba(255,255,255,.25);margin-top:1rem;text-align:center;letter-spacing:.07em">YOLOv8m · Claude Vision · 38 disease classes</div>
       </div>
     </div>
     <div class="yf-list">
@@ -929,6 +927,57 @@ const hs=document.querySelector('.hstats');if(hs)obs.observe(hs);
 // ── SCROLL ANIMATIONS ────────────────────────────────────────────────────────
 const io=new IntersectionObserver(es=>{es.forEach((e,i)=>{if(e.isIntersecting)setTimeout(()=>e.target.classList.add('vis'),i*80);});},{threshold:.1});
 [...document.querySelectorAll('.fc,.step,.rc,.yf')].forEach(c=>io.observe(c));
+
+// ── YOLO CROP DIAGNOSIS ──────────────────────────────────────────────────────
+function yOnFile(file){
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const prev=document.getElementById('yPreview');
+    if(prev){prev.src=ev.target.result;prev.style.display='block';}
+    const zone=document.getElementById('yZone');
+    if(zone)zone.style.minHeight='auto';
+    yDiagnose(ev.target.result);
+  };
+  reader.readAsDataURL(file);
+}
+function yDrop(ev){
+  ev.preventDefault();
+  const zone=document.getElementById('yZone');
+  if(zone)zone.classList.remove('ydrag');
+  const f=ev.dataTransfer.files[0];
+  if(f&&f.type.startsWith('image/'))yOnFile(f);
+}
+async function yDiagnose(dataUrl){
+  const res=document.getElementById('yResult');
+  if(!res)return;
+  res.innerHTML='<div style="font-family:var(--M);font-size:11px;color:var(--g);text-align:center;padding:1rem;letter-spacing:.07em">YOLO + AI ANALYSING...</div>';
+  try{
+    const lang=typeof pgCurrentLang!=='undefined'?pgCurrentLang:'en';
+    const r=await fetch(`${API}/diagnose`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({image:dataUrl,language:lang}),
+    });
+    const d=await r.json();
+    if(!d.ok){res.innerHTML=`<div style="color:#f87171;padding:.5rem;font-size:13px">${d.error||'Analysis failed'}</div>`;return;}
+    let html='';
+    if(d.top_detection){
+      const conf=Math.round(d.top_detection.confidence*100);
+      const col=d.is_healthy?'#4ade80':'#f87171';
+      const bg=d.is_healthy?'rgba(74,222,128,.1)':'rgba(248,113,113,.1)';
+      html+=`<div style="background:${bg};border:1px solid ${col};border-radius:8px;padding:.6rem .9rem;margin-bottom:.75rem"><div style="font-family:var(--M);font-size:10px;color:${col};letter-spacing:.07em;margin-bottom:3px">YOLO · ${conf}% confidence</div><div style="font-size:14px;font-weight:600;color:${col}">${d.top_detection.label_en}</div></div>`;
+    }
+    if(d.diagnosis){
+      const isRtl=(lang==='fa'||lang==='ps');
+      html+=`<div style="font-size:13px;color:var(--m);line-height:1.8;white-space:pre-wrap;direction:${isRtl?'rtl':'ltr'};text-align:${isRtl?'right':'left'}">${d.diagnosis}</div>`;
+    }
+    if(!html)html='<div style="color:var(--m);font-size:13px;padding:.5rem">No disease detected. Plant appears healthy.</div>';
+    res.innerHTML=html;
+  }catch(e){
+    res.innerHTML=`<div style="color:#f87171;font-size:13px">Error: ${e.message}</div>`;
+  }
+}
 
 // ── TRANSLATIONS ─────────────────────────────────────────────────────────────
 const T={
@@ -1744,6 +1793,230 @@ else console.error('Report panel not found');
     .then(r=>r.json()).then(d=>{if(d.ph){fieldData.soil=d;renderReport();}}).catch(()=>{});
 }
 // ════════════════════════════════════════════════════════════════
+// DOWNLOADABLE REPORT — PDF via browser print
+// ════════════════════════════════════════════════════════════════
+const RPT={
+  en:{
+    title:'ZaminAI Field Intelligence Report',subtitle:'Satellite-Powered Agricultural Analysis',
+    date:'Analysis Date',field:'Field',area:'Area',province:'Province / Region',
+    source:'Data Source',geeSource:'Live Satellite (Sentinel-2)',regSource:'Regional Database',
+    health:'Field Health Status',good:'GOOD',mod:'MODERATE',bad:'STRESSED',
+    sdGood:'Vegetation is healthy for this region and season.',
+    sdMod:'Some vegetation stress detected — check irrigation and nutrients.',
+    sdBad:'Critical stress detected — immediate action required.',
+    metrics:'Satellite Index Measurements',ndviLbl:'Vegetation Health (NDVI)',
+    eviLbl:'Enhanced Vegetation (EVI)',saviLbl:'Soil-Adjusted Vegetation (SAVI)',
+    mndwiLbl:'Water Index (MNDWI)',lswiLbl:'Surface Water Index (LSWI)',
+    rainLbl:'Annual Rainfall',
+    trend:'NDVI Vegetation Trend (2013 – Present)',
+    trendNote:'Shows how your field vegetation has changed over time using Landsat (2013–2018) and Sentinel-2 (2019–present) satellites.',
+    worst:'Worst (2022 drought)',best:'Best year',
+    monthly:'Monthly Rainfall Distribution',monthlyNote:'CHIRPS rainfall data · mm per month',
+    soil:'Soil Analysis',ph:'Soil pH',oc:'Organic Carbon',clay:'Clay %',sand:'Sand %',
+    crops:'Recommended Crops for Your Field',confidence:'Confidence',
+    income:'Income Estimate',yieldEst:'Estimated Yield',seed:'Seeds + Fertilizer',
+    irr:'Irrigation + Labour',gross:'Gross Income',net:'Net Profit',kgUnit:'kg',afn:'AFN',
+    todo:'Action Plan',urgent:'🚨 URGENT',imp:'⚠️ IMPORTANT',rec:'✅ RECOMMENDED',
+    aiSummary:'AI Field Assessment',
+    footer:'Generated by ZaminAI · Afghanistan Development Initiative · zaminai.org',
+    confidential:'For agricultural advisory purposes only.',printBtn:'🖨️ Print / Save as PDF',
+    months:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+  },
+  fa:{
+    title:'گزارش هوشمند زمین ZaminAI',subtitle:'تحلیل کشاورزی مبتنی بر ماهواره',
+    date:'تاریخ تحلیل',field:'زمین',area:'مساحت',province:'ولایت / منطقه',
+    source:'منبع داده',geeSource:'ماهواره زنده (سنتینل-۲)',regSource:'پایگاه داده منطقه‌ای',
+    health:'وضعیت کلی زمین',good:'خوب',mod:'متوسط',bad:'تحت فشار',
+    sdGood:'پوشش گیاهی برای این منطقه و فصل سالم است.',
+    sdMod:'مقداری فشار گیاهی شناسایی شد — آبیاری و مواد مغذی را بررسی کنید.',
+    sdBad:'فشار شدید شناسایی شد — اقدام فوری لازم است.',
+    metrics:'اندازه‌گیری‌های شاخص ماهواره‌ای',ndviLbl:'سلامت پوشش گیاهی (NDVI)',
+    eviLbl:'پوشش گیاهی پیشرفته (EVI)',saviLbl:'پوشش با تصحیح خاک (SAVI)',
+    mndwiLbl:'شاخص آب (MNDWI)',lswiLbl:'شاخص آب سطحی (LSWI)',
+    rainLbl:'بارندگی سالانه',
+    trend:'روند NDVI پوشش گیاهی (۲۰۱۳ – اکنون)',
+    trendNote:'نشان می‌دهد پوشش گیاهی زمین شما با استفاده از ماهواره‌های لندست (۲۰۱۳–۲۰۱۸) و سنتینل-۲ (۲۰۱۹–اکنون) چگونه تغییر کرده است.',
+    worst:'بدترین (خشکسالی ۲۰۲۲)',best:'بهترین سال',
+    monthly:'توزیع بارندگی ماهانه',monthlyNote:'داده‌های بارندگی CHIRPS · م.م در ماه',
+    soil:'تحلیل خاک',ph:'اسیدیته خاک',oc:'کربن آلی',clay:'درصد رس',sand:'درصد شن',
+    crops:'محصولات توصیه شده برای زمین شما',confidence:'اطمینان',
+    income:'درآمد تخمینی',yieldEst:'عملکرد تخمینی',seed:'بذر + کود',
+    irr:'آبیاری + کارگر',gross:'درآمد ناخالص',net:'سود خالص',kgUnit:'کیلوگرم',afn:'افغانی',
+    todo:'برنامه اقدام',urgent:'🚨 فوری',imp:'⚠️ مهم',rec:'✅ توصیه شده',
+    aiSummary:'ارزیابی هوش مصنوعی از زمین',
+    footer:'تهیه شده توسط ZaminAI · ابتکار توسعه افغانستان · zaminai.org',
+    confidential:'فقط برای مشاوره کشاورزی.',printBtn:'🖨️ چاپ / ذخیره به PDF',
+    months:['جنو','فبر','مار','اپر','می','جون','جول','اگس','سپت','اکت','نوم','دسم'],
+  },
+  ps:{
+    title:'د ZaminAI د ځمکې هوښیار راپور',subtitle:'د سپوږمکۍ پر بنسټ د کرنې تحلیل',
+    date:'د تحلیل نیټه',field:'ځمکه',area:'مساحت',province:'ولایت / سیمه',
+    source:'د معلوماتو سرچینه',geeSource:'ژوندۍ سپوږمکۍ (سنتینل-۲)',regSource:'سیمه‌ييز ډیټابیس',
+    health:'د ځمکې عمومي وضعیت',good:'ښه',mod:'منځنی',bad:'تر فشار لاندې',
+    sdGood:'د دې سیمې او موسم لپاره شنه پوښښ روغ دی.',
+    sdMod:'یو څه د بوټو فشار موندل شو — اوبه او مواد غذایي وګورئ.',
+    sdBad:'سخت فشار موندل شو — سمدلاسه اقدام پکار دی.',
+    metrics:'د سپوږمکۍ د شاخص اندازه‌ګیري',ndviLbl:'د بوټو روغتیا (NDVI)',
+    eviLbl:'پرمختللی شنوالی (EVI)',saviLbl:'د خاورې سره تنظیم شوی شنوالی (SAVI)',
+    mndwiLbl:'د اوبو شاخص (MNDWI)',lswiLbl:'د سطحي اوبو شاخص (LSWI)',
+    rainLbl:'کلني باران',
+    trend:'د NDVI د شنوالي روند (۲۰۱۳ – اوس)',
+    trendNote:'ښیي چې ستاسو د ځمکې شنه پوښښ د لندست (۲۰۱۳–۲۰۱۸) او سنتینل-۲ (۲۰۱۹–اوس) سپوږمکو له لارې څنګه بدل شوی.',
+    worst:'بدترین (د ۲۰۲۲ وچکالي)',best:'غوره کال',
+    monthly:'د میاشتني باران ویش',monthlyNote:'د CHIRPS د باران معلومات · هر میاشت م.م',
+    soil:'د خاورې تحلیل',ph:'د خاورې اسیدیته',oc:'عضوي کاربن',clay:'د خټې سلنه',sand:'د شګې سلنه',
+    crops:'ستاسو د ځمکې لپاره وړاندیز شوي محصولات',confidence:'باور',
+    income:'د عاید اټکل',yieldEst:'اټکل شوی حاصل',seed:'تخم + سره',
+    irr:'اوبه + کارګر',gross:'مجموعي عاید',net:'خالصه ګټه',kgUnit:'کیلوګرام',afn:'افغاني',
+    todo:'د اقدام پلان',urgent:'🚨 بیړنی',imp:'⚠️ مهم',rec:'✅ وړاندیز',
+    aiSummary:'د AI د ځمکې ارزونه',
+    footer:'د ZaminAI لخوا جوړ شوی · د افغانستان د پراختیا ابتکار · zaminai.org',
+    confidential:'یوازې د کرنیزو مشورو لپاره.',printBtn:'🖨️ چاپ / PDF ته وساتئ',
+    months:['جنو','فبر','مار','اپر','مۍ','جون','جول','اګس','سپت','اکت','نوم','دسم'],
+  }
+};
+
+function makeTrendSVG(trend,lang){
+  if(!trend)return'';
+  const entries=Object.entries(trend).filter(([,v])=>v!=null&&!isNaN(v)).sort((a,b)=>a[0]-b[0]);
+  if(entries.length<2)return'';
+  const T=RPT[lang]||RPT.en;
+  const W=560,H=200,PL=50,PR=20,PT=20,PB=35;
+  const cW=W-PL-PR,cH=H-PT-PB;
+  const vals=entries.map(([,v])=>parseFloat(v));
+  const years=entries.map(([y])=>y);
+  const maxV=0.65,minV=0;
+  const xi=i=>PL+i/(entries.length-1)*cW;
+  const yv=v=>PT+cH-(v-minV)/(maxV-minV)*cH;
+  const lastV=vals[vals.length-1];
+  const lineCol=lastV>=0.30?'#16a34a':lastV>=0.18?'#d97706':'#dc2626';
+  const gradId='tg'+Math.floor(Math.random()*9999);
+  const pathD=vals.map((v,i)=>(i===0?'M':'L')+xi(i).toFixed(1)+','+yv(v).toFixed(1)).join(' ');
+  const fillD=pathD+' L'+xi(vals.length-1).toFixed(1)+','+(PT+cH).toFixed(1)+' L'+PL.toFixed(1)+','+(PT+cH).toFixed(1)+' Z';
+  const maxVal=Math.max(...vals),minVal=Math.min(...vals);
+  const dots=vals.map((v,i)=>{
+    const col=v>=0.30?'#16a34a':v>=0.18?'#d97706':'#dc2626';
+    const isBest=v===maxVal,isWorst=v===minVal;
+    const r=isBest||isWorst?5:3.5;
+    const lbl=isBest?`<text x="${xi(i).toFixed(1)}" y="${(yv(v)-9).toFixed(1)}" text-anchor="middle" font-size="9" fill="#16a34a">${T.best}</text>`:isWorst?`<text x="${xi(i).toFixed(1)}" y="${(yv(v)-9).toFixed(1)}" text-anchor="middle" font-size="9" fill="#dc2626">${T.worst}</text>`:'';
+    return`${lbl}<circle cx="${xi(i).toFixed(1)}" cy="${yv(v).toFixed(1)}" r="${r}" fill="${col}" stroke="#fff" stroke-width="1.5"/>`;
+  }).join('');
+  const gridLines=[0,0.2,0.4,0.6].map(v=>`<line x1="${PL}" y1="${yv(v).toFixed(1)}" x2="${W-PR}" y2="${yv(v).toFixed(1)}" stroke="#e5e7eb" stroke-width="0.5"/><text x="${PL-5}" y="${(yv(v)+4).toFixed(1)}" text-anchor="end" font-size="10" fill="#9ca3af">${v.toFixed(1)}</text>`).join('');
+  const xLabels=years.filter((_,i)=>i===0||i===years.length-1||years[i]%2===0).map((yr,_,arr)=>{const i=years.indexOf(yr);return`<text x="${xi(i).toFixed(1)}" y="${H-5}" text-anchor="middle" font-size="10" fill="#6b7280">${yr}</text>`;}).join('');
+  return`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:${W}px;display:block"><defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${lineCol}" stop-opacity=".15"/><stop offset="100%" stop-color="${lineCol}" stop-opacity="0"/></linearGradient></defs>${gridLines}<path d="${fillD}" fill="url(#${gradId})"/><path d="${pathD}" fill="none" stroke="${lineCol}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${dots}${xLabels}</svg>`;
+}
+
+function makeRainSVG(monthly,lang){
+  if(!monthly||!monthly.length)return'';
+  const T=RPT[lang]||RPT.en;
+  const W=560,H=160,PL=45,PR=15,PT=10,PB=30;
+  const cW=W-PL-PR,cH=H-PT-PB;
+  const maxR=Math.max(...monthly,1)*1.15;
+  const barW=cW/12*0.6,gap=cW/12;
+  const bars=monthly.map((v,i)=>{
+    const bH=Math.max(2,(v/maxR)*cH);
+    const bX=PL+i*gap+(gap-barW)/2;
+    const bY=PT+cH-bH;
+    const lbl=v>5?`<text x="${(bX+barW/2).toFixed(1)}" y="${(bY-3).toFixed(1)}" text-anchor="middle" font-size="8" fill="#0284c7">${Math.round(v)}</text>`:'';
+    return`${lbl}<rect x="${bX.toFixed(1)}" y="${bY.toFixed(1)}" width="${barW.toFixed(1)}" height="${bH.toFixed(1)}" rx="2" fill="#0284c7" opacity="0.7"/><text x="${(bX+barW/2).toFixed(1)}" y="${H-5}" text-anchor="middle" font-size="9" fill="#6b7280">${T.months[i]}</text>`;
+  }).join('');
+  return`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:${W}px;display:block"><line x1="${PL}" y1="${PT}" x2="${PL}" y2="${PT+cH}" stroke="#e5e7eb"/><line x1="${PL}" y1="${PT+cH}" x2="${W-PR}" y2="${PT+cH}" stroke="#e5e7eb"/>${bars}</svg>`;
+}
+
+function buildReportHTML(){
+  const d=fieldData;
+  if(!d)return'';
+  const lang=appLang,T=RPT[lang]||RPT.en,isRTL=(lang==='fa'||lang==='ps');
+  const ndvi=d.ndvi||0.28,mndwi=d.mndwi||-0.19,rain=d.rain||240;
+  const prov=d.prov||'Afghanistan',aJ=parseFloat(d.aJ)||5,aHa=parseFloat(d.aHa)||1;
+  const evi=d.evi,savi=d.savi,lswi=d.lswi;
+  const healthCol=ndvi>=0.30?'#16a34a':ndvi>=0.18?'#d97706':'#dc2626';
+  const healthBg=ndvi>=0.30?'#f0fdf4':ndvi>=0.18?'#fefce8':'#fef2f2';
+  const healthTxt=ndvi>=0.30?T.good:ndvi>=0.18?T.mod:T.bad;
+  const healthDesc=ndvi>=0.30?T.sdGood:ndvi>=0.18?T.sdMod:T.sdBad;
+  const src=d.source==='gee_live'?T.geeSource:T.regSource;
+  const fieldLabel=d.prov?(d.prov+' Field'):'Field';
+  const geoNote=window._geoAddress?`<div style="font-size:11px;color:#6b7280;margin-top:2px">${window._geoAddress}</div>`:'';
+  const dateStr=new Date().toLocaleDateString(lang==='fa'?'fa-AF':lang==='ps'?'ps-AF':'en-GB',{day:'numeric',month:'long',year:'numeric'});
+  // Income calculation
+  const yieldKg=Math.round(aHa*ndvi*2800);
+  const seedCost=Math.round(aJ*800);
+  const irrCost=Math.round(aJ*1200);
+  const grossInc=Math.round(yieldKg*18);
+  const netProfit=grossInc-seedCost-irrCost;
+  // Irrigation days
+  const irrDays=mndwi<-0.20?2:mndwi<-0.10?4:6;
+  const fertKg=Math.round(aJ*35);
+  // AI summary paragraph
+  const aiPara=(()=>{
+    const ndviStr=ndvi.toFixed(3),rainStr=Math.round(rain),mStr=mndwi.toFixed(3);
+    const crop=(d.crops&&d.crops[0])?(lang==='fa'?(d.crops[0].label_fa||d.crops[0].label_en):lang==='ps'?(d.crops[0].label_ps||d.crops[0].label_en):d.crops[0].label_en):'wheat';
+    if(lang==='fa'){
+      const status=ndvi>=0.30?'خوب':ndvi>=0.18?'متوسط':'تحت فشار';
+      const waterStatus=mndwi>-0.05?'آب کافی است':'کم‌آبی شناسایی شد';
+      return`تحلیل ماهواره‌ای نشان می‌دهد که زمین شما در ولایت ${prov} با NDVI ${ndviStr} در وضعیت <strong>${status}</strong> است. ${waterStatus} (MNDWI: ${mStr}) و بارندگی سالانه ${rainStr} م.م ثبت شده است. محتمل‌ترین محصول موجود ${crop} با اطمینان بالا تشخیص داده شده است. ${mndwi<-0.05?`توصیه فوری: ظرف ${irrDays}–${irrDays+2} روز آبیاری کنید.`:ndvi<0.28?`توصیه: کود نیتروژن به میزان ${fertKg} کیلوگرام اعمال کنید.`:'وضعیت کلی رضایت‌بخش است — ادامه مراقبت معمول.'}`;
+    }
+    if(lang==='ps'){
+      const status=ndvi>=0.30?'ښه':ndvi>=0.18?'منځنی':'تر فشار لاندې';
+      const waterStatus=mndwi>-0.05?'اوبه کافي دي':'د اوبو کمښت موندل شو';
+      return`د سپوږمکۍ تحلیل ښیي چې ستاسو ځمکه د ${prov} ولایت کې د NDVI ${ndviStr} سره <strong>${status}</strong> وضعیت کې ده. ${waterStatus} (MNDWI: ${mStr}) او کلنی باران ${rainStr} م.م دی. د احتمال له مخې ${crop} محصول لوړ باور سره تشخیص شوی. ${mndwi<-0.05?`سمدلاسه وړاندیز: د ${irrDays}–${irrDays+2} ورځو دننه اوبه ورکړئ.`:ndvi<0.28?`وړاندیز: ${fertKg} کیلوګرام یوریا سره ورکړئ.`:'عمومي وضعیت سم دی — د معمول پاملرنه دوام ورکړئ.'}`;
+    }
+    const status=ndvi>=0.30?'good':ndvi>=0.18?'moderate':'stressed';
+    const waterStatus=mndwi>-0.05?'Water levels are adequate':'Water stress was detected';
+    return`Satellite analysis shows your field in ${prov} with NDVI ${ndviStr} is in <strong>${status}</strong> condition. ${waterStatus} (MNDWI: ${mStr}) and annual rainfall is ${rainStr}mm. Most likely crop is ${crop} (high confidence). ${mndwi<-0.05?`Immediate action: irrigate within ${irrDays}–${irrDays+2} days.`:ndvi<0.28?`Recommendation: apply ${fertKg}kg urea fertilizer.`:'Overall field condition is satisfactory — continue normal care.'}`;
+  })();
+  // Metrics rows
+  const metricRows=[
+    {l:T.ndviLbl,v:ndvi,col:ndvi>=0.30?'#16a34a':ndvi>=0.18?'#d97706':'#dc2626',badge:ndvi>=0.30?'●':ndvi>=0.18?'●':'●'},
+    evi!=null?{l:T.eviLbl,v:evi,col:'#22c55e'}:null,
+    savi!=null?{l:T.saviLbl,v:savi,col:'#4ade80'}:null,
+    {l:T.mndwiLbl,v:mndwi,col:mndwi>-0.05?'#0284c7':mndwi>-0.15?'#f59e0b':'#dc2626'},
+    lswi!=null?{l:T.lswiLbl,v:lswi,col:'#38bdf8'}:null,
+    {l:T.rainLbl,v:rain,col:'#0284c7',unit:'mm/yr',raw:true},
+  ].filter(Boolean).map(m=>`<tr><td style="padding:9px 14px;border-bottom:1px solid #f3f4f6;font-size:13px">${m.l}</td><td style="padding:9px 14px;border-bottom:1px solid #f3f4f6;font-family:monospace;font-size:16px;font-weight:700;color:${m.col}">${m.raw?m.v:parseFloat(m.v).toFixed(3)}</td><td style="padding:9px 14px;border-bottom:1px solid #f3f4f6;font-size:12px;color:#6b7280">${m.unit||''}</td></tr>`).join('');
+  // Crops
+  const cropsRows=(d.crops||[]).slice(0,3).map((c,i)=>{
+    const lbl=lang==='fa'?(c.label_fa||c.label_en):lang==='ps'?(c.label_ps||c.label_en):c.label_en;
+    const conf=Math.round((c.confidence||0.5)*100);
+    return`<tr><td style="padding:9px 14px;border-bottom:1px solid #f3f4f6">${i+1}. ${lbl}</td><td style="padding:9px 14px;border-bottom:1px solid #f3f4f6"><div style="background:#f3f4f6;border-radius:20px;height:8px;width:120px"><div style="background:${healthCol};height:8px;border-radius:20px;width:${conf}%"></div></div></td><td style="padding:9px 14px;border-bottom:1px solid #f3f4f6;font-family:monospace;font-size:13px">${conf}%</td></tr>`;
+  }).join('');
+  // Actions
+  const actions=[];
+  if(mndwi<-0.05)actions.push({t:T.urgent,col:'#dc2626',bg:'#fef2f2',txt:lang==='fa'?`ظرف ${irrDays}–${irrDays+2} روز آبیاری کنید — ۵۰–۷۰ م.م اعمال کنید`:lang==='ps'?`د ${irrDays}–${irrDays+2} ورځو دننه اوبه ورکړئ — ۵۰–۷۰ م.م`:`Irrigate within ${irrDays}–${irrDays+2} days — apply 50–70mm`});
+  if(ndvi<0.28)actions.push({t:T.imp,col:'#d97706',bg:'#fefce8',txt:lang==='fa'?`کود اوره اعمال کنید — ${fertKg} کیلوگرام (۳۵ کیلو/جریب)`:lang==='ps'?`یوریا سره واچوئ — ${fertKg} کیلوګرام (۳۵ کیلو/جریب)`:`Apply urea fertilizer — ${fertKg} kg (35 kg/jerib)`});
+  if(rain<200)actions.push({t:T.rec,col:'#16a34a',bg:'#f0fdf4',txt:lang==='fa'?'به محصولات مقاوم به خشکی مثل زعفران یا نخود تغییر دهید':lang==='ps'?'د وچکالۍ زغملو محصولاتو ته لاړ شئ — زعفران یا نخود':'Switch to drought-tolerant crops — saffron or chickpeas'});
+  if(!actions.length)actions.push({t:T.rec,col:'#16a34a',bg:'#f0fdf4',txt:lang==='fa'?'وضعیت زمین رضایت‌بخش است. ادامه آبیاری و مراقبت معمول.':lang==='ps'?'د ځمکې وضعیت سم دی. د معمول اوبو او پاملرنې دوام ورکړئ.':'Field condition is satisfactory. Continue normal irrigation and care.'});
+  const actionsHTML=actions.map(a=>`<div style="background:${a.bg};border-${isRTL?'right':'left'}:4px solid ${a.col};border-radius:0 8px 8px 0;padding:10px 14px;margin-bottom:8px"><div style="font-weight:700;color:${a.col};font-size:13px">${a.t}</div><div style="font-size:13px;margin-top:3px;color:#374151">${a.txt}</div></div>`).join('');
+  // Soil
+  const soilHTML=d.soil&&d.soil.ph?`<div style="margin-bottom:24px"><div style="font-size:16px;font-weight:700;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #f3f4f6">${T.soil}</div><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px">${d.soil.ph?`<div style="background:#f9fafb;border-radius:10px;padding:14px"><div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">${T.ph}</div><div style="font-size:22px;font-weight:700;margin-top:4px">${d.soil.ph}</div></div>`:''} ${d.soil.organic_carbon?`<div style="background:#f9fafb;border-radius:10px;padding:14px"><div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">${T.oc}</div><div style="font-size:22px;font-weight:700;margin-top:4px">${d.soil.organic_carbon}%</div></div>`:''} ${d.soil.clay?`<div style="background:#f9fafb;border-radius:10px;padding:14px"><div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">${T.clay}</div><div style="font-size:22px;font-weight:700;margin-top:4px">${d.soil.clay}%</div></div>`:''} ${d.soil.sand?`<div style="background:#f9fafb;border-radius:10px;padding:14px"><div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">${T.sand}</div><div style="font-size:22px;font-weight:700;margin-top:4px">${d.soil.sand}%</div></div>`:''}</div></div>`:'';
+  const trendSVG=makeTrendSVG(d.trend||{},lang);
+  const rainSVG=makeRainSVG(d.monthly_rain,lang);
+  return`<!DOCTYPE html><html lang="${lang}" dir="${isRTL?'rtl':'ltr'}"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${T.title}</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans',sans-serif;color:#1f2937;background:#fff;font-size:14px;line-height:1.6}.page{max-width:780px;margin:0 auto;padding:28px 28px 40px}table{border-collapse:collapse;width:100%}@media print{.no-print{display:none!important}.page{padding:12mm 15mm;max-width:none}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}@page{margin:15mm}</style></head><body><div class="page"><div class="no-print" style="text-align:${isRTL?'right':'left'};margin-bottom:20px"><button onclick="window.print()" style="padding:10px 22px;background:#16a34a;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600">${T.printBtn}</button></div>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #16a34a;padding-bottom:16px;margin-bottom:22px"><div><div style="font-size:26px;font-weight:800;color:#16a34a">🌱 ZaminAI</div><div style="font-size:13px;color:#6b7280;margin-top:3px">${T.subtitle}</div></div><div style="text-align:${isRTL?'left':'right'}"><div style="font-size:11px;color:#6b7280;text-transform:uppercase">${T.date}</div><div style="font-weight:700;font-size:14px;margin-top:2px">${dateStr}</div></div></div>
+<div style="background:#f0fdf4;border-radius:12px;padding:18px;margin-bottom:22px;display:grid;grid-template-columns:1fr 1fr;gap:14px"><div><div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${T.field}</div><div style="font-size:18px;font-weight:700">${fieldLabel}</div>${geoNote}</div><div><div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${T.area}</div><div style="font-size:18px;font-weight:700">${aJ} jereb · ${aHa} ha</div></div><div><div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${T.province}</div><div style="font-size:15px;font-weight:600">${prov}</div></div><div><div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${T.source}</div><div style="font-size:13px;font-weight:600">${src}</div></div></div>
+<div style="background:${healthBg};border:2px solid ${healthCol};border-radius:12px;padding:18px;margin-bottom:22px;display:flex;align-items:center;gap:16px"><div style="width:56px;height:56px;background:${healthCol};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;flex-shrink:0">${ndvi>=0.30?'✓':ndvi>=0.18?'!':'⚠'}</div><div style="flex:1"><div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:${healthCol}">${T.health}</div><div style="font-size:24px;font-weight:800;color:${healthCol}">${healthTxt}</div><div style="font-size:13px;color:#374151;margin-top:3px">${healthDesc}</div></div><div style="background:#fff;border-radius:10px;padding:10px 18px;text-align:center;flex-shrink:0"><div style="font-family:monospace;font-size:34px;font-weight:800;color:${healthCol}">${ndvi.toFixed(3)}</div><div style="font-size:10px;color:#6b7280;text-transform:uppercase">NDVI</div></div></div>
+<div style="margin-bottom:24px"><div style="font-size:16px;font-weight:700;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #f3f4f6">${T.metrics}</div><table><tbody>${metricRows}</tbody></table></div>
+${trendSVG?`<div style="margin-bottom:24px"><div style="font-size:16px;font-weight:700;margin-bottom:6px;padding-bottom:8px;border-bottom:2px solid #f3f4f6">${T.trend}</div><div style="font-size:11px;color:#6b7280;margin-bottom:10px">${T.trendNote}</div>${trendSVG}</div>`:''}
+${rainSVG?`<div style="margin-bottom:24px"><div style="font-size:16px;font-weight:700;margin-bottom:6px;padding-bottom:8px;border-bottom:2px solid #f3f4f6">${T.monthly}</div><div style="font-size:11px;color:#6b7280;margin-bottom:10px">${T.monthlyNote}</div>${rainSVG}</div>`:''}
+${soilHTML}
+${cropsRows?`<div style="margin-bottom:24px"><div style="font-size:16px;font-weight:700;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #f3f4f6">${T.crops}</div><table><tbody>${cropsRows}</tbody></table></div>`:''}
+<div style="margin-bottom:24px"><div style="font-size:16px;font-weight:700;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #f3f4f6">${T.income}</div><table><tbody><tr><td style="padding:9px 14px;border-bottom:1px solid #f3f4f6">${T.yieldEst}</td><td style="padding:9px 14px;border-bottom:1px solid #f3f4f6;font-family:monospace;font-weight:700">${yieldKg.toLocaleString()} ${T.kgUnit}</td></tr><tr><td style="padding:9px 14px;border-bottom:1px solid #f3f4f6">${T.seed}</td><td style="padding:9px 14px;border-bottom:1px solid #f3f4f6;font-family:monospace;color:#dc2626">−${seedCost.toLocaleString()} ${T.afn}</td></tr><tr><td style="padding:9px 14px;border-bottom:1px solid #f3f4f6">${T.irr}</td><td style="padding:9px 14px;border-bottom:1px solid #f3f4f6;font-family:monospace;color:#dc2626">−${irrCost.toLocaleString()} ${T.afn}</td></tr><tr><td style="padding:9px 14px;border-bottom:1px solid #f3f4f6">${T.gross}</td><td style="padding:9px 14px;border-bottom:1px solid #f3f4f6;font-family:monospace;color:#16a34a;font-weight:700">${grossInc.toLocaleString()} ${T.afn}</td></tr><tr style="background:#f0fdf4"><td style="padding:12px 14px;font-weight:700;font-size:15px">${T.net}</td><td style="padding:12px 14px;font-family:monospace;font-size:18px;font-weight:800;color:${netProfit>0?'#16a34a':'#dc2626'}">${netProfit>0?'+':''}${netProfit.toLocaleString()} ${T.afn}</td></tr></tbody></table></div>
+<div style="margin-bottom:24px"><div style="font-size:16px;font-weight:700;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #f3f4f6">${T.todo}</div>${actionsHTML}</div>
+<div style="margin-bottom:28px;background:#f8faff;border-radius:12px;padding:18px;border-left:4px solid #6366f1"><div style="font-size:13px;font-weight:700;color:#6366f1;margin-bottom:8px">${T.aiSummary}</div><div style="font-size:13px;line-height:1.7;color:#374151">${aiPara}</div></div>
+<div style="margin-top:32px;padding-top:16px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><div style="font-size:11px;color:#9ca3af">${T.footer}</div><div style="font-size:11px;color:#9ca3af">${T.confidential}</div></div></div></body></html>`;
+}
+
+function downloadReport(){
+  if(!fieldData){notify('Analyse a field first');return;}
+  const html=buildReportHTML();
+  const w=window.open('','_blank','width=860,height=720');
+  if(!w){notify('Allow popups to download the report');return;}
+  w.document.write(html);
+  w.document.close();
+  setTimeout(()=>w.print(),900);
+}
+
+// ════════════════════════════════════════════════════════════════
 // REPORT TRANSLATIONS (en / fa / ps)
 // Paste this ABOVE function renderReport(){ ... }
 // Maiwand: polish the Dari (fa) and Pashto (ps) wording as needed.
@@ -1790,7 +2063,8 @@ const RT={
     goodBiomass:'Good biomass', lowBiomass:'Low biomass', soilAdj:'Corrects for bare soil background',
     goodWater:'Good water', modWater:'Moderate', lowWaterSoon:'Low — irrigate soon',
     goodCanopy:'Good canopy water', dryCanopy:'Dry canopy — water stress',
-    drawNew:'✏️ Draw another field →'
+    drawNew:'✏️ Draw another field →',
+    dlReport:'📥 Download Report'
   },
   fa:{
     field:'📍 زمین شما', jereb:'جریب', ha:'هکتار',
@@ -1833,7 +2107,8 @@ const RT={
     goodBiomass:'زیست‌توده خوب', lowBiomass:'زیست‌توده کم', soilAdj:'اثر خاک لخت را تصحیح می‌کند',
     goodWater:'آب خوب', modWater:'متوسط', lowWaterSoon:'کم — به‌زودی آبیاری کنید',
     goodCanopy:'آب کافی در پوشش', dryCanopy:'پوشش خشک — فشار آبی',
-    drawNew:'✏️ رسم زمین دیگر →'
+    drawNew:'✏️ رسم زمین دیگر →',
+    dlReport:'📥 دانلود گزارش'
   },
   ps:{
     field:'📍 ستاسو ځمکه', jereb:'جریب', ha:'هکتار',
@@ -1876,7 +2151,8 @@ const RT={
     goodBiomass:'ښه بایوماس', lowBiomass:'کم بایوماس', soilAdj:'د خالي خاورې اغیز سموي',
     goodWater:'ښه اوبه', modWater:'منځنی', lowWaterSoon:'کم — ژر اوبه ورکړئ',
     goodCanopy:'په پوښښ کې ښه اوبه', dryCanopy:'وچ پوښښ — د اوبو فشار',
-    drawNew:'✏️ بله ځمکه وکاږئ →'
+    drawNew:'✏️ بله ځمکه وکاږئ →',
+    dlReport:'📥 راپور ډاونلوډ کړئ'
   }
 };
 function rt(k){var t=RT[appLang]||RT.en;return (t[k]!=null?t[k]:RT.en[k]);}
@@ -1929,7 +2205,8 @@ function renderReport(){
     '<div class="rep-sec"><div class="rep-title">'+rt('income')+'</div>'+iRows+'</div>'+
     rainHTML+soilHTML+seasonHTML+
     '<div class="rep-sec"><button onclick="openAIPanel()" style="width:100%;padding:13px;background:var(--gd);color:#4ade80;border:none;border-radius:8px;font-family:var(--M);font-size:13px;cursor:pointer;letter-spacing:.04em">'+rt('askAI')+'</button>'+
-    '<button onclick="closeRp();tbDraw()" style="width:100%;padding:11px;background:var(--bg);color:var(--g);border:1px solid var(--gbr);border-radius:8px;font-family:var(--M);font-size:12px;cursor:pointer;letter-spacing:.04em;margin-top:8px">'+rt('drawNew')+'</button></div>';
+    '<button onclick="closeRp();tbDraw()" style="width:100%;padding:11px;background:var(--bg);color:var(--g);border:1px solid var(--gbr);border-radius:8px;font-family:var(--M);font-size:12px;cursor:pointer;letter-spacing:.04em;margin-top:8px">'+rt('drawNew')+'</button>'+
+    '<button onclick="downloadReport()" style="width:100%;padding:11px;background:#fff;color:#0284c7;border:2px solid #0284c7;border-radius:8px;font-family:var(--M);font-size:12px;cursor:pointer;letter-spacing:.04em;margin-top:6px">'+rt('dlReport')+'</button></div>';
 
   setTimeout(initMiniMap,1000);
   setTimeout(()=>{const b=document.getElementById('sbdg');if(b){b.innerHTML=rt('saveComplete');b.style.background='var(--gb)';}},2000);
@@ -2274,7 +2551,9 @@ async function sendQ(q){
   msgs.scrollTop=msgs.scrollHeight;
   let reply='';
   try{
-    const ctx=fieldData?`NDVI=${fieldData.ndvi},Water=${fieldData.mndwi},Rain=${fieldData.rain}mm,Area=${fieldData.aJ}jereb,Province=${fieldData.prov||'Afghanistan'}`:'No field data.';
+    const langHint=appLang==='fa'?'[RESPOND ENTIRELY IN DARI/FARSI — NO ENGLISH] ':appLang==='ps'?'[RESPOND ENTIRELY IN PASHTO — NO ENGLISH] ':'';
+    const cropCtx=fieldData&&fieldData.crops&&fieldData.crops[0]?`, TopCrop=${fieldData.crops[0].label_en}`:'';
+    const ctx=fieldData?`${langHint}NDVI=${fieldData.ndvi},Water=${fieldData.mndwi},Rain=${fieldData.rain}mm,Area=${fieldData.aJ}jereb,AreaHa=${fieldData.aHa}ha,Province=${fieldData.prov||'Afghanistan'}${cropCtx},FieldHealth=${fieldData.ndvi>=0.30?'Good':fieldData.ndvi>=0.18?'Moderate':'Stressed'}`:'No field data.';
     const res=await Promise.race([
       fetch(API+'/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q,context:ctx,language:appLang,field_data:fieldData?{ndvi:fieldData.ndvi,mndwi:fieldData.mndwi,water:fieldData.mndwi,rain:fieldData.rain,area_jereb:fieldData.aJ,area_ha:fieldData.aHa,province:fieldData.prov}:null,farmer_id:farmerId,field_id:fieldData?fieldData.field_id:null})}),
       new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),12000))
