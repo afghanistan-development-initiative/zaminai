@@ -972,15 +972,19 @@ updLand();
 
 // Apply live GEE result to fieldData — shared by sync and async paths
 function _applyLiveData(d){
-  fieldData.ndvi=d.ndvi; fieldData.mndwi=d.mndwi||d.water; fieldData.rain=d.rain;
-  fieldData.trend=d.trend||d.ndvi_trend; fieldData.evi=d.evi||null;
-  fieldData.savi=d.savi||null; fieldData.lswi=d.lswi||null;
-  fieldData.crops=d.crops||[]; fieldData.season=d.season||[];
-  fieldData.monthly_rain=d.monthly_rain||null; fieldData.source=d.source||'gee_live';
-  fieldData.soil=d.soil||null; fieldData.ndre=d.ndre||null;
-  fieldData.gndvi=d.gndvi||null; fieldData.vci=d.vci||null;
-  fieldData.ndwi=d.ndwi||null; fieldData.ndmi=d.ndmi||null;
-  fieldData.drought=d.drought_index||null;
+  const n=v=>v!=null?v:null;
+  fieldData.ndvi=n(d.ndvi); fieldData.mndwi=n(d.mndwi??d.water); fieldData.rain=n(d.rain);
+  fieldData.trend=d.trend||d.ndvi_trend||fieldData.trend;
+  fieldData.evi=n(d.evi); fieldData.savi=n(d.savi); fieldData.lswi=n(d.lswi);
+  fieldData.crops=d.crops||fieldData.crops||[];
+  fieldData.season=d.season||fieldData.season||[];
+  fieldData.monthly_rain=d.monthly_rain||fieldData.monthly_rain||null;
+  fieldData.source=d.source||'gee_live';
+  fieldData.soil=d.soil||fieldData.soil||null;
+  fieldData.ndre=n(d.ndre); fieldData.gndvi=n(d.gndvi);
+  fieldData.vci=n(d.vci); fieldData.ndwi=n(d.ndwi); fieldData.ndmi=n(d.ndmi);
+  fieldData.drought=n(d.drought_index);
+  if(d.prov||d.province)fieldData.prov=d.prov||d.province;
 }
 
 // ── APP STATE ─────────────────────────────────────────────────────────────────
@@ -1540,19 +1544,23 @@ else console.error('Report panel not found');
         return;
       }
 
-      // Poll for async result (up to 3 min)
+      // Poll for async result (up to 3 min, 36 × 5s)
+      let errStreak=0;
       for(let i=0;i<36;i++){
         await new Promise(res=>setTimeout(res,5000));
-        const poll = await fetch(`${API}/analyse-result/${start.task_id}`);
-        const pd   = await poll.json();
-        if(pd.status==='done'){
-          if(pd.data?.status==='success'&&pd.data?.ndvi){
-            _applyLiveData(pd.data); renderReport();
-            notify('🛰️ Live satellite data loaded');
+        try{
+          const poll = await fetch(`${API}/analyse-result/${start.task_id}`);
+          const pd   = await poll.json();
+          if(pd.status==='done'){
+            if(pd.data&&pd.data.status==='success'&&pd.data.ndvi!=null){
+              _applyLiveData(pd.data); renderReport();
+              notify('🛰️ Live satellite data loaded');
+            }
+            break;
           }
-          break;
-        }
-        if(pd.status==='error') break;
+          if(pd.status==='error'){errStreak++;if(errStreak>=3)break;}
+          else errStreak=0;
+        }catch(e){errStreak++;if(errStreak>=3)break;}
       }
     }catch(e){}
   })();
