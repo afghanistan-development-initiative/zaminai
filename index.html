@@ -374,7 +374,64 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
 .weather-day .rain{font-size:9px;color:#bae6fd;margin-top:2px;}
 .weather-alert{background:rgba(220,38,38,.9);border-radius:6px;padding:6px 10px;margin-top:8px;font-size:11px;font-family:var(--M);}
 @media(max-width:1024px){nav{padding:1rem 2rem;}.nav-links{display:none;}section{padding:5rem 2rem;}.hero{padding:7rem 2rem 4rem;}.cta{padding:6rem 2rem;}footer{padding:2rem;}.pa,.feat-grid,.roadmap-grid,.yolo-grid,.global-grid,.calc-wrap{grid-template-columns:1fr;}.steps{grid-template-columns:1fr 1fr;}.sdg-grid{grid-template-columns:repeat(3,1fr);}.lang-cards,.stat-row,.gstats{grid-template-columns:1fr 1fr;}}
-@media(max-width:600px){.steps,.sdg-grid,.lang-cards,.stat-row,.gstats{grid-template-columns:1fr;}.rp{width:100%;}.toolbar{padding:4px 6px;gap:3px;}.tb{padding:6px 9px;font-size:10px;}}
+@media(max-width:600px){.steps,.sdg-grid,.lang-cards,.stat-row,.gstats{grid-template-columns:1fr;}}
+
+/* ── Location Picker ─────────────────────────────────────────────────────── */
+.loc-overlay{position:absolute;inset:0;background:rgba(0,0,0,.3);z-index:490;display:none;}
+.loc-overlay.show{display:block;}
+.loc-picker{position:absolute;inset:0;z-index:500;background:#fff;display:flex;flex-direction:column;overflow:hidden;}
+.loc-picker.hidden{display:none;}
+.loc-head{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--gbr);padding:.9rem 1.1rem;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;}
+.loc-title{font-family:var(--D);font-size:24px;color:var(--g);line-height:1.1;}
+.loc-subtitle{font-family:var(--M);font-size:11px;color:var(--m2);margin-top:3px;}
+.loc-skip{font-family:var(--M);font-size:11px;color:var(--m2);border:1px solid var(--gbr);border-radius:20px;padding:6px 14px;background:transparent;cursor:pointer;white-space:nowrap;margin-top:2px;flex-shrink:0;}
+.loc-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:3rem;}
+.loc-search-wrap{padding:1rem 1.1rem .5rem;position:relative;}
+.loc-search{width:100%;padding:14px 16px;border:2px solid var(--gbr);border-radius:12px;font-size:16px;color:var(--t);outline:none;box-sizing:border-box;-webkit-appearance:none;background:#fff;}
+.loc-search:focus{border-color:var(--g);}
+.loc-results{position:absolute;left:1.1rem;right:1.1rem;top:calc(100% - .4rem);background:#fff;border:1px solid var(--gbr);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:20;display:none;max-height:220px;overflow-y:auto;}
+.loc-results.show{display:block;}
+.loc-ri{padding:13px 15px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--gbr);line-height:1.4;color:var(--t);}
+.loc-ri:last-child{border-bottom:none;}
+.loc-ri:active{background:var(--gd);}
+.loc-gps{display:flex;align-items:center;justify-content:center;gap:8px;width:calc(100% - 2.2rem);margin:.3rem 1.1rem .8rem;padding:14px;background:var(--gd);border:none;border-radius:12px;color:var(--g);font-size:14px;cursor:pointer;font-weight:600;letter-spacing:.02em;}
+.loc-sec{font-family:var(--M);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--m2);padding:.8rem 1.1rem .4rem;}
+.loc-countries{display:flex;flex-wrap:wrap;gap:8px;padding:0 1.1rem .6rem;}
+.loc-cbtn{display:flex;align-items:center;gap:7px;padding:11px 14px;border:1px solid var(--gbr);border-radius:10px;background:#fff;cursor:pointer;font-size:14px;transition:border-color .15s;color:var(--t);}
+.loc-cbtn:active{border-color:var(--g);background:var(--gd);}
+.loc-provs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 1.1rem;}
+.loc-pbtn{padding:14px 6px;border:1px solid var(--gbr);border-radius:10px;background:#fff;cursor:pointer;font-size:13px;text-align:center;transition:all .15s;color:var(--t);line-height:1.3;}
+.loc-pbtn:active{border-color:var(--g);background:var(--gd);color:var(--g);}
+
+/* On wider screens — centred modal */
+@media(min-width:640px){
+  .loc-overlay{display:block !important;pointer-events:none;}
+  .loc-overlay.show{pointer-events:auto;}
+  .loc-picker{inset:auto;top:50%;left:50%;transform:translate(-50%,-50%);width:500px;max-height:82vh;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.18);}
+  .loc-picker.hidden{display:none;}
+  .loc-provs{grid-template-columns:repeat(4,1fr);}
+}
+
+/* ── Mobile app improvements ─────────────────────────────────────────────── */
+@media(max-width:639px){
+  /* Toolbar moves to bottom for easier thumb reach */
+  .toolbar{top:auto;bottom:24px;transform:translateX(-50%);border-radius:40px;padding:6px 10px;gap:4px;}
+  .tb span{display:none;}
+  .tb{padding:10px 12px;font-size:16px;}
+  .tb-sep{height:20px;width:1px;}
+  /* Draw tip moves above toolbar */
+  .draw-tip{bottom:90px;}
+  /* Report panel slides up from bottom */
+  .rp{width:100%;right:0 !important;top:auto;bottom:-100%;height:88vh;border-left:none;border-top:1px solid var(--gbr);border-radius:20px 20px 0 0;box-shadow:0 -6px 32px rgba(0,0,0,.1);transition:bottom .4s cubic-bezier(.4,0,.2,1);}
+  .rp.open{bottom:0;}
+  /* Fields panel full width */
+  .fields-panel{width:100%;left:-100%;}
+  .fields-panel.open{left:0;}
+  /* GPS modal wider */
+  .gps-modal{width:calc(100vw - 2rem);}
+  /* Notification above toolbar */
+  .notif{bottom:100px;}
+}
 </style>
 </head>
 <body>
@@ -746,6 +803,30 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
   </div>
   <div class="ao-body">
     <div id="map"></div>
+
+    <!-- ── LOCATION PICKER ───────────────────────────────────────────────── -->
+    <div class="loc-overlay" id="locOverlay" onclick="hideLocPicker()"></div>
+    <div class="loc-picker hidden" id="locPicker">
+      <div class="loc-head">
+        <div>
+          <div class="loc-title" id="loc-ttl">📍 Where is your farm?</div>
+          <div class="loc-subtitle" id="loc-sub2">Select your country or province, or search your village</div>
+        </div>
+        <button class="loc-skip" onclick="hideLocPicker()" id="loc-skip">Skip →</button>
+      </div>
+      <div class="loc-body">
+        <div class="loc-search-wrap">
+          <input class="loc-search" id="locSearch" type="text" autocomplete="off" placeholder="🔍 Search any city, district or village...">
+          <div class="loc-results" id="locResults"></div>
+        </div>
+        <button class="loc-gps" onclick="locUseGPS()">📱 Use my current GPS location</button>
+        <div class="loc-sec" id="loc-csec">🌍 Select your country</div>
+        <div class="loc-countries" id="locCountries"></div>
+        <div class="loc-sec" id="loc-asec">🇦🇫 Afghanistan — select your province</div>
+        <div class="loc-provs" id="locProvinces"></div>
+      </div>
+    </div>
+
     <div class="fields-panel" id="fieldsPanel">
       <div class="fp-head">
         <div>
@@ -987,6 +1068,89 @@ function _applyLiveData(d){
   if(d.prov||d.province)fieldData.prov=d.prov||d.province;
 }
 
+// ── LOCATION PICKER ──────────────────────────────────────────────────────────
+const LOC_COUNTRIES=[
+  {n:'Afghanistan',e:'🇦🇫',lat:33.9,lon:67.7,z:6},
+  {n:'Pakistan',e:'🇵🇰',lat:30.4,lon:69.3,z:6},
+  {n:'Iran',e:'🇮🇷',lat:32.4,lon:53.7,z:6},
+  {n:'Tajikistan',e:'🇹🇯',lat:38.9,lon:71.1,z:7},
+  {n:'Uzbekistan',e:'🇺🇿',lat:41.4,lon:64.6,z:7},
+  {n:'Turkmenistan',e:'🇹🇲',lat:38.9,lon:59.6,z:7},
+  {n:'India',e:'🇮🇳',lat:20.6,lon:78.9,z:5},
+  {n:'Bangladesh',e:'🇧🇩',lat:23.7,lon:90.4,z:7},
+  {n:'Ethiopia',e:'🇪🇹',lat:9.1,lon:40.5,z:6},
+  {n:'Kenya',e:'🇰🇪',lat:0.0,lon:37.9,z:6},
+  {n:'Nigeria',e:'🇳🇬',lat:9.1,lon:8.7,z:6},
+  {n:'Yemen',e:'🇾🇪',lat:15.6,lon:48.5,z:7},
+];
+const LOC_AF=[
+  {n:'Kabul',lat:34.52,lon:69.17,z:11},{n:'Herat',lat:34.35,lon:62.20,z:11},
+  {n:'Kandahar',lat:31.62,lon:65.71,z:11},{n:'Mazar-i-Sharif',lat:36.70,lon:67.11,z:12},
+  {n:'Kunduz',lat:36.73,lon:68.87,z:11},{n:'Jalalabad',lat:34.43,lon:70.45,z:12},
+  {n:'Balkh',lat:36.76,lon:66.90,z:10},{n:'Baghlan',lat:36.13,lon:68.70,z:10},
+  {n:'Takhar',lat:36.73,lon:69.51,z:10},{n:'Badakhshan',lat:37.12,lon:70.90,z:9},
+  {n:'Bamyan',lat:34.82,lon:67.82,z:10},{n:'Ghazni',lat:33.55,lon:68.42,z:10},
+  {n:'Helmand',lat:31.35,lon:64.13,z:9},{n:'Nangarhar',lat:34.22,lon:70.43,z:10},
+  {n:'Faryab',lat:35.91,lon:64.58,z:10},{n:'Paktia',lat:33.75,lon:69.57,z:10},
+  {n:'Logar',lat:33.98,lon:69.20,z:10},{n:'Parwan',lat:34.97,lon:68.81,z:10},
+  {n:'Wardak',lat:34.37,lon:68.19,z:10},{n:'Zabul',lat:32.19,lon:67.18,z:9},
+  {n:'Uruzgan',lat:32.93,lon:66.00,z:9},{n:'Farah',lat:32.37,lon:62.11,z:9},
+  {n:'Badghis',lat:35.17,lon:63.77,z:9},{n:'Ghor',lat:34.10,lon:64.91,z:9},
+  {n:'Daikundi',lat:33.67,lon:66.05,z:9},{n:'Samangan',lat:36.31,lon:67.97,z:10},
+  {n:'Sar-e Pol',lat:36.22,lon:65.93,z:10},{n:'Jowzjan',lat:36.90,lon:65.66,z:10},
+  {n:'Laghman',lat:34.68,lon:70.15,z:10},{n:'Kunar',lat:34.84,lon:71.10,z:10},
+  {n:'Panjshir',lat:35.52,lon:69.61,z:10},{n:'Kapisa',lat:34.98,lon:69.62,z:11},
+  {n:'Khost',lat:33.34,lon:69.92,z:10},{n:'Nuristan',lat:35.25,lon:70.85,z:9},
+];
+function buildLocPicker(){
+  const cc=document.getElementById('locCountries');
+  if(cc)cc.innerHTML=LOC_COUNTRIES.map(c=>`<button class="loc-cbtn" onclick="locFlyTo(${c.lat},${c.lon},${c.z},'${c.n}')">${c.e} ${c.n}</button>`).join('');
+  const pp=document.getElementById('locProvinces');
+  if(pp)pp.innerHTML=LOC_AF.map(p=>`<button class="loc-pbtn" onclick="locFlyTo(${p.lat},${p.lon},${p.z},'${p.n}')">${p.n}</button>`).join('');
+  const s=document.getElementById('locSearch');
+  if(s){
+    let _t;
+    s.addEventListener('input',function(){clearTimeout(_t);const q=s.value.trim();if(q.length<2){document.getElementById('locResults').classList.remove('show');return;}_t=setTimeout(()=>locSearch(q),420);});
+    s.addEventListener('blur',function(){setTimeout(()=>document.getElementById('locResults').classList.remove('show'),250);});
+  }
+}
+function showLocPicker(){
+  document.getElementById('locPicker').classList.remove('hidden');
+  document.getElementById('locOverlay').classList.add('show');
+}
+function hideLocPicker(){
+  document.getElementById('locPicker').classList.add('hidden');
+  document.getElementById('locOverlay').classList.remove('show');
+  window._locShown=true;
+}
+function locFlyTo(lat,lon,zoom,name){
+  if(appMap)appMap.flyTo([lat,lon],zoom,{duration:1.5});
+  hideLocPicker();
+  notify('📍 '+name);
+}
+async function locSearch(q){
+  try{
+    const r=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6`,{headers:{'Accept-Language':'en'}});
+    const data=await r.json();
+    const el=document.getElementById('locResults');
+    if(!el)return;
+    if(!data.length){el.innerHTML='<div class="loc-ri" style="color:var(--m2)">No results — try a different spelling</div>';el.classList.add('show');return;}
+    el.innerHTML=data.map(d=>{
+      const parts=d.display_name.split(',').slice(0,3).join(', ');
+      return`<div class="loc-ri" onclick="locFlyTo(${d.lat},${d.lon},13,'${d.display_name.split(',')[0].replace(/'/g,'')}')">📍 ${parts}</div>`;
+    }).join('');
+    el.classList.add('show');
+  }catch(e){}
+}
+function locUseGPS(){
+  if(!navigator.geolocation){notify('GPS not supported on this browser');return;}
+  notify('📱 Getting your GPS location…');
+  navigator.geolocation.getCurrentPosition(
+    pos=>locFlyTo(pos.coords.latitude,pos.coords.longitude,14,'Your location'),
+    ()=>notify('⚠️ Could not get GPS — check browser permissions')
+  );
+}
+
 // ── APP STATE ─────────────────────────────────────────────────────────────────
 let mapInited=false,appMap=null,pts=[],polyLayer=null,ptMarkers=[],fieldData=null,selSize=0.5,appLang='en',isListening=false;
 let farmerId=null,farmerPhone=null,savedFields=[];
@@ -1070,11 +1234,15 @@ function skipLogin(){
 function _doOpenApp(){
   document.getElementById('appOverlay').classList.add('open');
   document.body.style.overflow='hidden';
-  // carry the main-page language into the app
   appLang=pgCurrentLang||'en';
   applyAppLang();
   if(!mapInited){setTimeout(initMap,100);}
   else if(appMap){setTimeout(()=>appMap.invalidateSize(),200);}
+  // Show location picker on first open (skip if user already has fields)
+  if(!window._locShown){
+    buildLocPicker();
+    setTimeout(showLocPicker, savedFields.length>0?99999:600);
+  }
 }
 
 function closeApp(){document.getElementById('appOverlay').classList.remove('open');document.body.style.overflow='';}
