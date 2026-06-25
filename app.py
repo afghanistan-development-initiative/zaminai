@@ -91,7 +91,7 @@ log.info(f"DB: {'Supabase connected' if sb_ok else 'disabled'}")
 # ════════════════════════════════════════════════════════════════════════════════
 
 EMBED_MODEL = "gemini-embedding-2"
-EMBED_DIM   = 3072
+EMBED_DIM   = 768
 
 rag_ok = False
 try:
@@ -102,17 +102,33 @@ try:
 except Exception:
     log.warning("RAG not ready — call GET /rag/setup for the SQL migration")
 
+def _auto_seed_rag():
+    """Seed knowledge base on first deployment if table is empty."""
+    try:
+        res = sb.table("knowledge_chunks").select("id", count="exact").execute()
+        if (res.count or 0) == 0 and GEMINI_KEY:
+            log.info("RAG table empty — auto-seeding knowledge base...")
+            stored = sum(
+                1 for doc in _RAG_SEED_DOCS
+                if rag_store(doc, source="seed_knowledge",
+                             metadata={"type": "domain_knowledge"})
+            )
+            log.info(f"✓ Auto-seeded {stored} knowledge chunks")
+    except Exception as e:
+        log.warning(f"Auto-seed RAG: {e}")
+
 
 def embed_text(text: str) -> list | None:
-    """Embed text using Google text-embedding-004 (768 dimensions)."""
+    """Embed text using gemini-embedding-2 truncated to 768 dims (fits pgvector limit)."""
     if not GEMINI_KEY or not text.strip():
         return None
     try:
         url = (f"https://generativelanguage.googleapis.com/v1beta"
                f"/models/{EMBED_MODEL}:embedContent?key={GEMINI_KEY}")
         resp = requests.post(url, json={
-            "model":   f"models/{EMBED_MODEL}",
-            "content": {"parts": [{"text": text[:8000]}]}
+            "model":            f"models/{EMBED_MODEL}",
+            "content":          {"parts": [{"text": text[:8000]}]},
+            "outputDimensionality": EMBED_DIM
         }, timeout=15)
         if resp.status_code == 200:
             return resp.json().get("embedding", {}).get("values")
@@ -146,20 +162,50 @@ def rag_store(text: str, source: str = "manual", metadata: dict | None = None) -
         return False
 
 
-def rag_retrieve(question: str, top_k: int = 4, threshold: float = 0.70) -> list[str]:
-    """Return top-k most similar knowledge chunks for a question."""
+def _cosine_similarity(a: list, b: list) -> float:
+    dot = sum(x * y for x, y in zip(a, b))
+    na  = sum(x * x for x in a) ** 0.5
+    nb  = sum(x * x for x in b) ** 0.5
+    return dot / (na * nb + 1e-10)
+
+
+def _parse_vec(raw) -> list | None:
+    """Parse a pgvector string '[0.1,0.2,...]' or list into a Python list."""
+    if isinstance(raw, list):
+        return raw
+    if isinstance(raw, str):
+        try:
+            import json
+            return json.loads(raw)
+        except Exception:
+            return None
+    return None
+
+
+def rag_retrieve(question: str, top_k: int = 4, threshold: float = 0.50) -> list[str]:
+    """Return top-k most similar knowledge chunks using in-Python cosine similarity."""
     if not sb_ok or not rag_ok or not GEMINI_KEY:
         return []
-    embedding = embed_text(question)
-    if not embedding:
+    q_emb = embed_text(question)
+    if not q_emb:
         return []
     try:
-        res = sb.rpc("match_knowledge_chunks", {
-            "query_embedding": embedding,
-            "match_count":     top_k,
-            "match_threshold": threshold
-        }).execute()
-        return [r["content"] for r in (res.data or [])]
+        rows = sb.table("knowledge_chunks").select("content,embedding,source").execute().data or []
+        scored = []
+        for row in rows:
+            vec = _parse_vec(row.get("embedding"))
+            if not vec:
+                continue
+            sim = _cosine_similarity(q_emb, vec)
+            if sim >= threshold:
+                scored.append((sim, row["content"], row.get("source", "")))
+        scored.sort(reverse=True)
+        # Format as "content [source]" so Gemini can cite the origin
+        return [
+            f"{c} [{s}]" if s and s not in ("manual", "analysis", "conversation")
+            else c
+            for _, c, s in scored[:top_k]
+        ]
     except Exception as e:
         log.warning(f"rag_retrieve: {e}")
         return []
@@ -711,8 +757,15 @@ def calc_area_ha(coords):
 
 def call_gemini(prompt):
     if not GEMINI_KEY: return None
-    models=["gemini-2.0-flash","gemini-2.5-flash","gemini-flash-latest"]
-    for model in models:
+    # gemini-1.5-flash: non-thinking, reliable, good for farming advice
+    # gemini-2.0-flash: faster, non-thinking
+    # gemini-2.5-flash: thinking model — needs higher token budget
+    models = [
+        ("gemini-1.5-flash",  {"temperature": 0.6, "maxOutputTokens": 500}),
+        ("gemini-2.0-flash",  {"temperature": 0.6, "maxOutputTokens": 500}),
+        ("gemini-2.5-flash",  {"temperature": 0.6, "maxOutputTokens": 2000}),
+    ]
+    for model, gen_cfg in models:
         try:
             url=(f"https://generativelanguage.googleapis.com/v1beta"
                  f"/models/{model}:generateContent?key={GEMINI_KEY}")
@@ -721,13 +774,19 @@ def call_gemini(prompt):
                 "safetySettings":[{"category":c,"threshold":"BLOCK_NONE"} for c in [
                     "HARM_CATEGORY_HARASSMENT","HARM_CATEGORY_HATE_SPEECH",
                     "HARM_CATEGORY_SEXUALLY_EXPLICIT","HARM_CATEGORY_DANGEROUS_CONTENT"]],
-                "generationConfig":{"temperature":0.6,"maxOutputTokens":280}
-            },timeout=14)
+                "generationConfig": gen_cfg
+            },timeout=20)
             if resp.status_code==200:
                 cands=resp.json().get("candidates",[])
                 if cands:
-                    txt=cands[0].get("content",{}).get("parts",[{}])[0].get("text","")
-                    if txt and len(txt)>8: return txt.strip()
+                    # Collect all non-thinking text parts (gemini-2.5 splits thinking + answer)
+                    parts = cands[0].get("content",{}).get("parts",[])
+                    txt = " ".join(
+                        p.get("text","") for p in parts
+                        if not p.get("thought", False) and p.get("text","")
+                    ).strip()
+                    if txt and len(txt) > 8:
+                        return txt
         except Exception as e:
             log.error(f"Gemini {model}: {e}")
     return None
@@ -958,9 +1017,15 @@ def serve_officer():
 
 @app.route("/health")
 def health():
+    rag_chunks = 0
+    if rag_ok and sb_ok:
+        try:
+            rag_chunks = sb.table("knowledge_chunks").select("id", count="exact").execute().count or 0
+        except Exception:
+            pass
     return jsonify({
         "status": "ok", "version": "8.0", "gee": gee_ok,
-        "database": sb_ok, "rag": rag_ok,
+        "database": sb_ok, "rag": rag_ok, "rag_chunks": rag_chunks,
         "ai": "gemini" if GEMINI_KEY else "smart_only",
         "satellites": ["sentinel2_10m", "landsat8_9_30m", "sentinel1_SAR_10m", "modis_LST_1km"],
         "indices": ["ndvi","evi","savi","mndwi","lswi","ndre","bsi"],
@@ -973,7 +1038,8 @@ def health():
             "/db/analysis/save", "/db/chat/save",
             "/alerts/save", "/alerts/<farmer_id>", "/alerts/delete",
             "/alerts/check", "/alerts/daily",
-            "/telegram/webhook", "/telegram/setup"
+            "/telegram/webhook", "/telegram/setup",
+            "/rag/setup", "/rag/seed", "/rag/ingest", "/rag/search", "/rag/stats"
         ]
     })
 
@@ -1543,11 +1609,16 @@ def ask():
                    "ps":"Pashto (پښتو). Proper Pashto farming terms. Eastern Arabic numerals.",
                    "en":"English. Concise and specific."}.get(language,"English.")
         # Retrieve relevant knowledge chunks from vector DB
-        rag_chunks = rag_retrieve(question, top_k=4, threshold=0.68)
-        rag_section = ("\n\nRelevant local knowledge:\n" + "\n\n".join(rag_chunks)) if rag_chunks else ""
+        rag_chunks = rag_retrieve(question, top_k=4, threshold=0.50)
+        rag_section = (
+            "\n\nVerified agronomic knowledge (WUR/FAO/ICARDA/FEWS NET):\n" +
+            "\n\n".join(f"• {c}" for c in rag_chunks)
+        ) if rag_chunks else ""
+        word_limit = "under 120 words" if rag_chunks else "under 90 words"
         prompt=(f"You are ZaminAI, expert agricultural advisor for Afghan smallholder farmers.\n"
                 f"Satellite data: {context}{rag_section}\n\nRespond ONLY in {lang_inst}\n"
-                f"Rules: exact amounts, under 90 words, speak as trusted local expert.\n\nQuestion: {question}")
+                f"Rules: use the verified knowledge above, give exact amounts, {word_limit}, "
+                f"speak as trusted local expert.\n\nQuestion: {question}")
         reply=call_gemini(prompt)
         if not reply or len(reply)<8:
             reply=smart_fallback(question,ndvi,water,rain,area_j,language,province)
@@ -3009,6 +3080,10 @@ def agent_chat():
                 q = f"[Field coordinates: {coords[:3]}…] {q}"
 
             system   = OFFICER_AGENT_PROMPT if role == "officer" else ORCHESTRATOR_PROMPT
+            # Inject RAG knowledge into the system prompt
+            rag_ctx = rag_retrieve(question, top_k=3, threshold=0.50)
+            if rag_ctx:
+                system = system + "\n\n## Relevant domain knowledge\n" + "\n\n".join(rag_ctx)
             history  = _agent_sessions.get(session_id, [])
             tool_ctx = _build_tool_context()
 
@@ -3246,6 +3321,14 @@ def diagnose():
 
         crop_ctx = f"The farmer says this is a {crop_hint} crop. " if crop_hint else ""
 
+        # Augment with RAG knowledge for detected disease/crop
+        rag_diag_ctx = ""
+        if rag_ok:
+            rag_query = f"{crop_hint or 'crop'} {yolo_result.get('detections', [{}])[0].get('label_en', 'disease') if yolo_result.get('detections') else 'disease pest treatment'} Afghanistan treatment"
+            rag_chunks = rag_retrieve(rag_query, top_k=2, threshold=0.45)
+            if rag_chunks:
+                rag_diag_ctx = "\n\nRelevant agronomic knowledge:\n" + "\n\n".join(rag_chunks)
+
         diagnosis_prompt = (
             f"{crop_ctx}{yolo_ctx}"
             "Examine this crop/plant photo carefully and answer:\n"
@@ -3256,6 +3339,7 @@ def diagnose():
             "5. One sentence: how to prevent this next season.\n\n"
             f"{lang_inst}\n"
             "Be concise. Afghan smallholder farmers will act directly on this advice."
+            f"{rag_diag_ctx}"
         )
 
         # ── Stage 2a: Claude Vision (preferred) ──────────────────────────────
@@ -3339,14 +3423,14 @@ create extension if not exists vector;
 create table if not exists knowledge_chunks (
     id         uuid    primary key default gen_random_uuid(),
     content    text    not null,
-    embedding  vector(3072),
+    embedding  vector(768),
     source     text    default 'manual',
     metadata   jsonb   default '{}',
     created_at timestamp default now()
 );
 
 create or replace function match_knowledge_chunks (
-    query_embedding  vector(3072),
+    query_embedding  vector(768),
     match_count      int     default 4,
     match_threshold  float   default 0.70
 )
@@ -3709,7 +3793,7 @@ def rag_search():
         d         = request.get_json(force=True)
         question  = d.get("question", "").strip()
         top_k     = int(d.get("top_k", 4))
-        threshold = float(d.get("threshold", 0.65))
+        threshold = float(d.get("threshold", 0.50))
         if not question:
             return jsonify({"error": "question required"}), 400
         chunks = rag_retrieve(question, top_k=top_k, threshold=threshold)
@@ -3947,6 +4031,10 @@ def regen_recommend():
     return jsonify({"ok": True, "history": history, "recommendation": rec,
                     "crop_values": CROP_VALUE_TABLE})
 
+
+# Auto-seed RAG on startup if knowledge base is empty (handles fresh Render deploys)
+if rag_ok and GEMINI_KEY:
+    threading.Thread(target=_auto_seed_rag, daemon=True).start()
 
 if __name__=="__main__":
     port=int(os.environ.get("PORT",5000))
