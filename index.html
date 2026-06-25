@@ -1091,18 +1091,24 @@ function yDrop(ev){
   const f=ev.dataTransfer.files[0];
   if(f&&f.type.startsWith('image/'))yOnFile(f);
 }
-async function yDiagnose(dataUrl){
+async function yDiagnose(dataUrl, attempt){
+  attempt=attempt||1;
   const res=document.getElementById('yResult');
   if(!res)return;
-  res.innerHTML='<div style="font-family:var(--M);font-size:11px;color:var(--g);text-align:center;padding:1rem;letter-spacing:.07em">ANALYSING WITH AI...</div>';
+  const warmMsg=attempt>1?`Retrying… (${attempt}/3) Server is warming up, please wait.`:'ANALYSING WITH AI...';
+  res.innerHTML=`<div style="font-family:var(--M);font-size:11px;color:var(--g);text-align:center;padding:1rem;letter-spacing:.07em">${warmMsg}</div>`;
+  const ctrl=new AbortController();
+  const t=setTimeout(()=>ctrl.abort(),90000); // 90s timeout
   try{
     const lang=typeof pgCurrentLang!=='undefined'?pgCurrentLang:'en';
     const r=await fetch(`${YAPI}/diagnose`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({image:dataUrl,language:lang}),
+      signal:ctrl.signal,
     });
-    if(!r.ok){const t=await r.text();res.innerHTML=`<div style="color:#f87171;font-size:13px">Server error ${r.status}: ${t.slice(0,120)}</div>`;return;}
+    clearTimeout(t);
+    if(!r.ok){const txt=await r.text();res.innerHTML=`<div style="color:#f87171;font-size:13px">Server error ${r.status}: ${txt.slice(0,120)}</div>`;return;}
     const d=await r.json();
     if(!d.ok){res.innerHTML=`<div style="color:#f87171;padding:.5rem;font-size:13px">${d.error||'Analysis failed'}</div>`;return;}
     let html='';
@@ -1119,7 +1125,16 @@ async function yDiagnose(dataUrl){
     if(!html)html='<div style="color:var(--m);font-size:13px;padding:.5rem">No disease detected. Plant appears healthy.</div>';
     res.innerHTML=html;
   }catch(e){
-    res.innerHTML=`<div style="color:#f87171;font-size:13px">Error: ${e.message}</div>`;
+    clearTimeout(t);
+    if(attempt<3){
+      // Auto-retry after delay (Render cold start takes ~30s)
+      const delay=attempt*20000;
+      res.innerHTML=`<div style="color:#d97706;font-size:12px;padding:.5rem">Server is starting up — retrying in ${delay/1000}s…</div>`;
+      setTimeout(()=>yDiagnose(dataUrl,attempt+1),delay);
+    }else{
+      res.innerHTML=`<div style="color:#f87171;font-size:13px;padding:.5rem">Server unavailable. <button onclick="yDiagnose(window._lastDiagnoseImg)" style="color:var(--g);background:none;border:none;cursor:pointer;text-decoration:underline">Try again</button></div>`;
+    }
+    window._lastDiagnoseImg=dataUrl;
   }
 }
 

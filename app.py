@@ -3305,12 +3305,17 @@ def diagnose():
             return jsonify({"error": f"Invalid base64 image: {e}"}), 400
 
         # ── Stage 1: YOLO fast detection ──────────────────────────────────────
-        try:
-            from crop_vision import run_inference
-            yolo_result = run_inference(image_bytes)
-        except Exception as e:
-            log.warning(f"YOLO import/run failed: {e}")
-            yolo_result = {"ok": False, "yolo_available": False, "detections": []}
+        # Skip YOLO if env flag set (useful on memory-constrained hosts like Render 512MB)
+        _yolo_disabled = os.environ.get("DISABLE_YOLO", "").lower() in ("1", "true", "yes")
+        yolo_result = {"ok": False, "yolo_available": False, "detections": []}
+        if not _yolo_disabled:
+            try:
+                from crop_vision import run_inference
+                yolo_result = run_inference(image_bytes)
+            except MemoryError:
+                log.warning("YOLO OOM — falling back to Vision AI only")
+            except Exception as e:
+                log.warning(f"YOLO import/run failed: {e}")
 
         # ── Build shared prompt ───────────────────────────────────────────────
         lang_inst = {
