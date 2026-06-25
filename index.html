@@ -943,6 +943,7 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
     <div class="draw-tip" id="drawTip">Click map to draw · Double-click to finish</div>
     <div class="rp" id="reportPanel">
       <div class="rp-head"><div class="rp-logo">🌱 ZaminAI Report</div><div class="rp-info" id="rp-info">Field analysis</div><button class="rp-close" onclick="closeRp()">✕</button></div>
+      <div id="sat-banner" style="font-family:var(--M);font-size:10px;padding:4px 14px;background:var(--gd);color:var(--m2);letter-spacing:.05em;display:none"></div>
       <div class="rp-body" id="rp-body"><div style="text-align:center;padding:3rem 1rem;color:var(--m2)"><div style="font-size:40px">🛰️</div><div style="font-family:var(--M);font-size:12px;margin-top:.75rem">Draw a field and click Analyse</div></div></div>
     </div>
     <div class="ai-panel" id="aiPanel">
@@ -1867,8 +1868,10 @@ async function tbAnalyse(){
   const _warmupTimer = setTimeout(()=>notify('⏳ Server starting up (~30s on first use)…'), 8000);
   btn.innerHTML='<span class="spin"></span> Analysing...';btn.disabled=true;
   const panel = document.getElementById('reportPanel') || document.querySelector('.rp');
-if (panel) panel.classList.add('open');
-else console.error('Report panel not found');
+  if(panel) panel.classList.add('open');
+  else console.error('Report panel not found');
+  const satBanner=document.getElementById('sat-banner');
+  if(satBanner){satBanner.style.display='block';satBanner.textContent='⏳ Loading live satellite data…';satBanner.style.color='var(--m2)';}
   document.getElementById('rp-body').innerHTML=`<div style="text-align:center;padding:2.5rem 1rem"><div style="font-size:44px;animation:spinA 1s linear infinite;display:inline-block">🛰️</div><div style="font-family:var(--D);font-size:22px;color:var(--g);margin:1rem 0">${aui('analysing')}</div><div style="font-family:var(--M);font-size:11px;color:var(--m2);line-height:1.8">${aui('loadingS2')}<br>${aui('calcNDVI')}</div></div>`;
   const lats=pts.map(p=>p[0]),lons=pts.map(p=>p[1]);
   const clat=lats.reduce((a,b)=>a+b,0)/lats.length,clon=lons.reduce((a,b)=>a+b,0)/lons.length;
@@ -1902,43 +1905,66 @@ else console.error('Report panel not found');
     }).catch(function(){});
   }
 
-  // Call API
-  // Async satellite analysis — poll until GEE result arrives
-  // Regional data already shown immediately; live data updates report when ready
+  // ── Async satellite analysis ─────────────────────────────────────────────
+  // Shows regional estimate immediately; updates to live GEE data when ready.
+  function _setSatBanner(msg, col){
+    const b=document.getElementById('sat-banner');
+    if(b){b.textContent=msg;b.style.color=col||'var(--m2)';}
+  }
+  const _analyseBody=JSON.stringify({coords:pts.map(p=>[p[0],p[1]]),year:new Date().getFullYear(),
+    province:fieldData.prov||'Afghanistan',farmer_id:farmerId,field_id:fieldData.field_id,label:fieldData.prov||'Field'});
+
   (async ()=>{
-    try{
-      const r = await fetch(API+'/analyse',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({coords:pts.map(p=>[p[0],p[1]]),year:new Date().getFullYear(),
-          province:fieldData.prov||'Afghanistan',farmer_id:farmerId,field_id:fieldData.field_id,label:fieldData.prov||'Field'})});
-      const start = await r.json();
-      clearTimeout(_warmupTimer);
-      if(start.error) return;
-
-      // Legacy sync response (no task_id)
-      if(!start.task_id){
-        if(start.status==='success'&&start.ndvi){ _applyLiveData(start); renderReport(); }
-        return;
+    // Try up to 2 times (handles Render cold-start connection drops)
+    let start=null;
+    for(let attempt=1;attempt<=2;attempt++){
+      try{
+        _setSatBanner(attempt>1?'⏳ Retrying satellite connection…':'⏳ Loading live satellite data…');
+        const ctrl=new AbortController();
+        const tmo=setTimeout(()=>ctrl.abort(),90000);
+        const r=await fetch(API+'/analyse',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:_analyseBody, signal:ctrl.signal});
+        clearTimeout(tmo);
+        clearTimeout(_warmupTimer);
+        start=await r.json();
+        if(!start.error) break;
+        start=null;
+      }catch(e){
+        if(attempt===2){_setSatBanner('⚠️ Satellite connection failed — showing regional estimates','#d97706');return;}
+        await new Promise(r=>setTimeout(r,15000)); // wait 15s before retry
       }
+    }
+    if(!start||start.error){_setSatBanner('⚠️ Satellite error — showing regional estimates','#d97706');return;}
 
-      // Poll for async result (up to 3 min, 36 × 5s)
-      let errStreak=0;
-      for(let i=0;i<36;i++){
-        await new Promise(res=>setTimeout(res,5000));
-        try{
-          const poll = await fetch(`${API}/analyse-result/${start.task_id}`);
-          const pd   = await poll.json();
-          if(pd.status==='done'){
-            if(pd.data&&pd.data.status==='success'&&pd.data.ndvi!=null){
-              _applyLiveData(pd.data); renderReport();
-              notify('🛰️ Live satellite data loaded');
-            }
-            break;
+    // Legacy sync response (no task_id)
+    if(!start.task_id){
+      if(start.status==='success'&&start.ndvi!=null){
+        _applyLiveData(start); renderReport();
+        _setSatBanner('📡 Live Sentinel-2 data','#16a34a');
+      }
+      return;
+    }
+
+    // Poll for async result (up to 3 min, 36 × 5s)
+    let errStreak=0;
+    for(let i=0;i<36;i++){
+      await new Promise(r=>setTimeout(r,5000));
+      try{
+        const poll=await fetch(`${API}/analyse-result/${start.task_id}`);
+        const pd=await poll.json();
+        if(pd.status==='done'){
+          if(pd.data&&pd.data.status==='success'&&pd.data.ndvi!=null){
+            _applyLiveData(pd.data); renderReport();
+            const isLive=(pd.data.source||'').includes('gee')||['sentinel','landsat','modis'].some(s=>(pd.data.source||'').includes(s));
+            _setSatBanner(isLive?'📡 Live Sentinel-2 data':'📊 Regional database',isLive?'#16a34a':'var(--m2)');
+            notify(isLive?'🛰️ Live satellite data loaded':'📊 Regional data loaded');
           }
-          if(pd.status==='error'){errStreak++;if(errStreak>=3)break;}
-          else errStreak=0;
-        }catch(e){errStreak++;if(errStreak>=3)break;}
-      }
-    }catch(e){}
+          break;
+        }
+        if(pd.status==='error'){errStreak++;if(errStreak>=3){_setSatBanner('⚠️ Satellite query failed','#d97706');break;}}
+        else errStreak=0;
+      }catch(e){errStreak++;if(errStreak>=3){_setSatBanner('⚠️ Connection lost','#d97706');break;}}
+    }
   })();
   renderReport();
   document.getElementById('rp-info').textContent=aJ+' jereb · '+aHa+' ha · '+new Date().getFullYear();
