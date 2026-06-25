@@ -90,8 +90,8 @@ log.info(f"DB: {'Supabase connected' if sb_ok else 'disabled'}")
 # your Supabase SQL editor before the first use.
 # ════════════════════════════════════════════════════════════════════════════════
 
-EMBED_MODEL = "text-embedding-004"
-EMBED_DIM   = 768
+EMBED_MODEL = "gemini-embedding-2"
+EMBED_DIM   = 3072
 
 rag_ok = False
 try:
@@ -3339,14 +3339,14 @@ create extension if not exists vector;
 create table if not exists knowledge_chunks (
     id         uuid    primary key default gen_random_uuid(),
     content    text    not null,
-    embedding  vector(768),
+    embedding  vector(3072),
     source     text    default 'manual',
     metadata   jsonb   default '{}',
     created_at timestamp default now()
 );
 
 create or replace function match_knowledge_chunks (
-    query_embedding  vector(768),
+    query_embedding  vector(3072),
     match_count      int     default 4,
     match_threshold  float   default 0.70
 )
@@ -3367,113 +3367,265 @@ create index if not exists knowledge_chunks_embedding_idx
 """.strip()
 
 _RAG_SEED_DOCS = [
-    # Irrigation thresholds
-    ("When MNDWI water index is below -0.20 in Afghan fields, irrigate within 2-3 days urgently. "
-     "For MNDWI between -0.20 and -0.10, irrigate within 4-7 days. "
-     "MNDWI above -0.05 means adequate soil moisture — wait 7-10 days before next irrigation. "
-     "Irrigation cost is roughly 400-600 AFN per jereb per session using a diesel pump."),
+    # ── Satellite indices ─────────────────────────────────────────────────────
 
-    # NDVI crop health
-    ("NDVI below 0.12 means bare or fallow land with no active crop. "
-     "NDVI 0.12-0.25 indicates sparse vegetation, possible drought stress, or early seedling stage. "
-     "NDVI 0.25-0.55 is typical for healthy wheat or cereal crops in Afghanistan. "
-     "NDVI above 0.55 indicates vegetables, orchards, or dense irrigated vegetation."),
+    ("NDVI (Normalized Difference Vegetation Index) crop health thresholds "
+     "[Source: Tucker 1979, Remote Sensing of Environment; NASA MODIS Land Team; "
+     "WUR Laboratory of Geo-information Science and Remote Sensing]: "
+     "NDVI < 0.10: bare soil or rock — no active vegetation cover. "
+     "NDVI 0.10-0.20: very sparse vegetation — severe drought stress or early seedling stage. "
+     "NDVI 0.20-0.40: moderate vegetation — typical for dryland cereals in semi-arid regions. "
+     "NDVI 0.40-0.60: healthy dense vegetation — well-irrigated crops or established orchards. "
+     "NDVI > 0.60: very dense canopy — tropical or heavily irrigated crops. "
+     "For winter wheat in Afghanistan, peak NDVI at grain fill (April-May north, March-April south) "
+     "is most predictive of final yield: correlation r²=0.65-0.80 (ICARDA remote sensing studies)."),
 
-    # VCI drought index
-    ("Vegetation Condition Index (VCI) below 35 means severe drought stress — irrigate immediately and delay fertilizer. "
-     "VCI 35-50 indicates moderate stress — increase irrigation frequency by 30%. "
-     "VCI above 50 means normal to good crop condition. "
-     "VCI is calculated from NDVI relative to the historical minimum and maximum for the same field location."),
+    ("VCI (Vegetation Condition Index) for drought monitoring and early warning "
+     "[Source: Kogan 1990 NOAA/NESDIS; FAO Global Information and Early Warning System; "
+     "FEWS NET Vegetation Index product]: "
+     "VCI = (NDVI_current − NDVI_min) / (NDVI_max − NDVI_min) × 100 "
+     "using the multi-year minimum and maximum for the same pixel and calendar week. "
+     "VCI < 10: extreme drought — crop failure likely without irrigation. "
+     "VCI 10-35: severe drought — significant yield loss expected (40-70% reduction). "
+     "VCI 35-50: moderate drought — yield reduction 20-40%. "
+     "VCI 50-75: near-normal vegetation condition. "
+     "VCI > 75: above-average vegetation condition, favourable growing season."),
 
-    # Wheat - main Afghan crop
-    ("Wheat (گندم / غنم) is Afghanistan's most important crop, grown on over 60% of farmland. "
-     "Plant winter wheat in October-November in northern provinces (Kunduz, Balkh, Takhar, Baghlan). "
-     "Plant in November-December in southern provinces (Kandahar, Helmand). "
-     "Harvest in June-July in the north, April-May in the south. "
-     "Apply DAP fertilizer at planting: 20 kg/jereb. Apply Urea at tillering stage: 35 kg/jereb."),
+    ("MNDWI (Modified Normalized Difference Water Index) for irrigation scheduling "
+     "[Source: Xu 2006, International Journal of Remote Sensing 27(14); "
+     "WUR Remote Sensing and GIS chair; ESA Sentinel-2 applications]: "
+     "MNDWI = (Green − SWIR) / (Green + SWIR) using Sentinel-2 B3 and B11. "
+     "MNDWI < -0.25: severe soil water deficit — irrigate within 2-3 days. "
+     "MNDWI -0.25 to -0.10: moderate water stress — irrigate within 4-7 days. "
+     "MNDWI -0.10 to 0.00: mild stress — irrigate within 7-10 days. "
+     "MNDWI > 0.00: adequate soil moisture or recent rainfall — hold irrigation."),
 
-    # Saffron
-    ("Saffron (زعفران) is Afghanistan's highest-value cash crop — worth 50 times more than wheat per kg. "
-     "Plant saffron corms in September-October only. Harvest the red stigmas in October-November. "
-     "Herat province produces the best quality Afghan saffron. "
-     "Saffron needs well-drained sandy loam soil, pH 6.5-8.0, and very little water — 150-200 mm/year. "
-     "Each jereb can yield 3-5 kg dried saffron worth 150,000-250,000 AFN at 2024 prices."),
+    ("Sentinel-1 SAR (C-band radar) for cloud-free soil moisture monitoring "
+     "[Source: ESA Sentinel-1 Mission; Ulaby et al. 1978 microwave remote sensing; "
+     "Wagner et al. 1999 TU Wien soil moisture retrieval]: "
+     "VV polarisation backscatter is the primary soil moisture proxy. "
+     "VV < -15 dB: dry soil surface, high water deficit. "
+     "VV -15 to -8 dB: moderate soil moisture. "
+     "VV > -8 dB: wet soil or near-surface water presence. "
+     "SAR penetrates cloud and smoke cover — critical for Afghanistan monsoon-season and winter monitoring "
+     "when optical satellites (Sentinel-2, Landsat) are frequently cloud-obscured."),
 
-    # Kunduz province
-    ("Kunduz province soil: silty loam, pH 7.4, 22% clay, 40% silt, organic carbon 0.9%. "
-     "Annual rainfall 287 mm. Growing season NDVI typically 0.33-0.40. "
-     "Main crops: wheat, cotton, soybean, rice. Excellent for irrigated vegetables in summer."),
+    ("MODIS MOD11A2 Land Surface Temperature for frost and heat stress monitoring "
+     "[Source: NASA MODIS Science Team; WMO agrometeorology guidelines; "
+     "Porter & Gawith 1999 critical temperature thresholds for wheat]: "
+     "MODIS provides 8-day composite LST at 1 km resolution globally. "
+     "Frost damage thresholds for winter wheat by growth stage: "
+     "Tillering: < -5°C for 2+ hours causes significant leaf damage. "
+     "Stem extension: < -2°C causes significant tiller death. "
+     "Anthesis (flowering): < 0°C for 2 hours can cause sterility and poor grain set — most critical stage. "
+     "Heat stress at grain fill: > 34°C day temperature accelerates senescence and reduces grain weight. "
+     "High-elevation provinces (Badakhshan, Bamyan, Ghor) have >90 frost days per year at altitude."),
 
-    # Balkh province
-    ("Balkh province soil: sandy loam, pH 7.6, 18% clay, organic carbon 0.7%. "
-     "Annual rainfall 245 mm. Best crops: wheat, cotton, melon, onion. "
-     "Mazar-i-Sharif district has good irrigation infrastructure from Balkh River."),
+    # ── Afghan wheat production ───────────────────────────────────────────────
 
-    # Herat province
-    ("Herat province soil: sandy loam, pH 7.8, low organic carbon 0.5%. "
-     "Annual rainfall 195 mm — water-scarce, drip irrigation recommended. "
-     "Best province for saffron and pistachio production. Also grows wheat and cotton."),
+    ("Winter wheat production systems in Afghanistan "
+     "[Source: CIMMYT/ICARDA Afghanistan wheat improvement programme; "
+     "FAO Afghanistan country cereal assessment 2022; WFP ADAM food security database]: "
+     "Afghanistan produces approximately 4.5-5.5 million tonnes wheat/year on ~2.5 million ha. "
+     "Wheat provides over 60% of national caloric intake — staple for 40+ million people. "
+     "Irrigated wheat (~60% of area): stable yields 2.5-3.5 t/ha under good management. "
+     "Rainfed wheat (~40% of area): highly variable yields 0.5-2.0 t/ha depending on rainfall. "
+     "Actual average farm yield 1.5-2.5 t/ha is 40-60% below demonstrated potential of 4-5 t/ha. "
+     "Main yield gap causes (ICARDA/CIMMYT field surveys): "
+     "1. Suboptimal fertilizer application. "
+     "2. Water stress at critical growth stages (tillering, anthesis, grain fill). "
+     "3. Late sowing beyond the optimum window. "
+     "4. Low-quality or susceptible seed varieties."),
 
-    # Nangarhar province
-    ("Nangarhar province soil: loam, pH 7.2, high organic carbon 1.2%, 28% clay. "
-     "Annual rainfall 320 mm — one of the wettest provinces. "
-     "Good for: citrus fruits (نارنج), sugarcane, rice, vegetables, tobacco."),
+    ("Winter wheat sowing calendar for Afghanistan by agro-ecological zone "
+     "[Source: FEWS NET Afghanistan seasonal calendar; FAO GIEWS; ICARDA agronomic recommendations]: "
+     "Northern lowlands (Kunduz, Balkh, Baghlan, Takhar, Jawzjan, Faryab — below 900m): "
+     "Sow October 15 – November 15. Harvest June 15 – July 15. "
+     "Southern lowlands (Kandahar, Helmand, Zabul, Nimroz — below 1000m): "
+     "Sow November 1 – December 15. Harvest April 15 – May 31. "
+     "Eastern lowlands (Nangarhar, Laghman, Kunar — below 800m): "
+     "Sow October 15 – November 30. Harvest May 1 – June 15. "
+     "Western lowlands (Herat, Farah, Badghis — below 1200m): "
+     "Sow November 1 – December 15. Harvest May 15 – June 30. "
+     "Central highlands (Kabul, Logar, Wardak, Ghazni — 1500-2200m): "
+     "Sow October 10 – November 10. Harvest July 1 – July 31. "
+     "High mountain zones (Bamyan, Badakhshan — above 2200m): "
+     "Spring wheat only: Sow March-April. Harvest August-September."),
 
-    # Kandahar province
-    ("Kandahar province soil: sandy, pH 8.0, very low organic carbon 0.3%. "
-     "Annual rainfall 175 mm — highly water-stressed without irrigation. "
-     "Famous for: pomegranate (انار), grapes (انگور), apricot (زردآلو). "
-     "Add 3-4 tonnes compost per jereb to improve sandy soils before planting fruit trees."),
+    ("Wheat fertilizer recommendations for Afghanistan "
+     "[Source: ICARDA Central Asia and Caucasus wheat program; "
+     "CIMMYT fertilizer response trials in South Asia; "
+     "FAO plant nutrition guidelines for semi-arid cereals]: "
+     "Baseline nitrogen requirement: 60-90 kg N/ha rainfed wheat; 100-120 kg N/ha irrigated wheat. "
+     "Phosphorus is frequently the most limiting nutrient in Afghan calcareous alkaline soils (pH > 7.5) "
+     "because P fixation by calcium reduces plant availability. "
+     "DAP (18-46-0): 100-150 kg/ha at sowing as basal dose (provides P + starter N). "
+     "Urea (46-0-0): 100-150 kg/ha total, split — half at tillering (Zadoks 20-25), half at stem extension (Zadoks 30-32). "
+     "Split urea application improves nitrogen use efficiency (NUE) from 30-35% to 45-55% "
+     "(WUR NUE research; CIMMYT agronomic best practices). "
+     "Zinc deficiency (ZnSO4 at 25 kg/ha) is widespread in calcareous soils — symptoms: white striping on young leaves. "
+     "Potassium deficiency is rare in Afghan soils which are naturally high in K."),
 
-    # Helmand province
-    ("Helmand province soil: sandy loam, pH 7.9, low water retention. "
-     "Annual rainfall 148 mm — driest major province, all agriculture needs irrigation. "
-     "Irrigation water from Helmand River and Kajaki Dam canals is essential. "
-     "Grows: wheat, corn, vegetables, cotton in irrigated areas."),
+    ("Wheat rust diseases in Afghanistan "
+     "[Source: CIMMYT global wheat rust surveillance network; "
+     "ICARDA Afghanistan rust monitoring 2010-2023; "
+     "Bockus et al. Compendium of Wheat Diseases, APS Press]: "
+     "Yellow (stripe) rust — Puccinia striiformis f.sp. tritici: "
+     "Most damaging wheat disease in Afghanistan; present in all wheat-growing provinces. "
+     "Symptoms: yellow-orange pustules in parallel stripes along leaf veins. "
+     "Optimal temperature 8-15°C — severe in cool moist springs; northern provinces most at risk. "
+     "Management: Tebuconazole 250 EC or Propiconazole 250 EC at first pustule detection; "
+     "resistant varieties Mazar-99, Roshan, Zurmat, Jahan. "
+     "Stem rust — Puccinia graminis f.sp. tritici: "
+     "Orange-brown pustules on stems and leaf sheaths; favoured by warm temperatures 18-25°C. "
+     "Ug99 race and derivatives are present in the region — a serious threat. "
+     "Leaf rust — Puccinia triticina: "
+     "Circular brown pustules on upper leaf surface; less severe but widespread."),
 
-    # Badakhshan (high elevation)
-    ("Badakhshan province soil: clay loam, pH 6.8, high organic carbon 1.8%. "
-     "Annual rainfall 420 mm — the highest in Afghanistan due to mountain location. "
-     "Cool climate — frost risk from October to April. Grows: wheat, barley, potatoes. "
-     "Short growing season: plant in April-May, harvest in August-September."),
+    # ── Soils ─────────────────────────────────────────────────────────────────
 
-    # Fertilizer guide
-    ("Common fertilizers for Afghan farmers: "
-     "DAP (diammonium phosphate) — supplies phosphorus and nitrogen, apply 20 kg/jereb at planting time. "
-     "Urea (46% nitrogen) — apply 30-40 kg/jereb at tillering, split into two applications for sandy soils. "
-     "Compost (کمپوست) — 2-3 tonnes/jereb improves water retention in sandy soils and nutrient content in clay soils. "
-     "Potash (K2O) — rarely needed in Afghan soils which are naturally high in potassium."),
+    ("Afghan agricultural soil characteristics "
+     "[Source: ISRIC SoilGrids v2.0 — Wageningen University & Research; "
+     "FAO-UNESCO World Soil Map; WUR Soil Geography and Landscape group]: "
+     "Dominant soil types: Calcisols and Cambisols — calcareous, alkaline (pH 7.0-8.5). "
+     "Soil organic carbon (SOC) is critically low across most of Afghanistan: 0.3-1.8% "
+     "vs. the FAO-recommended minimum of 2% for productive agricultural soils. "
+     "Low SOC severely limits water-holding capacity, nutrient retention, and microbial activity. "
+     "Northern provinces (Kunduz, Baghlan, Takhar): silty loam, SOC ~0.9-1.1%, best fertility nationally. "
+     "Southern provinces (Kandahar, Helmand, Nimroz): sandy loam to sandy, SOC 0.3-0.5%, very low fertility. "
+     "Western provinces (Herat, Farah): sandy loam, pH ~7.8, SOC 0.5%. "
+     "Eastern provinces (Nangarhar, Laghman): loam, pH ~7.2, SOC ~1.2%, highest in lowlands. "
+     "Central highlands (Kabul, Ghazni, Bamyan): loam to clay loam, pH 7.1-7.5. "
+     "Badakhshan (mountain): clay loam, pH 6.8, SOC 1.8% — highest SOC in country."),
 
-    # Wheat diseases
-    ("Wheat yellow rust (Puccinia striiformis — زنگ زرد) shows yellow stripes running along leaves. "
-     "Spray Tebuconazole 250 EC at 500 ml/jereb with backpack sprayer when first spots appear. "
-     "Best prevention: use resistant varieties like Mazar-99, Kabul-2013, or Roshan."),
+    ("Soil organic carbon improvement in calcareous dryland soils "
+     "[Source: ISRIC / WUR Soil Geography and Landscape; "
+     "FAO Voluntary Guidelines for Sustainable Soil Management 2017; "
+     "Minasny et al. 2017 Soil Carbon 4 per mille initiative, Geoderma]: "
+     "Building SOC from 0.5% to 1.5% requires sustained 5-10 years of organic matter addition. "
+     "Approximate SOC increase per tonne of compost applied: 0.04-0.08% per year. "
+     "Most cost-effective SOC-building practices ranked: "
+     "1. Crop residue retention (not burning): avoids 50-80% of residue carbon loss. "
+     "2. Legume cover crops (lentil, chickpea) fix 50-150 kg N/ha and add root carbon. "
+     "3. Manure application: 5-10 t/ha builds SOC and supplies N+P+K. "
+     "4. Compost: more stable carbon than fresh manure, slower release. "
+     "SOC increase of 0.1% per year across Afghan cropland would sequester ~1.5 Mt CO2/year."),
 
-    ("Wheat stem rust (Puccinia graminis — زنگ ساقه) shows orange-brown pustules on stems. "
-     "Spray Propiconazole 250 EC at 400 ml/jereb at first sign of infection. "
-     "Harvest early if infection is severe at grain-fill stage to save partial yield."),
+    ("Improving alkaline calcareous soils for crop production "
+     "[Source: FAO plant nutrition for sustainable food production; "
+     "ICARDA soil fertility guidelines for West Asia and North Africa; "
+     "WUR Plant Nutrition group research]: "
+     "Soils with pH > 7.8 fix phosphorus as calcium phosphate — apply P in bands near roots not broadcast. "
+     "Sulfur (elemental S): 300-500 kg/ha acidifies soil by ~0.5 pH unit over one season via soil bacteria. "
+     "Ammonium sulfate fertilizer acidifies the root zone compared to urea — preferred for alkaline soils. "
+     "Gypsum (calcium sulfate): 1-2 t/ha improves structure of sodic and heavy clay soils; no pH effect. "
+     "Organic matter (compost/manure) buffers pH extremes and improves phosphorus availability. "
+     "Iron and manganese deficiency can occur at pH > 8.0 — foliar spray more effective than soil application."),
 
-    # Crop calendar
-    ("Afghan farming calendar by month: "
-     "January-February: winter wheat growing, apply top-dress nitrogen if leaves are yellowing. "
-     "March-April: wheat heading and grain fill — most critical irrigation period of the year. "
-     "May-June: wheat harvest in south and east; plant summer corn and vegetables. "
-     "July-August: summer crops (corn, vegetables) at peak growth in irrigated areas. "
-     "September-October: plant saffron corms, prepare fields for winter wheat. "
-     "November-December: plant winter wheat in all provinces, apply basal DAP fertilizer."),
+    # ── Water and irrigation ──────────────────────────────────────────────────
 
-    # Drip irrigation
-    ("Drip irrigation (آبیاری قطره‌ای) saves 40-50% water compared to flood irrigation. "
-     "Recommended for sandy soils (Kandahar, Helmand, Herat) where water infiltrates quickly. "
-     "Initial cost: 15,000-25,000 AFN per jereb for basic drip kit. "
-     "Recovers cost in 1-2 seasons through water savings and higher yields."),
+    ("Rainfall climatology for Afghanistan "
+     "[Source: FAO AQUASTAT Afghanistan irrigation and water resources; "
+     "CHIRPS v2.0 satellite rainfall dataset (UCSB); "
+     "FEWS NET climate monitoring; World Bank climate data portal]: "
+     "Afghanistan is predominantly semi-arid to arid — national average ~250 mm/year. "
+     "Northern provinces: 245-420 mm/year (Kunduz ~287mm, Badakhshan ~420mm). "
+     "Western provinces: 140-220 mm/year (Herat ~195mm, Farah ~140mm). "
+     "Southern provinces: 90-180 mm/year (Helmand ~148mm, Kandahar ~175mm). "
+     "Eastern provinces: 280-400 mm/year (Nangarhar ~320mm, Khost ~350mm). "
+     "Seasonal pattern: 75-85% of annual rainfall falls October-April (Mediterranean winter regime). "
+     "Summer (June-September) is nearly completely dry in all provinces — drought for rainfed crops. "
+     "Snow melt from Hindu Kush and Pamir mountains feeds rivers through June — critical for irrigation."),
 
-    # Soil improvement
-    ("Improving alkaline Afghan soils (pH above 7.8): "
-     "Add sulfur at 40-60 kg/jereb to reduce pH over one season. "
-     "Use ammonium sulfate fertilizer instead of urea for acidifying effect. "
-     "Add organic matter (compost or manure) 3-4 tonnes/jereb to buffer pH extremes. "
-     "Gypsum (calcium sulfate) at 200 kg/jereb improves structure of clay soils."),
+    ("Irrigation systems and water management in Afghanistan "
+     "[Source: FAO AQUASTAT Afghanistan water report 2008; "
+     "World Bank Afghanistan National Solidarity Programme rural water review; "
+     "Asian Development Bank Afghanistan water sector strategy]: "
+     "Afghanistan has ~3.3 million ha of potentially irrigable land; ~2.5 million ha currently irrigated. "
+     "Traditional karez (qanat) underground channels: gravity-fed, minimal maintenance, fixed flow rate; "
+     "prevalent in piedmont zones of Kandahar, Herat, Ghazni. "
+     "River diversion (jui) canal systems: dominant in Helmand, Kunduz, Baghlan river valleys. "
+     "Tube wells: common in Nangarhar and Kabul where groundwater is accessible. "
+     "Irrigation water use efficiency in Afghanistan: typically 30-50% due to unlined earthen canals. "
+     "Drip and sprinkler irrigation: <2% adoption nationally but proven in horticulture — saves 40-50% water. "
+     "Water allocation unit varies by region — 'ab' (water turn) system governs irrigation scheduling."),
+
+    # ── Crop calendar and systems ─────────────────────────────────────────────
+
+    ("Afghan agricultural crop calendar — all major crops "
+     "[Source: FEWS NET Afghanistan seasonal calendar (updated 2023); "
+     "FAO GIEWS country brief; MAIL Afghanistan crop reporting system]: "
+     "Winter wheat (main staple): sown Oct-Nov (north), Nov-Dec (south/west); harvested May-Jun (south), Jun-Jul (north). "
+     "Spring barley: sown Mar-Apr at altitude >1500m; harvested Aug-Sep. "
+     "Maize: sown Apr-May in eastern lowlands (Nangarhar, Laghman, Kunar); harvested Aug-Sep. "
+     "Rice: sown May-Jun in Kunduz, Baghlan, Nangarhar irrigated areas; harvested Sep-Oct. "
+     "Cotton: sown Apr-May in Kunduz, Baghlan, Balkh; harvested Oct-Nov. "
+     "Saffron: corms planted Aug-Sep; flowers harvested Oct-Nov (3-week window only). "
+     "Melon/watermelon: sown Apr-May in southern lowlands; harvested Jul-Aug. "
+     "Potato: sown Apr-May (lowlands); May-Jun (highlands >2000m); harvested Aug-Oct. "
+     "Chickpea (lentil): sown Feb-Mar; harvested May-Jun in warmer zones."),
+
+    # ── Saffron ───────────────────────────────────────────────────────────────
+
+    ("Saffron (Crocus sativus) cultivation — Afghanistan "
+     "[Source: FAO Afghanistan saffron value chain analysis 2016; "
+     "USDA Foreign Agricultural Service GAIN report Afghanistan 2019; "
+     "Gresta et al. 2008 review, Agronomy for Sustainable Development]: "
+     "Afghanistan is among the world's top saffron producers alongside Iran and Spain. "
+     "Primary production areas: Herat province (70% of national output), Ghor, Farah, Badghis. "
+     "Planting: corms planted August-September at 15-20 cm depth, 10 cm inter-corm spacing. "
+     "Corm density: 60-80 corms/m² for commercial production. "
+     "Flowering window: October-November — each corm produces 1-3 flowers. "
+     "Harvest: red stigmas must be hand-picked daily at dawn within 3 weeks; delays reduce quality. "
+     "Yield: 3-8 kg dried saffron per hectare depending on corm age, density, and soil fertility. "
+     "Corms multiply underground — fields productive 8-15 years without replanting. "
+     "Water requirement: 150-250 mm/year — highly drought-tolerant once established. "
+     "Soil requirement: well-drained, pH 6.5-8.0; waterlogging causes corm rot (Fusarium)."),
+
+    # ── Horticulture ─────────────────────────────────────────────────────────
+
+    ("Pomegranate and grape production in Afghanistan "
+     "[Source: FAO Afghanistan horticulture sector study 2013; "
+     "USAID Afghanistan Vouchers for Increased Production in Agriculture (VIPA) programme; "
+     "Sarkhosh et al. 2021 pomegranate review, Scientia Horticulturae]: "
+     "Afghanistan is historically renowned for pomegranate (Punica granatum — انار) quality. "
+     "Kandahar Anar variety is internationally recognised for sweetness and large fruit size. "
+     "Pomegranate production area: ~20,000-30,000 ha concentrated in Kandahar, Zabul, Logar, Kapisa, Laghman. "
+     "Pomegranate is drought-tolerant: established trees require only 350-600 mm water/year. "
+     "Trees begin bearing at 3-4 years, reach peak production at 8-12 years, productive to 50+ years. "
+     "Grapes (Vitis vinifera — انگور): Kandahar, Herat, Parwan, Kapisa. "
+     "Raisins (kishmish) from Kandahar and Kabul are a historic Afghan export product. "
+     "Income comparison (FAO data): pomegranate and grapes generate 3-5× higher gross income per ha than wheat."),
+
+    # ── Food security and WUR research ───────────────────────────────────────
+
+    ("WUR research on smallholder food systems and yield gaps in Afghanistan "
+     "[Source: WUR Food Systems group; WUR-FAO Afghanistan food security collaboration; "
+     "van Ittersum et al. 2013 yield gap methodology, Field Crops Research; "
+     "GYGA (Global Yield Gap Atlas) Afghanistan data — WUR/University of Nebraska]: "
+     "Afghan smallholders operate on average 1.5-2.5 ha (7-12 jeribs) of fragmented land holdings. "
+     "Water-limited yield potential for irrigated wheat in Afghanistan: 4.0-5.5 t/ha. "
+     "Actual average farm yield: 1.5-2.5 t/ha — a yield gap of 40-60%. "
+     "Nitrogen Use Efficiency (NUE) in Afghan wheat systems: typically 30-45% "
+     "vs. the achievable 50-70% with split fertilizer application and timing optimisation. "
+     "Remote sensing (NDVI) can explain 60-70% of district-level yield variation in Afghanistan "
+     "when calibrated against ground truth data (ICARDA/WUR joint studies). "
+     "Key WUR recommendation: satellite-based NDVI monitoring combined with farmer advisory "
+     "services can reduce the yield gap by 20-35% at low cost."),
+
+    ("Food security context for Afghanistan "
+     "[Source: WFP Afghanistan Food Security Monitoring System (FSMS); "
+     "FAO/WFP Crop and Food Supply Assessment Mission (CFSAM) 2022-2023; "
+     "IPC Acute Food Insecurity Classification Afghanistan 2023]: "
+     "Afghanistan is among the world's most acute food insecurity situations — "
+     "17-22 million people (IPC Phase 3+) in 2022-2024 assessments. "
+     "Wheat provides ~75% of daily caloric intake in rural households. "
+     "Key food security shocks documented: "
+     "2018 drought: NDVI anomaly -25 to -35% below 20-year average; wheat production fell 26%. "
+     "2021-2022 La Niña drought: worst in 27 years; NDVI anomaly -35 to -45%; production fell 33%. "
+     "Dryland rainfed wheat (40% of wheat area) shows near-zero yield in severe drought years. "
+     "CHIRPS satellite rainfall data and MODIS NDVI anomaly maps are the primary early-warning tools "
+     "used by WFP, FAO, and FEWS NET for food security monitoring in Afghanistan."),
 ]
 
 
@@ -3592,6 +3744,208 @@ def rag_stats():
         })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# REGENERATIVE AGRICULTURE — Cultivation Story + Crop Rotation
+# Endpoints: POST /regen/log  · GET /regen/history/<farmer_id>
+#            POST /regen/recommend  · GET /regen/setup
+# ════════════════════════════════════════════════════════════════════════════════
+
+CROP_ROTATION_RULES = {
+    "wheat":       {"next_best":["chickpea","mung_bean","lentil"],"next_good":["vegetables","sunflower"],"avoid":["wheat"],"regen_reason":"Legumes fix nitrogen after wheat exhausts soil N — reduces fertilizer need 30–40%.","regen_reason_fa":"بقولات بعد از گندم نیتروژن خاک را تثبیت می‌کند و نیاز به کود کمتر می‌شود.","regen_reason_ps":"بقولات د غنمو وروسته د خاورې نایتروجن ثابتوي. کود کمیږي."},
+    "chickpea":    {"next_best":["wheat","vegetables"],"next_good":["saffron","sunflower"],"avoid":["chickpea","lentil","mung_bean"],"regen_reason":"After chickpea, soil is N-rich — plant wheat or vegetables to use that fixed nitrogen.","regen_reason_fa":"بعد از نخود، خاک پر از نیتروژن است — گندم یا سبزیجات بکارید.","regen_reason_ps":"د نخود وروسته خاوره د نایتروجن ډکه ده — غنم یا سبزیجات وکرئ."},
+    "lentil":      {"next_best":["wheat","vegetables"],"next_good":["cotton","sunflower"],"avoid":["lentil","chickpea"],"regen_reason":"Lentil enriches soil nitrogen. Follow with wheat or high-demand vegetables to use it.","regen_reason_fa":"عدس خاک را غنی می‌کند. بعد از آن گندم یا سبزیجات پرتقاضا بکارید.","regen_reason_ps":"مسور خاوره شتمنه کوي. د هغه وروسته غنم یا سبزیجات وکرئ."},
+    "mung_bean":   {"next_best":["wheat","vegetables"],"next_good":["cotton"],"avoid":["mung_bean","chickpea"],"regen_reason":"Mung bean fixes N and breaks wheat disease cycles — excellent summer bridge crop.","regen_reason_fa":"ماش نیتروژن ثابت می‌کند و چرخه بیماری گندم را می‌شکند.","regen_reason_ps":"ماش نایتروجن ثابتوي او د غنمو د ناروغۍ دوره ماتوي."},
+    "vegetables":  {"next_best":["wheat","chickpea","lentil"],"next_good":["sunflower"],"avoid":["vegetables"],"regen_reason":"Vegetables deplete soil fast. Rest with wheat or restore N with legumes next season.","regen_reason_fa":"سبزیجات خاک را سریع خسته می‌کند. با گندم استراحت یا با بقولات نیتروژن تجدید کنید.","regen_reason_ps":"سبزیجات خاوره ژر ستړې کوي. د غنم سره آرام یا د بقولاتو سره نایتروجن بیارغاوئ."},
+    "saffron":     {"next_best":["chickpea","wheat"],"next_good":["vegetables"],"avoid":["saffron"],"regen_reason":"Saffron is perennial (7–10 yr). Intercrop rows with legumes to maintain soil health between bulbs.","regen_reason_fa":"زعفران چندین ساله است. ردیف‌های بین آن را با بقولات بکارید تا خاک سالم بماند.","regen_reason_ps":"زعفران ددې کلیزې دی. د هغه تر منځ قطارونه د بقولاتو سره وکرئ."},
+    "cotton":      {"next_best":["wheat","chickpea"],"next_good":["vegetables"],"avoid":["cotton"],"regen_reason":"Cotton depletes K and micronutrients. Rotate with wheat then legumes to rebuild soil.","regen_reason_fa":"پنبه پتاسیم خاک را تخلیه می‌کند. با گندم و بقولات تناوب کنید.","regen_reason_ps":"کپاس د خاورې پوتاشیم کموي. د غنم او بقولاتو سره تناوب وکرئ."},
+    "rice":        {"next_best":["wheat","lentil"],"next_good":["vegetables"],"avoid":["rice"],"regen_reason":"After rice, drain and plant dry-season wheat or legumes to prevent waterlogged soil degradation.","regen_reason_fa":"بعد از برنج، زمین را خشک کنید و گندم یا بقولات فصل خشک بکارید.","regen_reason_ps":"د وريجو وروسته، ځمکه وچه کړئ او وچ موسم کې غنم یا بقولات وکرئ."},
+    "sunflower":   {"next_best":["wheat","chickpea"],"next_good":["vegetables"],"avoid":["sunflower"],"regen_reason":"Sunflower deep roots break hardpan. Follow with shallow-rooted wheat to take advantage.","regen_reason_fa":"ریشه عمیق آفتابگردان لایه سخت خاک را می‌شکند. بعد از آن گندم بکارید.","regen_reason_ps":"د لمروال ژورې ريښې د سختې پوستکۍ ماتوي. د هغه وروسته غنم وکرئ."},
+    "pomegranate": {"next_best":["chickpea","lentil"],"next_good":["wheat"],"avoid":[],"regen_reason":"Intercrop pomegranate rows with legumes to fix N and reduce fertilizer dependency.","regen_reason_fa":"ردیف‌های انار را با بقولات بکارید تا نیتروژن ثابت شود.","regen_reason_ps":"د انار قطارونه د بقولاتو سره وکرئ ترڅو نایتروجن ثابت شي."},
+    "orchard":     {"next_best":["chickpea","lentil"],"next_good":["wheat"],"avoid":[],"regen_reason":"Intercrop orchard rows with legumes to fix N and protect topsoil from erosion.","regen_reason_fa":"ردیف‌های باغ را با بقولات بکارید تا نیتروژن ثابت شود.","regen_reason_ps":"د باغ قطارونه د بقولاتو سره وکرئ ترڅو نایتروجن ثابت شي."},
+    "bare_fallow": {"next_best":["chickpea","wheat","vegetables"],"next_good":["lentil","mung_bean"],"avoid":[],"regen_reason":"Fallow field — now is the time to plant. Start with chickpea to build soil N, then wheat next year.","regen_reason_fa":"زمین بایر است — وقت کاشت است. نخود بکارید تا خاک را بسازید، سپس سال آینده گندم.","regen_reason_ps":"ځمکه خالي ده — د کرلو وخت دی. لومړی نخود وکرئ، راتلونکي کال غنم."},
+    "mixed_unknown":{"next_best":["wheat","chickpea"],"next_good":["vegetables"],"avoid":[],"regen_reason":"Start a cultivation record this season — we can give better rotation advice as history builds.","regen_reason_fa":"سابقه کشت را این فصل ثبت کنید — سال بعد توصیه بهتری خواهیم داد.","regen_reason_ps":"دا موسم د کرلو ریکارډ ثبت کړئ — راتلونکي کال به ښه مشوره درکو."},
+}
+
+CROP_VALUE_TABLE = {
+    "saffron":    {"label_en":"Saffron","label_fa":"زعفران","label_ps":"زعفران","value_usd_ha":"3,000–8,000","yield_kg_ha":"5–8 kg","water":"Low","soil_benefit":"Medium","market":"Export (premium)","regen_score":4,"notes":"Best in Herat, Kandahar. Perennial 7–10 yr."},
+    "vegetables": {"label_en":"Vegetables","label_fa":"سبزیجات","label_ps":"سبزیجات","value_usd_ha":"800–2,000","yield_kg_ha":"8,000–20,000 kg","water":"High","soil_benefit":"Low","market":"Local / urban","regen_score":2,"notes":"High value but needs irrigation. Depletes soil fast."},
+    "pomegranate":{"label_en":"Pomegranate","label_fa":"انار","label_ps":"انار","value_usd_ha":"500–1,500","yield_kg_ha":"5,000–15,000 kg","water":"Medium","soil_benefit":"Medium","market":"Export (Kandahar)","regen_score":3,"notes":"Kandahar specialty. 3-yr establishment before first yield."},
+    "wheat":      {"label_en":"Wheat","label_fa":"گندم","label_ps":"غنم","value_usd_ha":"300–600","yield_kg_ha":"2,000–4,000 kg","water":"Medium","soil_benefit":"Low","market":"Staple / food security","regen_score":2,"notes":"Food security crop. Low cash return but consistent demand."},
+    "chickpea":   {"label_en":"Chickpea","label_fa":"نخود","label_ps":"نخود","value_usd_ha":"250–500","yield_kg_ha":"800–1,500 kg","water":"Low","soil_benefit":"High (N-fix)","market":"Local + export","regen_score":5,"notes":"Best regenerative crop. Fixes N, saves up to 40% fertilizer."},
+    "lentil":     {"label_en":"Lentil","label_fa":"عدس","label_ps":"مسور","value_usd_ha":"200–400","yield_kg_ha":"600–1,200 kg","water":"Low","soil_benefit":"High (N-fix)","market":"Local + export","regen_score":5,"notes":"Excellent N-fixer. Low water need. Strong local demand."},
+    "mung_bean":  {"label_en":"Mung Bean","label_fa":"ماش","label_ps":"ماش","value_usd_ha":"300–500","yield_kg_ha":"600–1,200 kg","water":"Low","soil_benefit":"High (N-fix)","market":"Local","regen_score":5,"notes":"Summer legume. Breaks wheat disease cycles."},
+    "cotton":     {"label_en":"Cotton","label_fa":"پنبه","label_ps":"کپاس","value_usd_ha":"400–700","yield_kg_ha":"1,500–2,500 kg","water":"High","soil_benefit":"Depletes","market":"Export (south)","regen_score":1,"notes":"South only (Helmand). Heavy on water and soil nutrients."},
+    "sunflower":  {"label_en":"Sunflower","label_fa":"آفتابگردان","label_ps":"لمروال","value_usd_ha":"250–500","yield_kg_ha":"1,500–2,500 kg","water":"Medium","soil_benefit":"Medium","market":"Oil / local","regen_score":3,"notes":"Deep taproot breaks compaction. Good transition crop."},
+    "rice":       {"label_en":"Rice","label_fa":"برنج","label_ps":"وريجي","value_usd_ha":"400–900","yield_kg_ha":"2,000–4,000 kg","water":"Very High","soil_benefit":"Low","market":"Local / premium","regen_score":1,"notes":"North (Kunduz/Takhar) only. Very high water need."},
+    "orchard":    {"label_en":"Orchard / Trees","label_fa":"باغ","label_ps":"باغ","value_usd_ha":"400–1,200","yield_kg_ha":"3,000–10,000 kg","water":"Medium","soil_benefit":"Medium","market":"Local + export","regen_score":3,"notes":"Perennial. Intercrop with legumes for soil health."},
+}
+
+
+def db_save_cultivation(farmer_id, field_id, crop, year, season, notes, province,
+                        source="farmer_reported", ndvi=None):
+    if not sb_ok:
+        return None
+    try:
+        res = sb.table("cultivation_history").insert({
+            "farmer_id":     farmer_id,
+            "field_id":      field_id,
+            "crop":          crop,
+            "year":          year,
+            "season":        season,
+            "notes":         notes,
+            "province":      province,
+            "source":        source,
+            "ndvi_at_peak":  ndvi,
+            "created_at":    datetime.utcnow().isoformat()
+        }).execute()
+        log.info(f"✓ Cultivation logged: {crop} {year} farmer={farmer_id}")
+        return res.data[0] if res.data else None
+    except Exception as e:
+        log.error(f"db_save_cultivation: {e}")
+        return None
+
+
+def db_get_cultivation_history(farmer_id, field_id=None):
+    if not sb_ok:
+        return []
+    try:
+        q = sb.table("cultivation_history").select("*").eq("farmer_id", farmer_id)
+        if field_id:
+            q = q.eq("field_id", field_id)
+        res = (q.order("year", desc=True)
+                .order("created_at", desc=True)
+                .limit(20).execute())
+        return res.data or []
+    except Exception as e:
+        log.error(f"db_get_cultivation_history: {e}")
+        return []
+
+
+def regen_build_recommendation(history, province, current_crop=None, rain=None):
+    last_crop = current_crop or (history[0]["crop"] if history else "mixed_unknown")
+    rule  = CROP_ROTATION_RULES.get(last_crop, CROP_ROTATION_RULES["mixed_unknown"])
+    ptype = get_province_type(province)
+
+    def province_ok(c):
+        if c == "saffron"     and ptype not in ("west","south"): return False
+        if c == "rice"        and ptype != "north":              return False
+        if c == "cotton"      and ptype != "south":              return False
+        if c == "pomegranate" and ptype not in ("south","east"): return False
+        return True
+
+    def water_rank(c):
+        w = CROP_VALUE_TABLE.get(c, {}).get("water","Medium")
+        return {"Low":0,"Medium":1,"High":2,"Very High":3}.get(w, 1)
+
+    best = [c for c in rule["next_best"] if province_ok(c)]
+    good = [c for c in rule["next_good"] if province_ok(c)]
+    if rain and rain < 150:
+        best = sorted(best, key=water_rank)
+        good = sorted(good, key=water_rank)
+
+    recommended = []
+    for c in best[:3]:
+        recommended.append({"crop":c,"priority":"best",**CROP_VALUE_TABLE.get(c,{})})
+    for c in good[:2]:
+        recommended.append({"crop":c,"priority":"good",**CROP_VALUE_TABLE.get(c,{})})
+
+    return {
+        "last_crop":   last_crop,
+        "recommended": recommended,
+        "explanation": {
+            "why":          rule["regen_reason"],
+            "why_fa":       rule["regen_reason_fa"],
+            "why_ps":       rule["regen_reason_ps"],
+            "last_crop":    last_crop,
+            "avoid":        rule.get("avoid",[]),
+            "years_of_data":len(history),
+            "regen_tips": [
+                "Add 2–3 tons compost per jereb before planting — improves water retention 20%",
+                "Leave crop stubble on field after harvest to feed soil microbes",
+                "Minimum tillage — fewer passes protects soil structure and reduces erosion",
+                "Mulch between crop rows to reduce water evaporation by 30%"
+            ]
+        },
+        "crop_comparison": [{"crop":c,**v} for c,v in CROP_VALUE_TABLE.items()]
+    }
+
+
+@app.route("/regen/setup", methods=["GET"])
+def regen_setup_sql():
+    sql = (
+        "-- Run once in Supabase SQL Editor\n"
+        "CREATE TABLE IF NOT EXISTS cultivation_history (\n"
+        "  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),\n"
+        "  farmer_id    uuid,\n"
+        "  field_id     uuid,\n"
+        "  crop         TEXT NOT NULL,\n"
+        "  season       TEXT,\n"
+        "  year         INTEGER,\n"
+        "  notes        TEXT,\n"
+        "  source       TEXT DEFAULT 'farmer_reported',\n"
+        "  ndvi_at_peak FLOAT,\n"
+        "  province     TEXT,\n"
+        "  created_at   TIMESTAMP DEFAULT NOW()\n"
+        ");\n"
+        "CREATE INDEX IF NOT EXISTS idx_cult_farmer ON cultivation_history(farmer_id);\n"
+        "CREATE INDEX IF NOT EXISTS idx_cult_field  ON cultivation_history(field_id);\n"
+    )
+    return jsonify({"ok": True, "sql": sql,
+                    "steps": ["1. Open Supabase → SQL Editor",
+                              "2. Paste the sql above and click Run",
+                              "3. POST /regen/log to start logging"]})
+
+
+@app.route("/regen/log", methods=["POST","OPTIONS"])
+def regen_log():
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    d    = request.get_json(silent=True) or {}
+    crop = (d.get("crop") or "").strip()
+    if not crop:
+        return jsonify({"ok": False, "error": "crop is required"}), 400
+    year = int(d.get("year") or datetime.utcnow().year)
+    saved = db_save_cultivation(
+        farmer_id = d.get("farmer_id"),
+        field_id  = d.get("field_id"),
+        crop      = crop,
+        year      = year,
+        season    = d.get("season",""),
+        notes     = d.get("notes",""),
+        province  = d.get("province",""),
+        source    = "farmer_reported",
+        ndvi      = d.get("ndvi")
+    )
+    return jsonify({"ok": True, "saved": saved})
+
+
+@app.route("/regen/history/<farmer_id>", methods=["GET","OPTIONS"])
+def regen_history(farmer_id):
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    field_id = request.args.get("field_id")
+    history  = db_get_cultivation_history(farmer_id, field_id)
+    return jsonify({"ok": True, "history": history, "count": len(history)})
+
+
+@app.route("/regen/recommend", methods=["POST","OPTIONS"])
+def regen_recommend():
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    d            = request.get_json(silent=True) or {}
+    farmer_id    = d.get("farmer_id")
+    field_id     = d.get("field_id")
+    province     = d.get("province") or "Kabul"
+    current_crop = d.get("current_crop")
+    rain         = d.get("rain")
+    history      = db_get_cultivation_history(farmer_id, field_id) if (farmer_id and sb_ok) else []
+    if not current_crop and history:
+        current_crop = history[0]["crop"]
+    rec = regen_build_recommendation(history, province, current_crop, rain)
+    return jsonify({"ok": True, "history": history, "recommendation": rec,
+                    "crop_values": CROP_VALUE_TABLE})
 
 
 if __name__=="__main__":
