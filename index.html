@@ -929,17 +929,36 @@ const io=new IntersectionObserver(es=>{es.forEach((e,i)=>{if(e.isIntersecting)se
 [...document.querySelectorAll('.fc,.step,.rc,.yf')].forEach(c=>io.observe(c));
 
 // ── YOLO CROP DIAGNOSIS ──────────────────────────────────────────────────────
+const YAPI=window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1'
+  ?`${window.location.protocol}//${window.location.hostname}:5000`
+  :API;
+
+function yResizeAndEncode(file,maxPx,quality,cb){
+  const img=new Image();
+  const url=URL.createObjectURL(file);
+  img.onload=()=>{
+    URL.revokeObjectURL(url);
+    let w=img.width,h=img.height;
+    if(w>maxPx||h>maxPx){const s=maxPx/Math.max(w,h);w=Math.round(w*s);h=Math.round(h*s);}
+    const c=document.createElement('canvas');c.width=w;c.height=h;
+    c.getContext('2d').drawImage(img,0,0,w,h);
+    cb(c.toDataURL('image/jpeg',quality));
+  };
+  img.src=url;
+}
 function yOnFile(file){
   if(!file)return;
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    const prev=document.getElementById('yPreview');
-    if(prev){prev.src=ev.target.result;prev.style.display='block';}
-    const zone=document.getElementById('yZone');
-    if(zone)zone.style.minHeight='auto';
-    yDiagnose(ev.target.result);
-  };
-  reader.readAsDataURL(file);
+  const prev=document.getElementById('yPreview');
+  const zone=document.getElementById('yZone');
+  if(zone)zone.style.minHeight='auto';
+  // Show preview immediately from original
+  const previewUrl=URL.createObjectURL(file);
+  if(prev){prev.src=previewUrl;prev.style.display='block';}
+  // Resize to max 1024px, 85% quality before sending (~150-400 KB)
+  yResizeAndEncode(file,1024,0.85,dataUrl=>{
+    if(prev)prev.src=dataUrl;
+    yDiagnose(dataUrl);
+  });
 }
 function yDrop(ev){
   ev.preventDefault();
@@ -951,14 +970,15 @@ function yDrop(ev){
 async function yDiagnose(dataUrl){
   const res=document.getElementById('yResult');
   if(!res)return;
-  res.innerHTML='<div style="font-family:var(--M);font-size:11px;color:var(--g);text-align:center;padding:1rem;letter-spacing:.07em">YOLO + AI ANALYSING...</div>';
+  res.innerHTML='<div style="font-family:var(--M);font-size:11px;color:var(--g);text-align:center;padding:1rem;letter-spacing:.07em">ANALYSING WITH AI...</div>';
   try{
     const lang=typeof pgCurrentLang!=='undefined'?pgCurrentLang:'en';
-    const r=await fetch(`${API}/diagnose`,{
+    const r=await fetch(`${YAPI}/diagnose`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({image:dataUrl,language:lang}),
     });
+    if(!r.ok){const t=await r.text();res.innerHTML=`<div style="color:#f87171;font-size:13px">Server error ${r.status}: ${t.slice(0,120)}</div>`;return;}
     const d=await r.json();
     if(!d.ok){res.innerHTML=`<div style="color:#f87171;padding:.5rem;font-size:13px">${d.error||'Analysis failed'}</div>`;return;}
     let html='';

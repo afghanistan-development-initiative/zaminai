@@ -42,6 +42,7 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB
 CORS(app, origins="*")
 
 # ── Environment variables ─────────────────────────────────────────────────────
