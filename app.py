@@ -84,6 +84,86 @@ except Exception as e:
 log.info(f"AI: {'Gemini' if GEMINI_KEY else 'Smart fallback only'}")
 log.info(f"DB: {'Supabase connected' if sb_ok else 'disabled'}")
 
+# ════════════════════════════════════════════════════════════════════════════════
+# RAG / VECTOR DATABASE  (Supabase pgvector)
+# Run /rag/setup to get the one-time SQL migration you need to paste into
+# your Supabase SQL editor before the first use.
+# ════════════════════════════════════════════════════════════════════════════════
+
+EMBED_MODEL = "text-embedding-004"
+EMBED_DIM   = 768
+
+rag_ok = False
+try:
+    if sb_ok:
+        sb.table("knowledge_chunks").select("id").limit(1).execute()
+        rag_ok = True
+        log.info("✓ RAG / pgvector ready")
+except Exception:
+    log.warning("RAG not ready — call GET /rag/setup for the SQL migration")
+
+
+def embed_text(text: str) -> list | None:
+    """Embed text using Google text-embedding-004 (768 dimensions)."""
+    if not GEMINI_KEY or not text.strip():
+        return None
+    try:
+        url = (f"https://generativelanguage.googleapis.com/v1beta"
+               f"/models/{EMBED_MODEL}:embedContent?key={GEMINI_KEY}")
+        resp = requests.post(url, json={
+            "model":   f"models/{EMBED_MODEL}",
+            "content": {"parts": [{"text": text[:8000]}]}
+        }, timeout=15)
+        if resp.status_code == 200:
+            return resp.json().get("embedding", {}).get("values")
+        log.warning(f"embed_text HTTP {resp.status_code}")
+    except Exception as e:
+        log.warning(f"embed_text: {e}")
+    return None
+
+
+def rag_store(text: str, source: str = "manual", metadata: dict | None = None) -> bool:
+    """Embed and store one knowledge chunk. Returns True on success."""
+    if not sb_ok or not rag_ok or not GEMINI_KEY:
+        return False
+    text = text.strip()
+    if not text:
+        return False
+    embedding = embed_text(text)
+    if not embedding:
+        return False
+    try:
+        sb.table("knowledge_chunks").insert({
+            "content":    text[:4000],
+            "embedding":  embedding,
+            "source":     source,
+            "metadata":   metadata or {},
+            "created_at": datetime.utcnow().isoformat()
+        }).execute()
+        return True
+    except Exception as e:
+        log.warning(f"rag_store: {e}")
+        return False
+
+
+def rag_retrieve(question: str, top_k: int = 4, threshold: float = 0.70) -> list[str]:
+    """Return top-k most similar knowledge chunks for a question."""
+    if not sb_ok or not rag_ok or not GEMINI_KEY:
+        return []
+    embedding = embed_text(question)
+    if not embedding:
+        return []
+    try:
+        res = sb.rpc("match_knowledge_chunks", {
+            "query_embedding": embedding,
+            "match_count":     top_k,
+            "match_threshold": threshold
+        }).execute()
+        return [r["content"] for r in (res.data or [])]
+    except Exception as e:
+        log.warning(f"rag_retrieve: {e}")
+        return []
+
 
 # ════════════════════════════════════════════════════════════════════════════════
 # DATABASE HELPERS
@@ -201,7 +281,27 @@ def db_save_analysis(field_id, farmer_id, analysis_data):
             "analysed_at": datetime.utcnow().isoformat()
         }).execute()
         log.info(f"✓ Analysis saved for field {field_id}")
-        return res.data[0] if res.data else None
+        saved = res.data[0] if res.data else None
+        # Auto-ingest into RAG (background, non-blocking)
+        if rag_ok and saved:
+            province = analysis_data.get("province", "")
+            chunk = (
+                f"Field analysis — {province}: "
+                f"NDVI={analysis_data.get('ndvi')}, water={analysis_data.get('mndwi')}, "
+                f"rain={analysis_data.get('rain')}mm, area={analysis_data.get('area_jereb')}jereb, "
+                f"soil={analysis_data.get('soil', {}).get('texture', '')}, "
+                f"date={datetime.utcnow().strftime('%Y-%m-%d')}"
+            )
+            threading.Thread(
+                target=rag_store,
+                args=(chunk,),
+                kwargs={"source": "analysis",
+                        "metadata": {"field_id": str(field_id),
+                                     "farmer_id": str(farmer_id),
+                                     "province": province}},
+                daemon=True
+            ).start()
+        return saved
     except Exception as e:
         log.error(f"db_save_analysis: {e}")
         return None
@@ -224,6 +324,17 @@ def db_save_chat(farmer_id, field_id, question, answer, language):
             "asked_at":  datetime.utcnow().isoformat()
         }).execute()
         log.info(f"✓ Chat saved — lang:{language}")
+        # Auto-ingest Q&A pair into RAG (background, non-blocking)
+        if rag_ok and question and answer:
+            chunk = f"Q: {question}\nA: {answer}"
+            threading.Thread(
+                target=rag_store,
+                args=(chunk,),
+                kwargs={"source": "conversation",
+                        "metadata": {"farmer_id": str(farmer_id or ""),
+                                     "language": language}},
+                daemon=True
+            ).start()
     except Exception as e:
         log.error(f"db_save_chat: {e}")
 
@@ -600,7 +711,7 @@ def calc_area_ha(coords):
 
 def call_gemini(prompt):
     if not GEMINI_KEY: return None
-    models=["gemini-1.5-flash","gemini-1.5-flash-latest","gemini-pro"]
+    models=["gemini-2.0-flash","gemini-2.5-flash","gemini-flash-latest"]
     for model in models:
         try:
             url=(f"https://generativelanguage.googleapis.com/v1beta"
@@ -849,7 +960,7 @@ def serve_officer():
 def health():
     return jsonify({
         "status": "ok", "version": "8.0", "gee": gee_ok,
-        "database": sb_ok,
+        "database": sb_ok, "rag": rag_ok,
         "ai": "gemini" if GEMINI_KEY else "smart_only",
         "satellites": ["sentinel2_10m", "landsat8_9_30m", "sentinel1_SAR_10m", "modis_LST_1km"],
         "indices": ["ndvi","evi","savi","mndwi","lswi","ndre","bsi"],
@@ -1431,8 +1542,11 @@ def ask():
         lang_inst={"fa":"Afghan Dari (دری). Use دهقان for farmer, جریب for land. Eastern Arabic numerals ۱۲۳.",
                    "ps":"Pashto (پښتو). Proper Pashto farming terms. Eastern Arabic numerals.",
                    "en":"English. Concise and specific."}.get(language,"English.")
+        # Retrieve relevant knowledge chunks from vector DB
+        rag_chunks = rag_retrieve(question, top_k=4, threshold=0.68)
+        rag_section = ("\n\nRelevant local knowledge:\n" + "\n\n".join(rag_chunks)) if rag_chunks else ""
         prompt=(f"You are ZaminAI, expert agricultural advisor for Afghan smallholder farmers.\n"
-                f"Satellite data: {context}\n\nRespond ONLY in {lang_inst}\n"
+                f"Satellite data: {context}{rag_section}\n\nRespond ONLY in {lang_inst}\n"
                 f"Rules: exact amounts, under 90 words, speak as trusted local expert.\n\nQuestion: {question}")
         reply=call_gemini(prompt)
         if not reply or len(reply)<8:
@@ -3119,74 +3233,365 @@ def diagnose():
             log.warning(f"YOLO import/run failed: {e}")
             yolo_result = {"ok": False, "yolo_available": False, "detections": []}
 
-        # ── Stage 2: Claude Vision detailed diagnosis ─────────────────────────
-        claude_diagnosis = None
+        # ── Build shared prompt ───────────────────────────────────────────────
+        lang_inst = {
+            "fa": "Respond ONLY in Dari (Afghan Persian). Use simple farming language a village farmer understands.",
+            "ps": "Respond ONLY in Pashto. Use simple farming language a village farmer understands.",
+        }.get(language, "Respond in English. Use simple, practical language.")
+
+        yolo_ctx = ""
+        if yolo_result.get("ok") and yolo_result.get("detections"):
+            top_det = yolo_result["detections"][0]
+            yolo_ctx = f"YOLO model detected: {top_det['label_en']} ({top_det['confidence']*100:.0f}% confidence). "
+
+        crop_ctx = f"The farmer says this is a {crop_hint} crop. " if crop_hint else ""
+
+        diagnosis_prompt = (
+            f"{crop_ctx}{yolo_ctx}"
+            "Examine this crop/plant photo carefully and answer:\n"
+            "1. What disease, pest, or problem do you see? (if none, say the plant looks healthy)\n"
+            "2. Severity: mild / moderate / severe\n"
+            "3. What must the farmer do RIGHT NOW? (specific, numbered steps)\n"
+            "4. Which product to apply, what dose, when?\n"
+            "5. One sentence: how to prevent this next season.\n\n"
+            f"{lang_inst}\n"
+            "Be concise. Afghan smallholder farmers will act directly on this advice."
+        )
+
+        # ── Stage 2a: Claude Vision (preferred) ──────────────────────────────
+        ai_diagnosis = None
+        ai_model_used = None
         if ANTHROPIC_KEY:
             try:
                 import anthropic
                 client = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
-
-                lang_inst = {
-                    "fa": "Respond ONLY in Dari (Afghan Persian). Use simple farming language a village farmer understands.",
-                    "ps": "Respond ONLY in Pashto. Use simple farming language a village farmer understands.",
-                }.get(language, "Respond in English. Use simple, practical language.")
-
-                yolo_ctx  = ""
-                if yolo_result.get("ok") and yolo_result.get("detections"):
-                    top = yolo_result["detections"][0]
-                    yolo_ctx = f"YOLO model detected: {top['label_en']} ({top['confidence']*100:.0f}% confidence). "
-
-                crop_ctx = f"The farmer says this is a {crop_hint} crop. " if crop_hint else ""
-
-                prompt = (
-                    f"{crop_ctx}{yolo_ctx}"
-                    "Examine this crop/plant photo carefully and answer:\n"
-                    "1. What disease, pest, or problem do you see? (if none, say the plant looks healthy)\n"
-                    "2. Severity: mild / moderate / severe\n"
-                    "3. What must the farmer do RIGHT NOW? (specific, numbered steps)\n"
-                    "4. Which product to apply, what dose, when?\n"
-                    "5. One sentence: how to prevent this next season.\n\n"
-                    f"{lang_inst}\n"
-                    "Be concise. Afghan smallholder farmers will act directly on this advice."
-                )
-
                 msg = client.messages.create(
                     model="claude-haiku-4-5-20251001",
                     max_tokens=600,
                     messages=[{
                         "role": "user",
                         "content": [
-                            {
-                                "type": "image",
-                                "source": {
-                                    "type": "base64",
-                                    "media_type": "image/jpeg",
-                                    "data": image_b64,
-                                },
-                            },
-                            {"type": "text", "text": prompt},
+                            {"type": "image", "source": {
+                                "type": "base64", "media_type": "image/jpeg", "data": image_b64,
+                            }},
+                            {"type": "text", "text": diagnosis_prompt},
                         ],
                     }],
                 )
-                claude_diagnosis = msg.content[0].text
+                ai_diagnosis  = msg.content[0].text
+                ai_model_used = "claude-haiku-4-5"
             except Exception as e:
                 log.error(f"Claude Vision error: {e}")
 
+        # ── Stage 2b: Gemini Vision fallback ─────────────────────────────────
+        if ai_diagnosis is None and GEMINI_KEY:
+            try:
+                for gmodel in ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-flash-latest"]:
+                    url = (f"https://generativelanguage.googleapis.com/v1beta"
+                           f"/models/{gmodel}:generateContent?key={GEMINI_KEY}")
+                    resp = requests.post(url, json={
+                        "contents": [{"parts": [
+                            {"inline_data": {"mime_type": "image/jpeg", "data": image_b64}},
+                            {"text": diagnosis_prompt},
+                        ]}],
+                        "safetySettings": [{"category": c, "threshold": "BLOCK_NONE"} for c in [
+                            "HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH",
+                            "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT"]],
+                        "generationConfig": {"temperature": 0.5, "maxOutputTokens": 600},
+                    }, timeout=30)
+                    if resp.status_code == 200:
+                        cands = resp.json().get("candidates", [])
+                        if cands:
+                            txt = cands[0].get("content", {}).get("parts", [{}])[0].get("text", "")
+                            if txt and len(txt) > 10:
+                                ai_diagnosis  = txt.strip()
+                                ai_model_used = gmodel
+                                break
+            except Exception as e:
+                log.error(f"Gemini Vision error: {e}")
+
         top = yolo_result["detections"][0] if yolo_result.get("detections") else None
         return jsonify({
-            "ok":            True,
-            "detections":    yolo_result.get("detections", []),
-            "top_detection": top,
-            "is_healthy":    bool(top and top.get("is_healthy")),
-            "yolo_ok":       yolo_result.get("ok", False),
+            "ok":             True,
+            "detections":     yolo_result.get("detections", []),
+            "top_detection":  top,
+            "is_healthy":     bool(top and top.get("is_healthy")),
+            "yolo_ok":        yolo_result.get("ok", False),
             "yolo_available": yolo_result.get("yolo_available", False),
-            "diagnosis":     claude_diagnosis,
-            "model":         "yolov8m-plant-disease + claude-haiku-4-5",
-            "language":      language,
+            "diagnosis":      ai_diagnosis,
+            "model":          f"yolov8m-plant-disease + {ai_model_used or 'no-vision-key'}",
+            "language":       language,
         })
     except Exception as e:
         log.error(f"/diagnose: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# RAG ENDPOINTS
+# ════════════════════════════════════════════════════════════════════════════════
+
+_RAG_SETUP_SQL = """
+-- Run once in Supabase SQL Editor (Database → SQL Editor)
+
+create extension if not exists vector;
+
+create table if not exists knowledge_chunks (
+    id         uuid    primary key default gen_random_uuid(),
+    content    text    not null,
+    embedding  vector(768),
+    source     text    default 'manual',
+    metadata   jsonb   default '{}',
+    created_at timestamp default now()
+);
+
+create or replace function match_knowledge_chunks (
+    query_embedding  vector(768),
+    match_count      int     default 4,
+    match_threshold  float   default 0.70
+)
+returns table (id uuid, content text, source text, metadata jsonb, similarity float)
+language sql stable as $$
+    select id, content, source, metadata,
+           1 - (embedding <=> query_embedding) as similarity
+    from knowledge_chunks
+    where 1 - (embedding <=> query_embedding) > match_threshold
+    order by embedding <=> query_embedding
+    limit match_count;
+$$;
+
+create index if not exists knowledge_chunks_embedding_idx
+    on knowledge_chunks
+    using ivfflat (embedding vector_cosine_ops)
+    with (lists = 100);
+""".strip()
+
+_RAG_SEED_DOCS = [
+    # Irrigation thresholds
+    ("When MNDWI water index is below -0.20 in Afghan fields, irrigate within 2-3 days urgently. "
+     "For MNDWI between -0.20 and -0.10, irrigate within 4-7 days. "
+     "MNDWI above -0.05 means adequate soil moisture — wait 7-10 days before next irrigation. "
+     "Irrigation cost is roughly 400-600 AFN per jereb per session using a diesel pump."),
+
+    # NDVI crop health
+    ("NDVI below 0.12 means bare or fallow land with no active crop. "
+     "NDVI 0.12-0.25 indicates sparse vegetation, possible drought stress, or early seedling stage. "
+     "NDVI 0.25-0.55 is typical for healthy wheat or cereal crops in Afghanistan. "
+     "NDVI above 0.55 indicates vegetables, orchards, or dense irrigated vegetation."),
+
+    # VCI drought index
+    ("Vegetation Condition Index (VCI) below 35 means severe drought stress — irrigate immediately and delay fertilizer. "
+     "VCI 35-50 indicates moderate stress — increase irrigation frequency by 30%. "
+     "VCI above 50 means normal to good crop condition. "
+     "VCI is calculated from NDVI relative to the historical minimum and maximum for the same field location."),
+
+    # Wheat - main Afghan crop
+    ("Wheat (گندم / غنم) is Afghanistan's most important crop, grown on over 60% of farmland. "
+     "Plant winter wheat in October-November in northern provinces (Kunduz, Balkh, Takhar, Baghlan). "
+     "Plant in November-December in southern provinces (Kandahar, Helmand). "
+     "Harvest in June-July in the north, April-May in the south. "
+     "Apply DAP fertilizer at planting: 20 kg/jereb. Apply Urea at tillering stage: 35 kg/jereb."),
+
+    # Saffron
+    ("Saffron (زعفران) is Afghanistan's highest-value cash crop — worth 50 times more than wheat per kg. "
+     "Plant saffron corms in September-October only. Harvest the red stigmas in October-November. "
+     "Herat province produces the best quality Afghan saffron. "
+     "Saffron needs well-drained sandy loam soil, pH 6.5-8.0, and very little water — 150-200 mm/year. "
+     "Each jereb can yield 3-5 kg dried saffron worth 150,000-250,000 AFN at 2024 prices."),
+
+    # Kunduz province
+    ("Kunduz province soil: silty loam, pH 7.4, 22% clay, 40% silt, organic carbon 0.9%. "
+     "Annual rainfall 287 mm. Growing season NDVI typically 0.33-0.40. "
+     "Main crops: wheat, cotton, soybean, rice. Excellent for irrigated vegetables in summer."),
+
+    # Balkh province
+    ("Balkh province soil: sandy loam, pH 7.6, 18% clay, organic carbon 0.7%. "
+     "Annual rainfall 245 mm. Best crops: wheat, cotton, melon, onion. "
+     "Mazar-i-Sharif district has good irrigation infrastructure from Balkh River."),
+
+    # Herat province
+    ("Herat province soil: sandy loam, pH 7.8, low organic carbon 0.5%. "
+     "Annual rainfall 195 mm — water-scarce, drip irrigation recommended. "
+     "Best province for saffron and pistachio production. Also grows wheat and cotton."),
+
+    # Nangarhar province
+    ("Nangarhar province soil: loam, pH 7.2, high organic carbon 1.2%, 28% clay. "
+     "Annual rainfall 320 mm — one of the wettest provinces. "
+     "Good for: citrus fruits (نارنج), sugarcane, rice, vegetables, tobacco."),
+
+    # Kandahar province
+    ("Kandahar province soil: sandy, pH 8.0, very low organic carbon 0.3%. "
+     "Annual rainfall 175 mm — highly water-stressed without irrigation. "
+     "Famous for: pomegranate (انار), grapes (انگور), apricot (زردآلو). "
+     "Add 3-4 tonnes compost per jereb to improve sandy soils before planting fruit trees."),
+
+    # Helmand province
+    ("Helmand province soil: sandy loam, pH 7.9, low water retention. "
+     "Annual rainfall 148 mm — driest major province, all agriculture needs irrigation. "
+     "Irrigation water from Helmand River and Kajaki Dam canals is essential. "
+     "Grows: wheat, corn, vegetables, cotton in irrigated areas."),
+
+    # Badakhshan (high elevation)
+    ("Badakhshan province soil: clay loam, pH 6.8, high organic carbon 1.8%. "
+     "Annual rainfall 420 mm — the highest in Afghanistan due to mountain location. "
+     "Cool climate — frost risk from October to April. Grows: wheat, barley, potatoes. "
+     "Short growing season: plant in April-May, harvest in August-September."),
+
+    # Fertilizer guide
+    ("Common fertilizers for Afghan farmers: "
+     "DAP (diammonium phosphate) — supplies phosphorus and nitrogen, apply 20 kg/jereb at planting time. "
+     "Urea (46% nitrogen) — apply 30-40 kg/jereb at tillering, split into two applications for sandy soils. "
+     "Compost (کمپوست) — 2-3 tonnes/jereb improves water retention in sandy soils and nutrient content in clay soils. "
+     "Potash (K2O) — rarely needed in Afghan soils which are naturally high in potassium."),
+
+    # Wheat diseases
+    ("Wheat yellow rust (Puccinia striiformis — زنگ زرد) shows yellow stripes running along leaves. "
+     "Spray Tebuconazole 250 EC at 500 ml/jereb with backpack sprayer when first spots appear. "
+     "Best prevention: use resistant varieties like Mazar-99, Kabul-2013, or Roshan."),
+
+    ("Wheat stem rust (Puccinia graminis — زنگ ساقه) shows orange-brown pustules on stems. "
+     "Spray Propiconazole 250 EC at 400 ml/jereb at first sign of infection. "
+     "Harvest early if infection is severe at grain-fill stage to save partial yield."),
+
+    # Crop calendar
+    ("Afghan farming calendar by month: "
+     "January-February: winter wheat growing, apply top-dress nitrogen if leaves are yellowing. "
+     "March-April: wheat heading and grain fill — most critical irrigation period of the year. "
+     "May-June: wheat harvest in south and east; plant summer corn and vegetables. "
+     "July-August: summer crops (corn, vegetables) at peak growth in irrigated areas. "
+     "September-October: plant saffron corms, prepare fields for winter wheat. "
+     "November-December: plant winter wheat in all provinces, apply basal DAP fertilizer."),
+
+    # Drip irrigation
+    ("Drip irrigation (آبیاری قطره‌ای) saves 40-50% water compared to flood irrigation. "
+     "Recommended for sandy soils (Kandahar, Helmand, Herat) where water infiltrates quickly. "
+     "Initial cost: 15,000-25,000 AFN per jereb for basic drip kit. "
+     "Recovers cost in 1-2 seasons through water savings and higher yields."),
+
+    # Soil improvement
+    ("Improving alkaline Afghan soils (pH above 7.8): "
+     "Add sulfur at 40-60 kg/jereb to reduce pH over one season. "
+     "Use ammonium sulfate fertilizer instead of urea for acidifying effect. "
+     "Add organic matter (compost or manure) 3-4 tonnes/jereb to buffer pH extremes. "
+     "Gypsum (calcium sulfate) at 200 kg/jereb improves structure of clay soils."),
+]
+
+
+@app.route("/rag/setup", methods=["GET"])
+def rag_setup():
+    """Return the one-time SQL migration needed to enable pgvector in Supabase."""
+    return jsonify({
+        "sql":          _RAG_SETUP_SQL,
+        "instructions": (
+            "1. Open Supabase dashboard → Database → SQL Editor. "
+            "2. Paste the SQL above and click Run. "
+            "3. Restart the ZaminAI API. "
+            "4. Call POST /rag/seed to load built-in Afghan farming knowledge."
+        ),
+        "rag_ok":       rag_ok
+    })
+
+
+@app.route("/rag/seed", methods=["POST", "OPTIONS"])
+def rag_seed():
+    """Seed the vector DB with built-in Afghan farming knowledge. Call once after setup."""
+    if request.method == "OPTIONS": return jsonify({}), 200
+    if not rag_ok:
+        return jsonify({"error": "RAG not ready — call GET /rag/setup first", "rag_ok": False}), 503
+    if not GEMINI_KEY:
+        return jsonify({"error": "GEMINI_API_KEY required for embeddings"}), 503
+    stored = 0
+    for doc in _RAG_SEED_DOCS:
+        if rag_store(doc, source="seed_knowledge", metadata={"type": "domain_knowledge"}):
+            stored += 1
+    return jsonify({
+        "ok":        stored > 0,
+        "stored":    stored,
+        "total":     len(_RAG_SEED_DOCS),
+        "message":   f"Seeded {stored}/{len(_RAG_SEED_DOCS)} knowledge chunks"
+    })
+
+
+@app.route("/rag/ingest", methods=["POST", "OPTIONS"])
+def rag_ingest():
+    """Add knowledge chunks to the vector DB.
+    Body: {text: "..."} for one chunk  OR  {chunks: ["...", "..."]} for bulk.
+    Optional: source (str), metadata (dict).
+    """
+    if request.method == "OPTIONS": return jsonify({}), 200
+    if not rag_ok:
+        return jsonify({"error": "RAG not ready — call GET /rag/setup first", "rag_ok": False}), 503
+    if not GEMINI_KEY:
+        return jsonify({"error": "GEMINI_API_KEY required for embeddings"}), 503
+    try:
+        d        = request.get_json(force=True)
+        source   = d.get("source", "manual")
+        metadata = d.get("metadata", {})
+
+        if "text" in d:
+            ok = rag_store(d["text"], source=source, metadata=metadata)
+            return jsonify({"ok": ok, "stored": 1 if ok else 0})
+
+        chunks = d.get("chunks", [])
+        if not chunks:
+            return jsonify({"error": "Provide 'text' or 'chunks'"}), 400
+        stored = sum(
+            1 for c in chunks
+            if isinstance(c, str) and c.strip() and rag_store(c, source=source, metadata=metadata)
+        )
+        return jsonify({"ok": stored > 0, "stored": stored, "total": len(chunks)})
+    except Exception as e:
+        log.error(f"/rag/ingest: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/rag/search", methods=["POST", "OPTIONS"])
+def rag_search():
+    """Test RAG retrieval for a question.
+    Body: {question: "...", top_k: 4, threshold: 0.65}
+    """
+    if request.method == "OPTIONS": return jsonify({}), 200
+    if not rag_ok:
+        return jsonify({"error": "RAG not ready", "rag_ok": False}), 503
+    try:
+        d         = request.get_json(force=True)
+        question  = d.get("question", "").strip()
+        top_k     = int(d.get("top_k", 4))
+        threshold = float(d.get("threshold", 0.65))
+        if not question:
+            return jsonify({"error": "question required"}), 400
+        chunks = rag_retrieve(question, top_k=top_k, threshold=threshold)
+        return jsonify({
+            "ok": True, "question": question,
+            "chunks": chunks, "count": len(chunks), "threshold": threshold
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/rag/stats", methods=["GET"])
+def rag_stats():
+    """Return RAG database statistics."""
+    if not sb_ok:
+        return jsonify({"ok": False, "rag_ok": False, "error": "Database not available"}), 503
+    try:
+        res    = sb.table("knowledge_chunks").select("source", count="exact").execute()
+        total  = res.count or 0
+        by_src = {}
+        for row in (res.data or []):
+            s = row.get("source", "unknown")
+            by_src[s] = by_src.get(s, 0) + 1
+        return jsonify({
+            "ok":           True,
+            "rag_ok":       rag_ok,
+            "total_chunks": total,
+            "by_source":    by_src,
+            "embed_model":  EMBED_MODEL,
+            "embed_dim":    EMBED_DIM,
+            "vector_db":    "supabase_pgvector"
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 if __name__=="__main__":
