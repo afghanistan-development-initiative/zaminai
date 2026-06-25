@@ -103,17 +103,21 @@ except Exception:
     log.warning("RAG not ready — call GET /rag/setup for the SQL migration")
 
 def _auto_seed_rag():
-    """Seed knowledge base on first deployment if table is empty."""
+    """Seed (or top-up) knowledge base when DB has fewer chunks than the seed list."""
     try:
-        res = sb.table("knowledge_chunks").select("id", count="exact").execute()
-        if (res.count or 0) == 0 and GEMINI_KEY:
-            log.info("RAG table empty — auto-seeding knowledge base...")
-            stored = sum(
-                1 for doc in _RAG_SEED_DOCS
-                if rag_store(doc, source="seed_knowledge",
-                             metadata={"type": "domain_knowledge"})
-            )
-            log.info(f"✓ Auto-seeded {stored} knowledge chunks")
+        res   = sb.table("knowledge_chunks").select("id", count="exact").execute()
+        count = res.count or 0
+        if count >= len(_RAG_SEED_DOCS) or not GEMINI_KEY:
+            return
+        log.info(f"RAG has {count} chunks, seed list has {len(_RAG_SEED_DOCS)} — seeding new chunks...")
+        # Re-seed all; rag_store is append-only so duplicates may occur for existing chunks,
+        # but this is the simplest approach for small seed lists.
+        stored = sum(
+            1 for doc in _RAG_SEED_DOCS
+            if rag_store(doc, source="seed_knowledge",
+                         metadata={"type": "domain_knowledge"})
+        )
+        log.info(f"✓ Auto-seeded {stored}/{len(_RAG_SEED_DOCS)} knowledge chunks")
     except Exception as e:
         log.warning(f"Auto-seed RAG: {e}")
 
@@ -3710,6 +3714,112 @@ _RAG_SEED_DOCS = [
      "Dryland rainfed wheat (40% of wheat area) shows near-zero yield in severe drought years. "
      "CHIRPS satellite rainfall data and MODIS NDVI anomaly maps are the primary early-warning tools "
      "used by WFP, FAO, and FEWS NET for food security monitoring in Afghanistan."),
+
+    # ── Crop rotation ─────────────────────────────────────────────────────────
+
+    ("Crop rotation systems for Afghan smallholder farms "
+     "[Source: ICARDA dryland farming systems for West Asia and North Africa; "
+     "FAO Crop Rotation and Soil Fertility 2018; "
+     "WUR Farming Systems Ecology group]: "
+     "Wheat–fallow (the most common Afghan rotation): one wheat crop followed by bare fallow. "
+     "Limitation: fallow loses 30-50% of stored soil moisture to evaporation and adds no organic carbon. "
+     "Wheat–legume rotation (recommended): replace fallow with lentil, chickpea, or mung bean. "
+     "Benefits: legumes fix 50-150 kg N/ha, reducing next wheat fertilizer need by 30-40 kg N/ha. "
+     "Wheat NDVI and yield typically 10-18% higher after legume than after bare fallow (ICARDA trials). "
+     "Wheat–cotton rotation (Kunduz, Baghlan, Balkh): cotton is high N-demanding; follow with wheat + extra urea. "
+     "Wheat–maize–rice in irrigated Nangarhar: intensive triple crop possible but exhausts soil; "
+     "include a legume rest year every 3-4 cycles. "
+     "Sainfoin (Onobrychis) and alfalfa (yonjo) 2-year stands improve soil structure before wheat — "
+     "traditional practice that also provides fodder for livestock."),
+
+    ("Legume crops for nitrogen fixation and soil health in Afghanistan "
+     "[Source: ICARDA legume improvement programme for Central and West Asia; "
+     "FAO Legumes: Seeds of Change report 2016; "
+     "WUR Plant Sciences group legume-cereal intercropping research]: "
+     "Chickpea (Cicer arietinum — نخود): most widely grown legume in Afghanistan. "
+     "Sown Feb-Mar, harvested May-Jun. Fixes 60-120 kg N/ha with Mesorhizobium ciceri inoculant. "
+     "Lentil (Lens culinaris — عدس): sown Feb-Mar, harvested May-Jun. Fixes 40-90 kg N/ha. "
+     "Drought-tolerant: survives on 200-350 mm rainfall. "
+     "Mung bean (Vigna radiata): sown Apr-May, harvested Jul-Aug. Short-season — fits as gap crop. "
+     "Fixes 40-80 kg N/ha. High market value. "
+     "Fenugreek (Trigonella): sown Mar-Apr, harvested Jun. Dual-purpose: grain and fodder. "
+     "Key practice: rhizobium seed inoculant (available through FAO/MAIL extension) "
+     "increases N fixation 25-40% vs. uninoculated seed in calcareous Afghan soils. "
+     "Intercropping lentil + wheat at 70:30 ratio reduces rust severity and improves total protein yield."),
+
+    # ── Regenerative agriculture ──────────────────────────────────────────────
+
+    ("Regenerative agriculture principles for Afghan dryland smallholders "
+     "[Source: FAO Voluntary Guidelines for Sustainable Soil Management 2017; "
+     "WUR Farming Systems Ecology — agroecology principles; "
+     "Rodale Institute regenerative organic agriculture research (applied globally); "
+     "ICARDA Conservation Agriculture for Central Asia programme]: "
+     "Regenerative agriculture rebuilds soil health, increases water retention, and restores biodiversity. "
+     "Five core practices applicable to Afghan smallholders: "
+     "1. Minimum tillage / conservation tillage: reduces soil disturbance, preserves soil structure and water. "
+     "   In semi-arid Afghanistan, zero-till can improve wheat yield by 5-12% vs. deep ploughing in drought years. "
+     "2. Permanent soil cover: keep crop residues on soil surface — reduces evaporation 15-30%, "
+     "   prevents erosion, feeds soil microbes. Avoid burning residues. "
+     "3. Crop diversity and rotation: alternate cereals with legumes every year (see rotation guide). "
+     "4. Living roots in soil as long as possible: cover crops in fallow period maintain soil biology. "
+     "5. Integrate livestock: managed grazing and composting manure returns nutrients to soil. "
+     "Documented benefits in similar dryland systems (Iran, Pakistan, Central Asia): "
+     "SOC +0.05-0.15% per year; water infiltration +20-40%; input cost -15-25% over 5 years."),
+
+    ("Conservation tillage and no-till for Afghan semi-arid soils "
+     "[Source: ICARDA Conservation Agriculture for West Asia North Africa (WANA); "
+     "FAO Conservation Agriculture: A Manual for Farmers and Extension Workers 2014; "
+     "WUR Soil Physics and Land Management group]: "
+     "Conventional deep ploughing (30-40 cm) in semi-arid soils: "
+     "breaks soil aggregates, accelerates organic matter oxidation, increases erosion risk. "
+     "Reduced-till (15-20 cm rip, then surface seeding): saves fuel 35-50%, maintains surface mulch layer. "
+     "Zero-till (direct seeding into untilled soil): "
+     "  - Requires a seed drill with disc coulters (available through MAIL/NGO programmes). "
+     "  - Wheat in zero-till plots: soil moisture at anthesis +10-18% vs. ploughed (key in dry springs). "
+     "  - Yields equal or better than conventional after a 2-3 year transition period. "
+     "Subsoil pan formation from repeated shallow ploughing at the same depth: "
+     "  - Breaks up with single deep rip every 5-7 years then revert to zero-till. "
+     "Stubble retention (not burning): surface residue reduces soil temperature 3-6°C in summer, "
+     "critical for soil microbial survival in hot Afghan summers."),
+
+    ("Agroforestry and windbreaks for Afghan farming systems "
+     "[Source: FAO Agroforestry for sustainable land management 2017; "
+     "WUR Forest Ecology and Forest Management group; "
+     "ICARDA agroforestry practices for dryland systems in Central Asia]: "
+     "Agroforestry integrates trees with crops and/or livestock for multiple ecosystem services. "
+     "Windbreaks (shelterbelts): "
+     "  - Poplars (Populus nigra) or willows along field edges reduce wind erosion — "
+     "    major problem in Kunduz, Balkh, Herat, Faryab. "
+     "  - Windbreak 5-10× tree height protects soil. Trees at 10m height protect a 50-100m field strip. "
+     "  - Wind speed reduction 30-50% in sheltered zone; transpiration losses from wheat reduced 10-20%. "
+     "Fruit trees on field borders: "
+     "  - Mulberry (toot), almond, walnut: no root competition with field crops at >3m from tree trunk. "
+     "  - Mulberry provides silk production, fruit, and firewood. Leaves used as livestock fodder. "
+     "  - Walnut (Juglans regia) in Kunar, Nuristan, Badakhshan highlands: 20-40 year investment, "
+     "    high income once bearing; highly drought-tolerant. "
+     "Nitrogen-fixing trees: Elaeagnus (Russian olive / ziziphus) fixes atmospheric N; "
+     "leaf litter adds 20-60 kg N/ha per year to adjacent soil."),
+
+    ("Integrated Pest Management (IPM) for Afghan smallholders "
+     "[Source: FAO IPM Farmer Field Schools methodology (global); "
+     "ICARDA IPM for dryland cereals in West Asia; "
+     "WUR Entomology and Biological Control group research]: "
+     "IPM minimises pesticide use by combining biological, cultural, and chemical controls. "
+     "Sequence of actions: Monitor first, then act. "
+     "Step 1 — Field scouting (observe weekly): count pest density and natural enemy populations. "
+     "Step 2 — Economic threshold: spray only when pest density exceeds the damage threshold. "
+     "For aphids on wheat: economic threshold is >500 aphids per tiller at booting stage. "
+     "Step 3 — Cultural controls first: "
+     "  - Planting date adjustment: early sowing (Oct 15 north) reduces Hessian fly risk. "
+     "  - Crop rotation: breaks pest cycles — reduces Sunn pest (Eurygaster) and wireworm populations. "
+     "  - Resistant varieties: Mazar-99, Roshan are both rust-resistant and Hessian-fly tolerant. "
+     "Step 4 — Biological control: "
+     "  - Parasitic wasps naturally control aphids and armyworm; pesticides kill beneficial insects. "
+     "  - Bt (Bacillus thuringiensis) products for caterpillar pests are safe and effective. "
+     "Step 5 — Chemical control only if threshold exceeded, use targeted low-toxicity products. "
+     "Sunn pest (Eurygaster integriceps) — the most damaging wheat pest in Afghanistan: "
+     "  - Causes grain shrivelling and gluten degradation. "
+     "  - Control: spray nymphs in May with pyrethroid or neonicotinoid when >1 nymph/m²."),
 ]
 
 

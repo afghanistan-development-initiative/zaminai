@@ -283,6 +283,9 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
 .cbubble{max-width:87%;padding:.6rem .85rem;border-radius:9px;font-size:13px;line-height:1.6;}
 .cmsg.ai .cbubble{background:var(--bg);border:1px solid var(--gbr);border-radius:4px 9px 9px 9px;}
 .cmsg.user .cbubble{background:var(--g);color:#fff;border-radius:9px 4px 9px 9px;}
+.speak-btn{display:inline-flex;align-items:center;gap:4px;margin-top:7px;padding:3px 9px;border:1px solid var(--gbr);border-radius:20px;background:var(--bg);cursor:pointer;font-size:11px;color:var(--t2);transition:all .15s;}
+.speak-btn:hover{border-color:var(--g);color:var(--g);}
+.speak-btn.speaking{border-color:var(--g);color:var(--g);background:var(--gb);}
 .quick-r{display:flex;gap:5px;flex-wrap:wrap;padding:.45rem .9rem;border-top:1px solid var(--gbr);}
 .qr{font-family:var(--M);font-size:11px;padding:5px 11px;background:var(--bg);border:1px solid var(--gbr);border-radius:20px;cursor:pointer;color:var(--m);transition:all .2s;white-space:nowrap;}
 .qr:hover{border-color:var(--g);color:var(--g);background:var(--gb);}
@@ -2703,9 +2706,28 @@ async function sendQ(q){
   }catch(e){reply='';}
   if(!reply||reply.length<5)reply=smartAnswer(q,appLang);
   document.getElementById(tid)?.remove();
-  msgs.innerHTML+=`<div class="cmsg ai"><div class="cavatar">🌱</div><div class="cbubble" dir="auto">${reply.replace(/\n/g,'<br>')}</div></div>`;
+  const mid='m'+Date.now();
+  const speakLabel=appLang==='fa'?'بشنو':appLang==='ps'?'واوره':'Listen';
+  const speakBtn=window.speechSynthesis
+    ?`<div><button class="speak-btn" id="sb${mid}" onclick="speakReply('${mid}')">🔊 ${speakLabel}</button></div>`
+    :'';
+  msgs.innerHTML+=`<div class="cmsg ai"><div class="cavatar">🌱</div><div class="cbubble" dir="auto"><div id="rt${mid}">${reply.replace(/\n/g,'<br>')}</div>${speakBtn}</div></div>`;
   msgs.scrollTop=msgs.scrollHeight;
-  if(window.speechSynthesis){const u=new SpeechSynthesisUtterance(reply.replace(/<[^>]*>/g,'').slice(0,400));u.lang=appLang==='fa'?'fa-IR':appLang==='ps'?'ps-AF':'en-US';u.rate=.9;speechSynthesis.speak(u);}
+  // Store plain text so speakReply() can read it
+  window._replyText=window._replyText||{};
+  window._replyText[mid]=reply.replace(/<[^>]*>/g,'');
+}
+function speakReply(mid){
+  if(!window.speechSynthesis)return;
+  const btn=document.getElementById('sb'+mid);
+  if(speechSynthesis.speaking){speechSynthesis.cancel();if(btn)btn.classList.remove('speaking');return;}
+  const text=(window._replyText||{})[mid]||'';
+  if(!text)return;
+  const u=new SpeechSynthesisUtterance(text.slice(0,600));
+  u.lang=appLang==='fa'?'fa-IR':appLang==='ps'?'ps-AF':'en-US';
+  u.rate=0.88;
+  if(btn){btn.classList.add('speaking');u.onend=()=>btn.classList.remove('speaking');}
+  speechSynthesis.speak(u);
 }
 
 // ── Voice command parser ─────────────────────────────────────────────────────
