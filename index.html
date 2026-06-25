@@ -433,7 +433,70 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
   .gps-modal{width:calc(100vw - 2rem);}
   /* Notification above toolbar */
   .notif{bottom:100px;}
+  .regen-float{bottom:78px;}
 }
+/* ── REGEN AGRICULTURE PANEL ──────────────────────────────────────────────── */
+.regen-panel{position:absolute;bottom:-100%;left:0;right:0;z-index:499;background:var(--w);border-top:2px solid var(--g);border-radius:18px 18px 0 0;box-shadow:0 -6px 32px rgba(22,163,74,.18);transition:bottom .4s cubic-bezier(.4,0,.2,1);max-height:75vh;display:flex;flex-direction:column;}
+.regen-panel.open{bottom:0;}
+.regen-handle{width:36px;height:4px;background:var(--gbr);border-radius:2px;margin:.55rem auto .2rem;flex-shrink:0;}
+.regen-head{padding:.6rem 1.1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--gbr);background:linear-gradient(90deg,#052e16,#064e24);flex-shrink:0;}
+.regen-title{font-family:var(--D);font-size:19px;color:#4ade80;letter-spacing:.04em;}
+.regen-close{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:5px 12px;color:rgba(255,255,255,.75);cursor:pointer;font-family:var(--M);font-size:11px;}
+.regen-close:hover{background:rgba(255,255,255,.22);}
+.regen-tabs{display:flex;border-bottom:1px solid var(--gbr);flex-shrink:0;}
+.regen-tab{flex:1;font-family:var(--M);font-size:10px;padding:.6rem .4rem;border:none;background:transparent;cursor:pointer;color:var(--m2);letter-spacing:.04em;border-bottom:2px solid transparent;transition:all .2s;}
+.regen-tab.on{color:var(--g);border-bottom-color:var(--g);background:var(--gb);}
+.regen-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.regen-section{padding:.9rem 1.1rem;}
+.regen-sub{font-family:var(--M);font-size:10px;color:var(--m2);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.55rem;}
+.regen-empty{text-align:center;padding:1.8rem 1rem;color:var(--m2);}
+.regen-empty .ic{font-size:36px;margin-bottom:.4rem;}
+.regen-empty .tx{font-family:var(--M);font-size:11px;line-height:1.6;}
+.cult-timeline{display:flex;flex-direction:column;gap:.45rem;margin-bottom:.9rem;}
+.cult-entry{display:flex;align-items:flex-start;gap:.65rem;padding:.7rem .85rem;background:var(--bg);border:1px solid var(--gbr);border-radius:9px;}
+.cult-entry.satellite{border-left:3px solid var(--b);}
+.cult-entry.farmer{border-left:3px solid var(--g);}
+.cult-icon{font-size:20px;flex-shrink:0;margin-top:1px;}
+.cult-crop{font-family:var(--D);font-size:15px;color:var(--t);}
+.cult-meta{font-family:var(--M);font-size:10px;color:var(--m2);margin-top:2px;}
+.cult-badge{font-family:var(--M);font-size:9px;padding:1px 6px;border-radius:8px;margin-left:4px;}
+.cult-badge.sat{background:#dbeafe;color:#1d4ed8;}
+.cult-badge.farm{background:var(--gb);color:var(--g);}
+.regen-form{background:var(--bg);border:1px solid var(--gbr);border-radius:11px;padding:.9rem;}
+.regen-form-title{font-family:var(--D);font-size:15px;color:var(--g);margin-bottom:.65rem;}
+.regen-sel{width:100%;padding:10px 11px;border:1px solid var(--gbr);border-radius:7px;font-size:14px;color:var(--t);background:#fff;outline:none;margin-bottom:.45rem;-webkit-appearance:none;}
+.regen-sel:focus{border-color:var(--g);}
+.regen-inp{width:100%;padding:9px 11px;border:1px solid var(--gbr);border-radius:7px;font-size:13px;color:var(--t);background:#fff;outline:none;margin-bottom:.45rem;}
+.regen-inp:focus{border-color:var(--g);}
+.regen-btn{width:100%;padding:11px;background:var(--g);color:#fff;border:none;border-radius:7px;font-family:var(--M);font-size:12px;cursor:pointer;letter-spacing:.04em;transition:background .2s;}
+.regen-btn:hover{background:var(--gd);}
+.regen-btn:disabled{background:var(--m2);cursor:not-allowed;}
+.regen-rec-list{display:flex;flex-direction:column;gap:.5rem;margin-bottom:.9rem;}
+.regen-rec{display:flex;align-items:flex-start;gap:.65rem;padding:.75rem .85rem;background:var(--bg);border:1px solid var(--gbr);border-radius:9px;transition:border-color .2s;}
+.regen-rec:hover{border-color:var(--g);}
+.regen-rec.best{border-left:3px solid var(--g);}
+.regen-rec.good{border-left:3px solid var(--a);}
+.regen-rec-icon{font-size:24px;flex-shrink:0;}
+.regen-rec-name{font-family:var(--D);font-size:16px;color:var(--t);}
+.regen-rec-val{font-family:var(--M);font-size:10px;color:var(--m2);margin-top:2px;}
+.regen-rec-badge{font-family:var(--M);font-size:9px;padding:2px 7px;border-radius:9px;margin-left:4px;}
+.regen-rec-badge.best{background:var(--gb);color:var(--g);}
+.regen-rec-badge.good{background:#fef3c7;color:#d97706;}
+.regen-stars{font-size:10px;margin-top:3px;color:var(--a);}
+.regen-why{background:var(--gb);border:1px solid var(--gbr);border-radius:9px;padding:.8rem;margin-bottom:.9rem;}
+.regen-why-title{font-family:var(--M);font-size:10px;color:var(--g);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.35rem;}
+.regen-why-text{font-size:13px;color:var(--t);line-height:1.6;}
+.regen-tips{display:flex;flex-direction:column;gap:.35rem;margin-bottom:.9rem;}
+.regen-tip{display:flex;align-items:flex-start;gap:.45rem;font-size:12px;color:var(--m);padding:.45rem .6rem;background:var(--bg);border-radius:6px;border-left:2px solid var(--g);line-height:1.5;}
+.crop-table{border:1px solid var(--gbr);border-radius:9px;overflow:hidden;margin-bottom:.9rem;}
+.crop-row{display:grid;grid-template-columns:1.7fr 1fr 1fr 1fr;gap:.25rem;padding:.55rem .7rem;font-size:11px;border-bottom:1px solid var(--gbr);align-items:center;}
+.crop-row:last-child{border-bottom:none;}
+.crop-row.hdr{background:var(--gd);color:#4ade80;font-family:var(--M);font-size:9px;letter-spacing:.07em;text-transform:uppercase;}
+.crop-row:not(.hdr):nth-child(even){background:var(--bg);}
+.crop-cell-name{font-weight:600;color:var(--t);}
+.crop-cell{font-family:var(--M);color:var(--m);font-size:10px;}
+.regen-float{position:absolute;bottom:78px;right:18px;z-index:300;width:50px;height:50px;background:#15803d;border:none;border-radius:50%;cursor:pointer;font-size:20px;box-shadow:0 4px 16px rgba(22,163,74,.35);display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.regen-float:hover{background:var(--gd);transform:scale(1.08);}
 </style>
 </head>
 <body>
@@ -899,6 +962,64 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
       </div>
     </div>
     <button class="ai-float" onclick="openAIPanel()">🤖</button>
+    <button class="regen-float" id="regenFloat" onclick="openRegenPanel()" title="Regen Plot — Cultivation Story & Crop Rotation">🌿</button>
+    <div class="regen-panel" id="regenPanel">
+      <div class="regen-handle"></div>
+      <div class="regen-head">
+        <div class="regen-title">🌿 Regen Plot</div>
+        <button class="regen-close" onclick="closeRegenPanel()">Close ✕</button>
+      </div>
+      <div class="regen-tabs">
+        <button class="regen-tab on" id="rtab-story" onclick="regenSwitchTab('story')">📖 Story</button>
+        <button class="regen-tab" id="rtab-next" onclick="regenSwitchTab('next')">🌱 Next Crop</button>
+        <button class="regen-tab" id="rtab-compare" onclick="regenSwitchTab('compare')">📊 Crop Value</button>
+      </div>
+      <div class="regen-body">
+        <!-- Story tab -->
+        <div id="rtab-story-body" class="regen-section">
+          <div class="regen-sub">Cultivation History</div>
+          <div id="cult-timeline" class="cult-timeline">
+            <div class="regen-empty"><div class="ic">📋</div><div class="tx">No history yet.<br>Log your crops below to start your story.</div></div>
+          </div>
+          <div class="regen-sub" style="margin-top:.9rem">Log This Season</div>
+          <div class="regen-form">
+            <div class="regen-form-title">What did you plant?</div>
+            <select class="regen-sel" id="regen-crop-sel">
+              <option value="">-- Select crop --</option>
+              <option value="wheat">🌾 Wheat — گندم / غنم</option>
+              <option value="chickpea">🫘 Chickpea — نخود</option>
+              <option value="lentil">🫛 Lentil — عدس / مسور</option>
+              <option value="mung_bean">🟢 Mung Bean — ماش</option>
+              <option value="vegetables">🥬 Vegetables — سبزیجات</option>
+              <option value="saffron">🌸 Saffron — زعفران</option>
+              <option value="cotton">🌿 Cotton — پنبه / کپاس</option>
+              <option value="rice">🌾 Rice — برنج / وريجي</option>
+              <option value="sunflower">🌻 Sunflower — آفتابگردان / لمروال</option>
+              <option value="pomegranate">🍎 Pomegranate — انار</option>
+              <option value="bare_fallow">🟫 Nothing — Fallow / بایر</option>
+            </select>
+            <input class="regen-inp" id="regen-year-inp" type="number" placeholder="Year (e.g. 2025)" min="2010" max="2030">
+            <input class="regen-inp" id="regen-notes-inp" type="text" placeholder="Notes — yield, problems, variety... (optional)">
+            <button class="regen-btn" id="regen-log-btn" onclick="regenLogCrop()">✓ Save Cultivation Record</button>
+          </div>
+        </div>
+        <!-- Next Crop tab -->
+        <div id="rtab-next-body" class="regen-section" style="display:none">
+          <div id="regen-rec-content">
+            <div class="regen-empty"><div class="ic">🌿</div><div class="tx">Log a crop in the Story tab, or analyse your field first,<br>to get personalised rotation recommendations.</div></div>
+          </div>
+        </div>
+        <!-- Crop Value tab -->
+        <div id="rtab-compare-body" class="regen-section" style="display:none">
+          <div class="regen-sub">All Crops — Value · Water · Soil Impact</div>
+          <div class="crop-table">
+            <div class="crop-row hdr"><div>Crop</div><div>$/ha</div><div>Water</div><div>Soil</div></div>
+            <div id="crop-value-rows"></div>
+          </div>
+          <div style="font-family:var(--M);font-size:10px;color:var(--m2);text-align:center;padding-bottom:.5rem">★★ N-fix = legume fixes soil nitrogen, reducing fertilizer cost</div>
+        </div>
+      </div>
+    </div>
     <div class="notif" id="notif"></div>
   </div>
 </div>
@@ -3240,6 +3361,221 @@ async function fwSend(){
     const m=document.getElementById('fw-messages');
     if(m) m.scrollTop=m.scrollHeight;
   }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// REGENERATIVE AGRICULTURE — Cultivation Story + Crop Rotation Panel
+// ══════════════════════════════════════════════════════════════════════════════
+const REGEN_CROP_ICONS = {
+  wheat:'🌾',chickpea:'🫘',lentil:'🫛',mung_bean:'🟢',vegetables:'🥬',
+  saffron:'🌸',cotton:'🌿',rice:'🌾',sunflower:'🌻',pomegranate:'🍎',
+  orchard:'🌳',bare_fallow:'🟫',mixed_unknown:'❓'
+};
+const REGEN_CROP_LABELS = {
+  wheat:'Wheat',chickpea:'Chickpea',lentil:'Lentil',mung_bean:'Mung Bean',
+  vegetables:'Vegetables',saffron:'Saffron',cotton:'Cotton',rice:'Rice',
+  sunflower:'Sunflower',pomegranate:'Pomegranate',orchard:'Orchard',
+  bare_fallow:'Fallow',mixed_unknown:'Unknown'
+};
+const REGEN_CROP_TABLE = {
+  saffron:    {label:'Saffron 🌸',   val:'3,000–8,000', water:'Low',      soil:'Medium'},
+  vegetables: {label:'Vegetables 🥬',val:'800–2,000',   water:'High',     soil:'Low'},
+  pomegranate:{label:'Pomegranate 🍎',val:'500–1,500',  water:'Medium',   soil:'Medium'},
+  wheat:      {label:'Wheat 🌾',     val:'300–600',     water:'Medium',   soil:'Low'},
+  chickpea:   {label:'Chickpea 🫘',  val:'250–500',     water:'Low',      soil:'★★ N-fix'},
+  lentil:     {label:'Lentil 🫛',    val:'200–400',     water:'Low',      soil:'★★ N-fix'},
+  mung_bean:  {label:'Mung Bean 🟢', val:'300–500',     water:'Low',      soil:'★★ N-fix'},
+  cotton:     {label:'Cotton 🌿',    val:'400–700',     water:'High',     soil:'Depletes'},
+  sunflower:  {label:'Sunflower 🌻', val:'250–500',     water:'Medium',   soil:'Medium'},
+  rice:       {label:'Rice 🌾',      val:'400–900',     water:'Very High',soil:'Low'},
+  orchard:    {label:'Orchard 🌳',   val:'400–1,200',   water:'Medium',   soil:'Medium'},
+};
+let _regenHistory = [];
+let _regenRec     = null;
+
+function openRegenPanel(){
+  document.getElementById('regenPanel').classList.add('open');
+  const yr = document.getElementById('regen-year-inp');
+  if(!yr.value) yr.value = new Date().getFullYear();
+  regenLoadHistory();
+  regenRenderCropTable();
+}
+function closeRegenPanel(){
+  document.getElementById('regenPanel').classList.remove('open');
+}
+function regenSwitchTab(tab){
+  ['story','next','compare'].forEach(t=>{
+    document.getElementById('rtab-'+t).classList.toggle('on', t===tab);
+    document.getElementById('rtab-'+t+'-body').style.display = t===tab ? '' : 'none';
+  });
+  if(tab==='next') regenLoadRecommendations();
+}
+
+async function regenLoadHistory(){
+  const fid = farmerId;
+  if(!fid){
+    document.getElementById('cult-timeline').innerHTML =
+      '<div class="regen-empty"><div class="ic">👤</div><div class="tx">Register or log in first<br>to see your cultivation history.</div></div>';
+    return;
+  }
+  const fieldId = fieldData && fieldData.field_id ? fieldData.field_id : '';
+  try{
+    const url = API+'/regen/history/'+fid+(fieldId?'?field_id='+fieldId:'');
+    const res = await fetch(url);
+    const d   = await res.json();
+    _regenHistory = d.history || [];
+    regenRenderTimeline();
+  }catch(e){ console.warn('regen history',e); }
+}
+
+function regenRenderTimeline(){
+  const el = document.getElementById('cult-timeline');
+  if(!_regenHistory.length){
+    el.innerHTML = '<div class="regen-empty"><div class="ic">📋</div><div class="tx">No cultivation records yet.<br>Log your first crop below.</div></div>';
+    return;
+  }
+  el.innerHTML = _regenHistory.map(h=>{
+    const icon  = REGEN_CROP_ICONS[h.crop]  || '🌱';
+    const label = REGEN_CROP_LABELS[h.crop] || h.crop;
+    const badge = h.source === 'satellite_inferred'
+      ? '<span class="cult-badge sat">🛰️ Satellite</span>'
+      : '<span class="cult-badge farm">✍️ You</span>';
+    const meta  = [h.year, h.season, h.province].filter(Boolean).join(' · ');
+    const notes = h.notes ? `<div style="font-size:11px;color:var(--m);margin-top:2px">${h.notes}</div>` : '';
+    return `<div class="cult-entry ${h.source==='satellite_inferred'?'satellite':'farmer'}">
+      <div class="cult-icon">${icon}</div>
+      <div><div class="cult-crop">${label}${badge}</div><div class="cult-meta">${meta}</div>${notes}</div>
+    </div>`;
+  }).join('');
+}
+
+async function regenLogCrop(){
+  const crop  = document.getElementById('regen-crop-sel').value;
+  const year  = parseInt(document.getElementById('regen-year-inp').value) || new Date().getFullYear();
+  const notes = document.getElementById('regen-notes-inp').value.trim();
+  if(!crop){ showNotif('Select a crop first'); return; }
+  const btn = document.getElementById('regen-log-btn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  const mo = new Date().getMonth()+1;
+  try{
+    const body = {
+      crop, year, notes,
+      farmer_id: farmerId || null,
+      field_id:  fieldData && fieldData.field_id ? fieldData.field_id : null,
+      province:  (fieldData && fieldData.prov) || '',
+      ndvi:      (fieldData && fieldData.ndvi)  || null,
+      season:    year + (mo < 7 ? '_winter' : '_summer')
+    };
+    const r = await fetch(API+'/regen/log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d = await r.json();
+    if(d.ok){
+      showNotif('✓ Cultivation record saved');
+      _regenHistory.unshift({...body, source:'farmer_reported', created_at:new Date().toISOString()});
+      regenRenderTimeline();
+      document.getElementById('regen-crop-sel').value = '';
+      document.getElementById('regen-notes-inp').value = '';
+    } else { showNotif('Could not save — try again'); }
+  }catch(e){ showNotif('Network error'); }
+  finally{
+    btn.disabled = false;
+    btn.textContent = '✓ Save Cultivation Record';
+  }
+}
+
+async function regenLoadRecommendations(){
+  const el       = document.getElementById('regen-rec-content');
+  const province = (fieldData && fieldData.prov) || 'Kabul';
+  let currentCrop = _regenHistory.length ? _regenHistory[0].crop : null;
+  if(!currentCrop && fieldData && fieldData.crops && fieldData.crops[0])
+    currentCrop = fieldData.crops[0].crop;
+
+  el.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--m2);font-family:var(--M);font-size:12px"><div class="spin" style="margin:0 auto .5rem"></div>Loading recommendations...</div>';
+  try{
+    const body = {
+      farmer_id:    farmerId || null,
+      field_id:     fieldData && fieldData.field_id ? fieldData.field_id : null,
+      province,
+      current_crop: currentCrop,
+      ndvi:         (fieldData && fieldData.ndvi)  || null,
+      rain:         (fieldData && fieldData.rain)  || null
+    };
+    const r = await fetch(API+'/regen/recommend',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d = await r.json();
+    if(!d.ok){ el.innerHTML='<div class="regen-empty"><div class="ic">⚠️</div><div class="tx">Could not load recommendations.</div></div>'; return; }
+    _regenRec = d.recommendation;
+    _regenHistory = d.history || _regenHistory;
+    regenRenderRecommendations();
+  }catch(e){
+    el.innerHTML='<div class="regen-empty"><div class="ic">⚠️</div><div class="tx">Network error. Check connection.</div></div>';
+  }
+}
+
+function regenRenderRecommendations(){
+  const el = document.getElementById('regen-rec-content');
+  if(!_regenRec){ return; }
+  const r    = _regenRec;
+  const exp  = r.explanation || {};
+  const last = REGEN_CROP_LABELS[r.last_crop] || r.last_crop;
+  const lastIcon = REGEN_CROP_ICONS[r.last_crop] || '🌱';
+
+  const cards = (r.recommended||[]).map(c=>{
+    const icon  = REGEN_CROP_ICONS[c.crop] || '🌱';
+    const label = c.label_en || REGEN_CROP_LABELS[c.crop] || c.crop;
+    const score = c.regen_score || 0;
+    const stars = '★'.repeat(score) + '☆'.repeat(5-score);
+    const valLine = [c.value_usd_ha ? '$'+c.value_usd_ha+'/ha' : null,
+                     c.water ? c.water+' water' : null,
+                     c.market || null].filter(Boolean).join(' · ');
+    const noteHtml = c.notes ? `<div style="font-size:11px;color:var(--m);margin-top:2px">${c.notes}</div>` : '';
+    return `<div class="regen-rec ${c.priority}">
+      <div class="regen-rec-icon">${icon}</div>
+      <div>
+        <div class="regen-rec-name">${label}<span class="regen-rec-badge ${c.priority}">${c.priority==='best'?'★ Best':'Good'}</span></div>
+        <div class="regen-rec-val">${valLine}</div>
+        <div class="regen-stars" title="Regenerative agriculture score">${stars}</div>
+        ${noteHtml}
+      </div>
+    </div>`;
+  }).join('');
+
+  const avoidHtml = (exp.avoid||[]).length
+    ? `<div style="font-family:var(--M);font-size:10px;color:#dc2626;margin-bottom:.6rem">✕ Avoid repeating: ${exp.avoid.map(c=>REGEN_CROP_LABELS[c]||c).join(', ')}</div>`
+    : '';
+
+  const tips = (exp.regen_tips||[]).map(t=>`<div class="regen-tip">🌱 ${t}</div>`).join('');
+
+  const rtHtml = exp.why_fa
+    ? `<div class="regen-why-text" style="margin-top:.45rem;direction:rtl;font-size:12px;color:var(--m)">${exp.why_fa}</div>`
+    : '';
+
+  const dataNote = (exp.years_of_data||0) > 0
+    ? `${exp.years_of_data} season(s) of cultivation history used`
+    : 'Log crops in the Story tab for better advice each year';
+
+  el.innerHTML = `
+    <div class="regen-sub">Last Season: ${lastIcon} ${last}</div>
+    <div class="regen-sub" style="margin-top:.6rem">Recommended for Next Season</div>
+    <div class="regen-rec-list">${cards}</div>
+    ${avoidHtml}
+    <div class="regen-why">
+      <div class="regen-why-title">Why this rotation?</div>
+      <div class="regen-why-text">${exp.why||''}</div>${rtHtml}
+    </div>
+    <div class="regen-sub">Regenerative Tips</div>
+    <div class="regen-tips">${tips}</div>
+    <div style="font-family:var(--M);font-size:10px;color:var(--m2);text-align:center;padding-bottom:.5rem">${dataNote}</div>
+  `;
+}
+
+function regenRenderCropTable(){
+  const ORDER = ['saffron','vegetables','pomegranate','wheat','chickpea','lentil','mung_bean','cotton','sunflower','rice','orchard'];
+  const soilStyle = s => s.includes('N-fix') ? 'color:#16a34a;font-weight:600' : s==='Depletes' ? 'color:#dc2626' : 'color:var(--m)';
+  const rows = ORDER.map(c=>{
+    const d = REGEN_CROP_TABLE[c] || {};
+    return `<div class="crop-row"><div class="crop-cell-name">${d.label||c}</div><div class="crop-cell">$${d.val||'—'}</div><div class="crop-cell">${d.water||'—'}</div><div class="crop-cell" style="${soilStyle(d.soil||'')}">${d.soil||'—'}</div></div>`;
+  }).join('');
+  const el = document.getElementById('crop-value-rows');
+  if(el) el.innerHTML = rows;
 }
 </script>
 </body>
