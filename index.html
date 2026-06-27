@@ -142,20 +142,67 @@ section{padding:7rem 5rem;}
 .lt{font-family:var(--M);font-size:12px;color:rgba(255,255,255,.3);margin-top:.75rem;letter-spacing:.07em;}
 .yolo{background:var(--w);border-top:1px solid var(--gbr);}
 .yolo-grid{display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:start;margin-top:3.5rem;}
-.yupload-wrap{background:var(--gd);border-radius:16px;padding:1.5rem;}
-.yzone{border:2px dashed rgba(74,222,128,.35);border-radius:12px;padding:2rem 1.5rem;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;position:relative;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.85rem;}
-.yzone:hover,.yzone.ydrag{border-color:#4ade80;background:rgba(74,222,128,.04);}
-.yzone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
-.yzone-icon{font-size:32px;line-height:1;}
-.yzone-txt{font-family:var(--M);font-size:10px;color:rgba(255,255,255,.4);letter-spacing:.08em;}
-.ycam-btn{background:#16a34a;color:#fff;font-family:var(--M);font-size:10px;letter-spacing:.07em;padding:7px 18px;border-radius:6px;border:none;cursor:pointer;pointer-events:none;}
-.yprev-img{width:100%;border-radius:8px;max-height:240px;object-fit:contain;display:none;margin-top:.75rem;}
-.yresult-box{margin-top:.9rem;min-height:0;}
+.yd-card{background:#071a0b;border-radius:20px;padding:1.35rem;display:flex;flex-direction:column;gap:.9rem;border:1px solid rgba(74,222,128,.12);}
+.yd-controls{display:flex;align-items:center;gap:.6rem;}
+.yd-lang-row{display:flex;gap:3px;flex-shrink:0;}
+.yd-lang-btn{font-family:var(--M);font-size:10px;padding:5px 11px;border:1px solid rgba(74,222,128,.2);border-radius:20px;background:transparent;color:rgba(255,255,255,.4);cursor:pointer;transition:all .18s;letter-spacing:.04em;}
+.yd-lang-btn.on,.yd-lang-btn:hover{background:#16a34a;border-color:#16a34a;color:#fff;}
+.yd-crop-sel{flex:1;font-family:var(--M);font-size:10px;padding:6px 10px;border:1px solid rgba(74,222,128,.18);border-radius:8px;background:rgba(255,255,255,.04);color:rgba(255,255,255,.6);cursor:pointer;outline:none;-webkit-appearance:none;letter-spacing:.03em;}
+.yd-crop-sel option{background:#0a1f0f;color:#fff;}
+.yd-zone{border:2px dashed rgba(74,222,128,.28);border-radius:14px;position:relative;overflow:hidden;cursor:pointer;transition:border-color .2s,background .2s;}
+.yd-zone:hover,.yd-zone.ydrag{border-color:#4ade80;background:rgba(74,222,128,.05);}
+.yd-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;z-index:2;}
+.yd-zone-inner{padding:1.85rem 1.5rem;text-align:center;display:flex;flex-direction:column;align-items:center;gap:.6rem;}
+.yd-zone-icon{font-size:38px;line-height:1;}
+.yd-zone-title{font-family:var(--D);font-size:20px;color:rgba(255,255,255,.88);letter-spacing:.04em;}
+.yd-zone-sub{font-family:var(--M);font-size:9px;color:rgba(255,255,255,.28);letter-spacing:.08em;text-transform:uppercase;}
+.yd-upload-btn{font-family:var(--M);font-size:10px;padding:8px 20px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer;pointer-events:none;letter-spacing:.05em;}
+.yd-preview{width:100%;max-height:260px;object-fit:contain;display:none;border-radius:10px;}
+.yd-result-wrap{min-height:0;}
+.yd-loading{display:flex;flex-direction:column;align-items:center;gap:.5rem;padding:1.4rem 1rem;text-align:center;}
+.yd-spinner{width:28px;height:28px;border:3px solid rgba(74,222,128,.15);border-top-color:#4ade80;border-radius:50%;animation:spinA .8s linear infinite;}
+.yd-loading-text{font-family:var(--D);font-size:18px;color:#4ade80;letter-spacing:.05em;}
+.yd-loading-sub{font-family:var(--M);font-size:9px;color:rgba(255,255,255,.28);letter-spacing:.06em;text-transform:uppercase;}
+.yd-result-card{border-radius:12px;overflow:hidden;animation:ydIn .38s ease;}
+@keyframes ydIn{from{opacity:0;transform:translateY(7px);}to{opacity:1;transform:translateY(0);}}
+.yd-disease-card{background:rgba(10,20,12,.92);border:1px solid rgba(248,113,113,.2);}
+.yd-healthy-card{background:rgba(10,20,12,.92);border:1px solid rgba(74,222,128,.22);}
+.yd-result-header{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;padding:.9rem 1.1rem .75rem;}
+.yd-result-eyebrow{font-family:var(--M);font-size:9px;letter-spacing:.1em;text-transform:uppercase;opacity:.55;margin-bottom:.2rem;}
+.yd-disease-card .yd-result-eyebrow{color:#f87171;}
+.yd-healthy-card .yd-result-eyebrow{color:#4ade80;}
+.yd-result-name{font-family:var(--D);font-size:21px;letter-spacing:.03em;line-height:1.2;color:#fff;}
+.yd-healthy-card .yd-result-name{color:#4ade80;}
+.yd-sev{font-family:var(--M);font-size:10px;padding:4px 11px;border-radius:20px;white-space:nowrap;flex-shrink:0;letter-spacing:.05em;margin-top:2px;}
+.yd-sev-healthy{background:rgba(74,222,128,.12);color:#4ade80;border:1px solid rgba(74,222,128,.3);}
+.yd-sev-mild{background:rgba(250,204,21,.1);color:#facc15;border:1px solid rgba(250,204,21,.25);}
+.yd-sev-moderate{background:rgba(249,115,22,.1);color:#f97316;border:1px solid rgba(249,115,22,.25);}
+.yd-sev-severe{background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.28);}
+.yd-yolo-badge{display:flex;align-items:center;gap:6px;padding:.45rem 1.1rem;font-family:var(--M);font-size:9px;color:rgba(255,255,255,.4);border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06);letter-spacing:.04em;}
+.yd-yolo-conf{color:#4ade80;font-weight:600;}
+.yd-sec{padding:.7rem 1.1rem;border-bottom:1px solid rgba(255,255,255,.05);}
+.yd-sec:last-of-type{border-bottom:none;}
+.yd-sec-label{font-family:var(--M);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:.45rem;}
+.yd-steps{display:flex;flex-direction:column;gap:.38rem;}
+.yd-step{display:flex;gap:.55rem;font-size:12.5px;color:rgba(255,255,255,.82);line-height:1.55;}
+.yd-step-n{flex-shrink:0;width:19px;height:19px;background:#16a34a;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--M);font-size:9px;color:#fff;margin-top:2px;}
+.yd-product-box{font-size:12.5px;color:rgba(255,255,255,.82);line-height:1.6;background:rgba(249,115,22,.06);border:1px solid rgba(249,115,22,.14);border-radius:8px;padding:.55rem .8rem;}
+.yd-prevent-text{font-size:12.5px;color:rgba(255,255,255,.6);line-height:1.65;font-style:italic;}
+.yd-healthy-body{display:flex;flex-direction:column;align-items:center;text-align:center;padding:1.1rem 1.1rem .5rem;gap:.4rem;}
+.yd-healthy-icon{font-size:36px;}
+.yd-healthy-title{font-family:var(--D);font-size:20px;color:#4ade80;letter-spacing:.03em;}
+.yd-healthy-sub{font-size:12.5px;color:rgba(255,255,255,.55);line-height:1.65;max-width:280px;}
+.yd-retry{display:block;width:100%;padding:9px;font-family:var(--M);font-size:10px;letter-spacing:.05em;background:rgba(255,255,255,.05);color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.09);border-radius:8px;cursor:pointer;transition:all .2s;text-align:center;margin-top:.6rem;}
+.yd-retry:hover{background:rgba(255,255,255,.09);color:rgba(255,255,255,.8);}
+.yd-error{padding:.7rem 1rem;font-family:var(--M);font-size:11px;color:#f87171;background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.18);border-radius:9px;}
+.yd-rtl{direction:rtl;text-align:right;}
+.yd-footer{font-family:var(--M);font-size:9px;color:rgba(255,255,255,.18);text-align:center;letter-spacing:.07em;}
 .yf-list{display:flex;flex-direction:column;gap:1rem;}
 .yf{background:var(--bg);border:1px solid var(--gbr);border-left:4px solid var(--g);padding:1.25rem;border-radius:0 8px 8px 0;opacity:0;transform:translateX(20px);transition:all .5s;}
 .yf.vis{opacity:1;transform:translateX(0);}
 .yft{font-family:var(--M);font-size:11px;letter-spacing:.08em;color:var(--g);margin-bottom:5px;text-transform:uppercase;}
 .yfd{font-size:13px;color:var(--m);line-height:1.6;font-weight:300;}
+@media(max-width:1024px){.yolo-grid{grid-template-columns:1fr;gap:2rem;}}
 .roadmap{background:var(--bg2);border-top:1px solid var(--gbr);}
 .roadmap-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:3.5rem;}
 .rc{background:var(--w);border:1px solid var(--gbr);border-radius:12px;padding:2rem;opacity:0;transform:translateY(18px);transition:all .5s;}
@@ -733,21 +780,40 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
   <div class="eye" id="yo-eye">Computer Vision</div>
   <h2 class="sh" id="yo-h">YOLO sees what<br>the eye misses</h2>
   <div class="yolo-grid">
-    <div>
-      <div class="yupload-wrap">
-        <div class="yzone" id="yZone"
-             ondragover="event.preventDefault();this.classList.add('ydrag')"
-             ondragleave="this.classList.remove('ydrag')"
-             ondrop="yDrop(event)">
-          <input type="file" id="yFileInput" accept="image/*" onchange="yOnFile(this.files[0])">
-          <span class="yzone-icon">📸</span>
-          <div class="yzone-txt">DRAG PHOTO HERE OR TAP TO UPLOAD</div>
-          <span class="ycam-btn">Open Camera / Gallery</span>
+    <div class="yd-card">
+      <div class="yd-controls">
+        <div class="yd-lang-row">
+          <button class="yd-lang-btn on" onclick="ydSetLang('en',this)">EN</button>
+          <button class="yd-lang-btn" onclick="ydSetLang('fa',this)">دری</button>
+          <button class="yd-lang-btn" onclick="ydSetLang('ps',this)">پښتو</button>
         </div>
-        <img id="yPreview" class="yprev-img" alt="crop photo">
-        <div id="yResult" class="yresult-box"></div>
-        <div style="font-family:var(--M);font-size:9px;color:rgba(255,255,255,.25);margin-top:1rem;text-align:center;letter-spacing:.07em">YOLOv8m · Claude Vision · 38 disease classes</div>
+        <select class="yd-crop-sel" id="ydCropSel">
+          <option value="">Any crop</option>
+          <option value="wheat">🌾 Wheat — گندم</option>
+          <option value="vegetables">🥬 Vegetables — سبزیجات</option>
+          <option value="saffron">🌸 Saffron — زعفران</option>
+          <option value="potato">🥔 Potato — کچالو</option>
+          <option value="tomato">🍅 Tomato — بادرنگ</option>
+          <option value="corn">🌽 Corn — ذرت</option>
+          <option value="cotton">🌿 Cotton — پنبه</option>
+          <option value="rice">🍚 Rice — برنج</option>
+        </select>
       </div>
+      <div class="yd-zone" id="yZone"
+           ondragover="event.preventDefault();this.classList.add('ydrag')"
+           ondragleave="this.classList.remove('ydrag')"
+           ondrop="yDrop(event)">
+        <input type="file" id="yFileInput" accept="image/*" onchange="yOnFile(this.files[0])">
+        <div class="yd-zone-inner" id="ydZoneInner">
+          <div class="yd-zone-icon">📸</div>
+          <div class="yd-zone-title">Upload crop photo</div>
+          <div class="yd-zone-sub">Drag &amp; drop &middot; tap to select &middot; JPG PNG HEIC</div>
+          <span class="yd-upload-btn">Open Camera / Gallery &rarr;</span>
+        </div>
+        <img id="yPreview" class="yd-preview" alt="crop photo">
+      </div>
+      <div id="yResult" class="yd-result-wrap"></div>
+      <div class="yd-footer">YOLOv8m · Claude Haiku Vision · 38 disease classes · EN · دری · پښتو</div>
     </div>
     <div class="yf-list">
       <div class="yf vis"><div class="yft" id="yf1t">Disease detection</div><div class="yfd" id="yf1d">YOLO identifies wheat rust, leaf blight, powdery mildew and 50+ crop diseases from a phone photo — with confidence score and treatment in the farmer's language.</div></div>
@@ -1062,6 +1128,14 @@ const YAPI=window.location.hostname==='localhost'||window.location.hostname==='1
   ?`${window.location.protocol}//${window.location.hostname}:5000`
   :API;
 
+// ── Disease detection language (independent of page language) ──────────────
+let _ydLang = 'en';
+function ydSetLang(l, btn){
+  _ydLang = l;
+  document.querySelectorAll('.yd-lang-btn').forEach(b=>b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+}
+
 function yResizeAndEncode(file,maxPx,quality,cb){
   const img=new Image();
   const url=URL.createObjectURL(file);
@@ -1075,20 +1149,20 @@ function yResizeAndEncode(file,maxPx,quality,cb){
   };
   img.src=url;
 }
+
 function yOnFile(file){
   if(!file)return;
   const prev=document.getElementById('yPreview');
-  const zone=document.getElementById('yZone');
-  if(zone)zone.style.minHeight='auto';
-  // Show preview immediately from original
+  const inner=document.getElementById('ydZoneInner');
+  if(inner)inner.style.display='none';
   const previewUrl=URL.createObjectURL(file);
   if(prev){prev.src=previewUrl;prev.style.display='block';}
-  // Resize to max 1024px, 85% quality before sending (~150-400 KB)
   yResizeAndEncode(file,1024,0.85,dataUrl=>{
     if(prev)prev.src=dataUrl;
     yDiagnose(dataUrl);
   });
 }
+
 function yDrop(ev){
   ev.preventDefault();
   const zone=document.getElementById('yZone');
@@ -1096,48 +1170,126 @@ function yDrop(ev){
   const f=ev.dataTransfer.files[0];
   if(f&&f.type.startsWith('image/'))yOnFile(f);
 }
+
+function ydParseSeverity(text){
+  const t=text.toLowerCase();
+  if(/severe|شدید|خطرناک|critical|جدی|سخت/.test(t)) return {key:'severe',label:'Severe',cls:'yd-sev-severe'};
+  if(/moderate|متوسط|مکمل|medium/.test(t))           return {key:'moderate',label:'Moderate',cls:'yd-sev-moderate'};
+  if(/mild|خفیف|لک|slight|early/.test(t))             return {key:'mild',label:'Mild',cls:'yd-sev-mild'};
+  if(/healthy|سالم|روغ|no disease|no sign/.test(t))  return {key:'healthy',label:'Healthy',cls:'yd-sev-healthy'};
+  return {key:'unknown',label:'Check required',cls:'yd-sev-moderate'};
+}
+
+function ydExtractSections(text){
+  const secs = {};
+  const re = /(?:^|\n)\s*(\d+)[.)]\s*/g;
+  const indices = [];
+  let m;
+  while((m=re.exec(text))!==null) indices.push({n:m[1],start:m.index+m[0].length,raw:m[0]});
+  if(indices.length===0) return {raw:text};
+  for(let i=0;i<indices.length;i++){
+    const end = i+1<indices.length ? indices[i+1].start-indices[i+1].raw.length : text.length;
+    secs[indices[i].n] = text.slice(indices[i].start,end).trim();
+  }
+  return secs;
+}
+
+function ydBuildSteps(text){
+  const lines = text.split('\n').map(l=>l.trim()).filter(l=>l.length>2);
+  return lines.map((l,i)=>`<div class="yd-step"><div class="yd-step-n">${i+1}</div><div>${l.replace(/^[-•*\d+.)]+\s*/,'')}</div></div>`).join('');
+}
+
+function ydRenderResult(d, lang){
+  const res = document.getElementById('yResult');
+  if(!res) return;
+  const isRtl = lang==='fa'||lang==='ps';
+  const rtlCls = isRtl?' yd-rtl':'';
+  const rawText = d.diagnosis||'';
+  const isHealthy = d.is_healthy ||
+    /healthy|سالم|روغ|no disease|no sign|no problem/i.test(rawText.slice(0,200));
+  const secs = ydExtractSections(rawText);
+  const hasSecs = Object.keys(secs).length > 1;
+  let diseaseName = '';
+  if(d.top_detection) diseaseName = d.top_detection.label_en;
+  else if(hasSecs && secs['1']) diseaseName = secs['1'].split('\n')[0].replace(/^[^:]+:\s*/,'').trim().slice(0,80);
+  else diseaseName = isHealthy ? 'Plant looks healthy' : 'Analysis complete';
+  const sevText = (hasSecs&&secs['2'])||rawText;
+  const sev = ydParseSeverity(sevText+(isHealthy?' healthy':''));
+  const yoloBadge = d.top_detection ?
+    `<div class="yd-yolo-badge">🎯 YOLO &middot; <span class="yd-yolo-conf">${Math.round(d.top_detection.confidence*100)}%</span> &middot; ${d.top_detection.label_en}</div>` : '';
+  if(isHealthy){
+    const body = (hasSecs&&secs['1'])||rawText||'No disease or pest detected. Keep monitoring your field regularly.';
+    res.innerHTML = `
+      <div class="yd-result-card yd-healthy-card">
+        ${yoloBadge}
+        <div class="yd-healthy-body${rtlCls}">
+          <div class="yd-healthy-icon">✅</div>
+          <div class="yd-healthy-title">Plant looks healthy</div>
+          <div class="yd-healthy-sub">${body.slice(0,320)}</div>
+        </div>
+        <div class="yd-sec">
+          <button class="yd-retry" onclick="document.getElementById('yFileInput').click()">📸 Upload another photo</button>
+        </div>
+      </div>`;
+    return;
+  }
+  const stepsHtml = hasSecs && secs['3'] ? ydBuildSteps(secs['3']) :
+    ydBuildSteps(rawText.split('\n').filter(l=>/^[\d\-•]/.test(l.trim())||l.trim().length>30).slice(0,5).join('\n')||rawText.slice(0,400));
+  const productHtml = hasSecs && secs['4'] ?
+    `<div class="yd-sec"><div class="yd-sec-label">Treatment &middot; Product &amp; dose</div><div class="yd-product-box${rtlCls}">${secs['4'].replace(/\n/g,'<br>')}</div></div>` : '';
+  const preventHtml = hasSecs && secs['5'] ?
+    `<div class="yd-sec"><div class="yd-sec-label">Prevention next season</div><div class="yd-prevent-text${rtlCls}">${secs['5']}</div></div>` : '';
+  const fallbackText = !hasSecs ? `<div class="yd-sec"><div class="yd-sec-label">Full analysis</div><div class="yd-step${rtlCls}" style="display:block;white-space:pre-wrap">${rawText}</div></div>` : '';
+  res.innerHTML = `
+    <div class="yd-result-card yd-disease-card">
+      <div class="yd-result-header">
+        <div>
+          <div class="yd-result-eyebrow">Disease detected</div>
+          <div class="yd-result-name">${diseaseName}</div>
+        </div>
+        <div class="yd-sev ${sev.cls}">${sev.label}</div>
+      </div>
+      ${yoloBadge}
+      ${stepsHtml ? `<div class="yd-sec"><div class="yd-sec-label">Do now</div><div class="yd-steps${rtlCls}">${stepsHtml}</div></div>` : ''}
+      ${productHtml}
+      ${preventHtml}
+      ${fallbackText}
+      <div class="yd-sec">
+        <button class="yd-retry" onclick="document.getElementById('yFileInput').click()">📸 Upload another photo</button>
+      </div>
+    </div>`;
+}
+
 async function yDiagnose(dataUrl, attempt){
-  attempt=attempt||1;
-  const res=document.getElementById('yResult');
-  if(!res)return;
-  const warmMsg=attempt>1?`Retrying… (${attempt}/3) Server is warming up, please wait.`:'ANALYSING WITH AI...';
-  res.innerHTML=`<div style="font-family:var(--M);font-size:11px;color:var(--g);text-align:center;padding:1rem;letter-spacing:.07em">${warmMsg}</div>`;
-  const ctrl=new AbortController();
-  const t=setTimeout(()=>ctrl.abort(),90000); // 90s timeout
+  attempt = attempt||1;
+  const res = document.getElementById('yResult');
+  if(!res) return;
+  const retryLabel = attempt>1 ? `Retrying… (${attempt}/3)` : 'Analysing with AI';
+  res.innerHTML = `<div class="yd-loading"><div class="yd-spinner"></div><div class="yd-loading-text">${retryLabel}</div><div class="yd-loading-sub">Claude Vision &middot; Reading crop photo</div></div>`;
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort(), 90000);
   try{
-    const lang=typeof pgCurrentLang!=='undefined'?pgCurrentLang:'en';
-    const r=await fetch(`${YAPI}/diagnose`,{
+    const lang = _ydLang||'en';
+    const crop = (document.getElementById('ydCropSel')||{}).value||'';
+    const r = await fetch(`${YAPI}/diagnose`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({image:dataUrl,language:lang}),
+      body:JSON.stringify({image:dataUrl, language:lang, crop:crop}),
       signal:ctrl.signal,
     });
     clearTimeout(t);
-    if(!r.ok){const txt=await r.text();res.innerHTML=`<div style="color:#f87171;font-size:13px">Server error ${r.status}: ${txt.slice(0,120)}</div>`;return;}
-    const d=await r.json();
-    if(!d.ok){res.innerHTML=`<div style="color:#f87171;padding:.5rem;font-size:13px">${d.error||'Analysis failed'}</div>`;return;}
-    let html='';
-    if(d.top_detection){
-      const conf=Math.round(d.top_detection.confidence*100);
-      const col=d.is_healthy?'#4ade80':'#f87171';
-      const bg=d.is_healthy?'rgba(74,222,128,.1)':'rgba(248,113,113,.1)';
-      html+=`<div style="background:${bg};border:1px solid ${col};border-radius:8px;padding:.6rem .9rem;margin-bottom:.75rem"><div style="font-family:var(--M);font-size:10px;color:${col};letter-spacing:.07em;margin-bottom:3px">YOLO · ${conf}% confidence</div><div style="font-size:14px;font-weight:600;color:${col}">${d.top_detection.label_en}</div></div>`;
-    }
-    if(d.diagnosis){
-      const isRtl=(lang==='fa'||lang==='ps');
-      html+=`<div style="font-size:13px;color:var(--m);line-height:1.8;white-space:pre-wrap;direction:${isRtl?'rtl':'ltr'};text-align:${isRtl?'right':'left'}">${d.diagnosis}</div>`;
-    }
-    if(!html)html='<div style="color:var(--m);font-size:13px;padding:.5rem">No disease detected. Plant appears healthy.</div>';
-    res.innerHTML=html;
+    if(!r.ok){const txt=await r.text();res.innerHTML=`<div class="yd-error">Server error ${r.status}: ${txt.slice(0,120)}</div>`;return;}
+    const d = await r.json();
+    if(!d.ok){res.innerHTML=`<div class="yd-error">${d.error||'Analysis failed'}</div>`;return;}
+    ydRenderResult(d, lang);
   }catch(e){
     clearTimeout(t);
     if(attempt<3){
-      // Auto-retry after delay (Render cold start takes ~30s)
       const delay=attempt*20000;
-      res.innerHTML=`<div style="color:#d97706;font-size:12px;padding:.5rem">Server is starting up — retrying in ${delay/1000}s…</div>`;
+      res.innerHTML=`<div class="yd-loading"><div class="yd-spinner"></div><div class="yd-loading-text">Starting up…</div><div class="yd-loading-sub">Retrying in ${delay/1000}s — server warming up</div></div>`;
       setTimeout(()=>yDiagnose(dataUrl,attempt+1),delay);
     }else{
-      res.innerHTML=`<div style="color:#f87171;font-size:13px;padding:.5rem">Server unavailable. <button onclick="yDiagnose(window._lastDiagnoseImg)" style="color:var(--g);background:none;border:none;cursor:pointer;text-decoration:underline">Try again</button></div>`;
+      res.innerHTML=`<div class="yd-error">Server unavailable. <button onclick="yDiagnose(window._lastDiagnoseImg)" style="color:#4ade80;background:none;border:none;cursor:pointer;font-family:var(--M);font-size:11px">Try again</button></div>`;
     }
     window._lastDiagnoseImg=dataUrl;
   }
