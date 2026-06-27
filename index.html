@@ -196,6 +196,10 @@ section{padding:7rem 5rem;}
 .yd-retry:hover{background:rgba(255,255,255,.09);color:rgba(255,255,255,.8);}
 .yd-error{padding:.7rem 1rem;font-family:var(--M);font-size:11px;color:#f87171;background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.18);border-radius:9px;}
 .yd-rtl{direction:rtl;text-align:right;}
+.yd-mode-row{display:flex;gap:3px;width:100%;}
+.yd-mode-btn{flex:1;font-family:var(--M);font-size:9px;padding:6px 4px;border:1px solid rgba(74,222,128,.15);border-radius:8px;background:transparent;color:rgba(255,255,255,.35);cursor:pointer;transition:all .18s;letter-spacing:.03em;text-align:center;white-space:nowrap;}
+.yd-mode-btn.on{background:rgba(74,222,128,.12);border-color:rgba(74,222,128,.4);color:#4ade80;}
+.yd-mode-btn:hover:not(.on){background:rgba(255,255,255,.05);color:rgba(255,255,255,.6);}
 .yd-footer{font-family:var(--M);font-size:9px;color:rgba(255,255,255,.18);text-align:center;letter-spacing:.07em;}
 .yf-list{display:flex;flex-direction:column;gap:1rem;}
 .yf{background:var(--bg);border:1px solid var(--gbr);border-left:4px solid var(--g);padding:1.25rem;border-radius:0 8px 8px 0;opacity:0;transform:translateX(20px);transition:all .5s;}
@@ -799,21 +803,27 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
           <option value="rice">🍚 Rice — برنج</option>
         </select>
       </div>
+      <div class="yd-mode-row">
+        <button class="yd-mode-btn on" onclick="ydSetMode('disease',this)">🦠 Disease</button>
+        <button class="yd-mode-btn" onclick="ydSetMode('pest',this)">🐛 Pest</button>
+        <button class="yd-mode-btn" onclick="ydSetMode('yield',this)">🌾 Yield</button>
+        <button class="yd-mode-btn" onclick="ydSetMode('soil',this)">🌱 Soil</button>
+      </div>
       <div class="yd-zone" id="yZone"
            ondragover="event.preventDefault();this.classList.add('ydrag')"
            ondragleave="this.classList.remove('ydrag')"
            ondrop="yDrop(event)">
         <input type="file" id="yFileInput" accept="image/*" onchange="yOnFile(this.files[0])">
         <div class="yd-zone-inner" id="ydZoneInner">
-          <div class="yd-zone-icon">📸</div>
-          <div class="yd-zone-title">Upload crop photo</div>
-          <div class="yd-zone-sub">Drag &amp; drop &middot; tap to select &middot; JPG PNG HEIC</div>
+          <div class="yd-zone-icon" id="ydZoneIcon">📸</div>
+          <div class="yd-zone-title" id="ydZoneTitle">Upload crop photo</div>
+          <div class="yd-zone-sub" id="ydZoneSub">Drag &amp; drop &middot; tap to select &middot; JPG PNG HEIC</div>
           <span class="yd-upload-btn">Open Camera / Gallery &rarr;</span>
         </div>
         <img id="yPreview" class="yd-preview" alt="crop photo">
       </div>
       <div id="yResult" class="yd-result-wrap"></div>
-      <div class="yd-footer">YOLOv8m · Claude Haiku Vision · 38 disease classes · EN · دری · پښتو</div>
+      <div class="yd-footer" id="ydFooter">🦠 Disease · 🐛 Pest · 🌾 Yield · 🌱 Soil · Claude Haiku Vision · EN · دری · پښتو</div>
     </div>
     <div class="yf-list">
       <div class="yf vis"><div class="yft" id="yf1t">Disease detection</div><div class="yfd" id="yf1d">YOLO identifies wheat rust, leaf blight, powdery mildew and 50+ crop diseases from a phone photo — with confidence score and treatment in the farmer's language.</div></div>
@@ -1128,12 +1138,63 @@ const YAPI=window.location.hostname==='localhost'||window.location.hostname==='1
   ?`${window.location.protocol}//${window.location.hostname}:5000`
   :API;
 
-// ── Disease detection language (independent of page language) ──────────────
+// ── Disease detection state ────────────────────────────────────────────────
 let _ydLang = 'en';
+let _ydMode = 'disease';
+
+const _YD_MODE_CFG = {
+  disease: {
+    icon:'📸', title:'Upload crop photo',
+    sub:'Photo of leaves, stem or fruit — disease & infection',
+    eyebrow:'Disease detected', healthy:'Plant looks healthy',
+    s3:'Do now', s4:'Treatment · Product & dose', s5:'Prevention next season',
+  },
+  pest: {
+    icon:'🐛', title:'Upload pest photo',
+    sub:'Photo showing insects, eggs, damage on plant',
+    eyebrow:'Pest identified', healthy:'No pest detected',
+    s3:'Act immediately', s4:'Pesticide · Product & dose', s5:'Prevention next season',
+  },
+  yield: {
+    icon:'🌾', title:'Upload crop head photo',
+    sub:'Photo of grain head, pod or fruit for harvest estimate',
+    eyebrow:'Yield estimate', healthy:'Crop looks on track',
+    s3:'Actions before harvest', s4:'Quality tips', s5:'To maximise yield',
+  },
+  soil: {
+    icon:'🌱', title:'Upload soil photo',
+    sub:'Photo of bare soil or soil in hand — type & health',
+    eyebrow:'Soil assessment', healthy:'Soil looks healthy',
+    s3:'Soil improvements', s4:'Amendments needed', s5:'Best crops for this soil',
+  },
+};
+
 function ydSetLang(l, btn){
   _ydLang = l;
   document.querySelectorAll('.yd-lang-btn').forEach(b=>b.classList.remove('on'));
   if(btn) btn.classList.add('on');
+}
+
+function ydSetMode(m, btn){
+  _ydMode = m;
+  document.querySelectorAll('.yd-mode-btn').forEach(b=>b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  const cfg = _YD_MODE_CFG[m]||_YD_MODE_CFG.disease;
+  const icon  = document.getElementById('ydZoneIcon');
+  const title = document.getElementById('ydZoneTitle');
+  const sub   = document.getElementById('ydZoneSub');
+  if(icon)  icon.textContent  = cfg.icon;
+  if(title) title.textContent = cfg.title;
+  if(sub)   sub.textContent   = cfg.sub;
+  // Reset result area when switching mode
+  const res = document.getElementById('yResult');
+  if(res) res.innerHTML='';
+  const prev = document.getElementById('yPreview');
+  if(prev){prev.style.display='none'; prev.src='';}
+  const inner = document.getElementById('ydZoneInner');
+  if(inner) inner.style.display='';
+  const fi = document.getElementById('yFileInput');
+  if(fi) fi.value='';
 }
 
 function yResizeAndEncode(file,maxPx,quality,cb){
@@ -1213,9 +1274,10 @@ function ydExtractDiseaseName(sec1){
   return clean.replace(/^(disease|problem|issue|pest|condition|diagnosis)[:\s-]+/i,'').replace(/[—–].+$/,'').trim().slice(0,80);
 }
 
-function ydRenderResult(d, lang){
+function ydRenderResult(d, lang, mode){
   const res = document.getElementById('yResult');
   if(!res) return;
+  const cfg = _YD_MODE_CFG[mode||_ydMode||'disease']||_YD_MODE_CFG.disease;
   const isRtl = lang==='fa'||lang==='ps';
   const rtlCls = isRtl?' yd-rtl':'';
   const rawText = d.diagnosis||'';
@@ -1224,11 +1286,11 @@ function ydRenderResult(d, lang){
   const secs = ydExtractSections(rawText);
   const numSecs = Object.keys(secs).length;
 
-  // Disease name — best source wins
+  // Primary result name — best source wins
   let diseaseName = '';
   if(d.top_detection) diseaseName = d.top_detection.label_en;
   else if(secs['1'])  diseaseName = ydExtractDiseaseName(secs['1']);
-  else                diseaseName = isHealthy ? 'Plant looks healthy' : 'Analysis complete';
+  else                diseaseName = isHealthy ? cfg.healthy : 'Analysis complete';
 
   // Severity — prefer section 2, fall back to scanning full text
   const sevText = secs['2'] || rawText;
@@ -1244,7 +1306,7 @@ function ydRenderResult(d, lang){
         ${yoloBadge}
         <div class="yd-healthy-body${rtlCls}">
           <div class="yd-healthy-icon">✅</div>
-          <div class="yd-healthy-title">Plant looks healthy</div>
+          <div class="yd-healthy-title">${cfg.healthy}</div>
           <div class="yd-healthy-sub">${body.slice(0,320)}</div>
         </div>
         <div class="yd-sec">
@@ -1265,11 +1327,11 @@ function ydRenderResult(d, lang){
 
   // Product/dose — section 4
   const productHtml = secs['4'] ?
-    `<div class="yd-sec"><div class="yd-sec-label">Treatment &middot; Product &amp; dose</div><div class="yd-product-box${rtlCls}">${ydStripMarkdown(secs['4']).replace(/\n/g,'<br>')}</div></div>` : '';
+    `<div class="yd-sec"><div class="yd-sec-label">${cfg.s4}</div><div class="yd-product-box${rtlCls}">${ydStripMarkdown(secs['4']).replace(/\n/g,'<br>')}</div></div>` : '';
 
   // Prevention — section 5
   const preventHtml = secs['5'] ?
-    `<div class="yd-sec"><div class="yd-sec-label">Prevention next season</div><div class="yd-prevent-text${rtlCls}">${ydStripMarkdown(secs['5'])}</div></div>` : '';
+    `<div class="yd-sec"><div class="yd-sec-label">${cfg.s5}</div><div class="yd-prevent-text${rtlCls}">${ydStripMarkdown(secs['5'])}</div></div>` : '';
 
   // Raw fallback only when NO sections extracted at all
   const fallbackText = numSecs===0 ?
@@ -1279,13 +1341,13 @@ function ydRenderResult(d, lang){
     <div class="yd-result-card yd-disease-card">
       <div class="yd-result-header">
         <div>
-          <div class="yd-result-eyebrow">Disease detected</div>
+          <div class="yd-result-eyebrow">${cfg.eyebrow}</div>
           <div class="yd-result-name">${diseaseName}</div>
         </div>
         <div class="yd-sev ${sev.cls}">${sev.label}</div>
       </div>
       ${yoloBadge}
-      ${stepsHtml ? `<div class="yd-sec"><div class="yd-sec-label">Do now</div><div class="yd-steps${rtlCls}">${stepsHtml}</div></div>` : ''}
+      ${stepsHtml ? `<div class="yd-sec"><div class="yd-sec-label">${cfg.s3}</div><div class="yd-steps${rtlCls}">${stepsHtml}</div></div>` : ''}
       ${productHtml}
       ${preventHtml}
       ${fallbackText}
@@ -1309,14 +1371,14 @@ async function yDiagnose(dataUrl, attempt){
     const r = await fetch(`${YAPI}/diagnose`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({image:dataUrl, language:lang, crop:crop}),
+      body:JSON.stringify({image:dataUrl, language:lang, crop:crop, mode:_ydMode||'disease'}),
       signal:ctrl.signal,
     });
     clearTimeout(t);
     if(!r.ok){const txt=await r.text();res.innerHTML=`<div class="yd-error">Server error ${r.status}: ${txt.slice(0,120)}</div>`;return;}
     const d = await r.json();
     if(!d.ok){res.innerHTML=`<div class="yd-error">${d.error||'Analysis failed'}</div>`;return;}
-    ydRenderResult(d, lang);
+    ydRenderResult(d, lang, _ydMode);
   }catch(e){
     clearTimeout(t);
     if(attempt<3){

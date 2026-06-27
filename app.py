@@ -3293,6 +3293,7 @@ def diagnose():
         image_b64 = d.get("image", "")
         language  = d.get("language", "en")
         crop_hint = d.get("crop", "").strip()
+        mode      = d.get("mode", "disease").strip().lower()  # disease | pest | yield | soil
 
         if not image_b64:
             return jsonify({"error": "image required (base64)"}), 400
@@ -3331,22 +3332,53 @@ def diagnose():
 
         crop_ctx = f"The farmer says this is a {crop_hint} crop. " if crop_hint else ""
 
-        # Augment with RAG knowledge for detected disease/crop
+        # Augment with RAG knowledge
         rag_diag_ctx = ""
         if rag_ok:
-            rag_query = f"{crop_hint or 'crop'} {yolo_result.get('detections', [{}])[0].get('label_en', 'disease') if yolo_result.get('detections') else 'disease pest treatment'} Afghanistan treatment"
+            rag_kw = yolo_result.get("detections", [{}])[0].get("label_en", mode) if yolo_result.get("detections") else mode
+            rag_query = f"{crop_hint or 'crop'} {rag_kw} Afghanistan"
             rag_chunks = rag_retrieve(rag_query, top_k=2, threshold=0.45)
             if rag_chunks:
                 rag_diag_ctx = "\n\nRelevant agronomic knowledge:\n" + "\n\n".join(rag_chunks)
 
+        _MODE_PROMPTS = {
+            "disease": (
+                "Examine this crop/plant photo carefully and answer:\n"
+                "1. What disease or infection do you see? (name it; if none say plant looks healthy)\n"
+                "2. Severity: mild / moderate / severe\n"
+                "3. What must the farmer do RIGHT NOW? (3-4 numbered steps)\n"
+                "4. Which fungicide/product to apply, exact dose, and when?\n"
+                "5. One sentence: how to prevent this disease next season."
+            ),
+            "pest": (
+                "Examine this crop/plant photo carefully and answer:\n"
+                "1. What pest(s) do you see? Name them; estimate count or infestation % if visible.\n"
+                "2. Infestation level: light / moderate / heavy\n"
+                "3. What must the farmer do RIGHT NOW? (3-4 numbered steps)\n"
+                "4. Which pesticide to apply, exact dose per litre and per jerib, and timing?\n"
+                "5. One sentence: how to prevent this pest next season."
+            ),
+            "yield": (
+                "Examine this crop/plant photo carefully and answer:\n"
+                "1. What crop and growth stage do you see? Is it ready to harvest?\n"
+                "2. Estimated days until optimal harvest window (give a range)\n"
+                "3. What should the farmer check or do before harvest? (3-4 numbered steps)\n"
+                "4. Any quality issues visible — grain filling, pest damage, moisture problems?\n"
+                "5. One tip to maximise yield or grain quality before harvest."
+            ),
+            "soil": (
+                "Examine this soil photo carefully and answer:\n"
+                "1. What soil type and colour do you see? Sandy / loam / clay / silty?\n"
+                "2. Moisture level: dry / moist / wet / waterlogged\n"
+                "3. Any visible signs of compaction, erosion, salinity, or nutrient deficiency? (3-4 steps to improve)\n"
+                "4. What organic or chemical amendments should this farmer add, and how much per jerib?\n"
+                "5. Which crops grow best in this soil type in Afghanistan?"
+            ),
+        }
+        mode_prompt = _MODE_PROMPTS.get(mode, _MODE_PROMPTS["disease"])
         diagnosis_prompt = (
             f"{crop_ctx}{yolo_ctx}"
-            "Examine this crop/plant photo carefully and answer:\n"
-            "1. What disease, pest, or problem do you see? (if none, say the plant looks healthy)\n"
-            "2. Severity: mild / moderate / severe\n"
-            "3. What must the farmer do RIGHT NOW? (specific, numbered steps)\n"
-            "4. Which product to apply, what dose, when?\n"
-            "5. One sentence: how to prevent this next season.\n\n"
+            f"{mode_prompt}\n\n"
             f"{lang_inst}\n"
             "Be concise. Afghan smallholder farmers will act directly on this advice."
             f"{rag_diag_ctx}"
