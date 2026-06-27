@@ -1031,6 +1031,7 @@ def health():
         "status": "ok", "version": "8.0", "gee": gee_ok,
         "database": sb_ok, "rag": rag_ok, "rag_chunks": rag_chunks,
         "ai": "gemini" if GEMINI_KEY else "smart_only",
+        "claude_vision": bool(ANTHROPIC_KEY),
         "satellites": ["sentinel2_10m", "landsat8_9_30m", "sentinel1_SAR_10m", "modis_LST_1km"],
         "indices": ["ndvi","evi","savi","mndwi","lswi","ndre","bsi"],
         "trend_years": "2013–present (Landsat 2013-2018 + Sentinel-2 2019+)",
