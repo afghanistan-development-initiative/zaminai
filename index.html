@@ -1181,22 +1181,36 @@ function ydParseSeverity(text){
 }
 
 function ydExtractSections(text){
+  // Strip bold markers so **1.** and 1. both match
+  const clean = text.replace(/\*\*(\d+)\.\*\*/g,'$1.');
   const secs = {};
-  const re = /(?:^|\n)\s*(\d+)[.)]\s*/g;
+  const re = /(?:^|\n)\s*(\d+)[.):]\s*/g;
   const indices = [];
   let m;
-  while((m=re.exec(text))!==null) indices.push({n:m[1],start:m.index+m[0].length,raw:m[0]});
-  if(indices.length===0) return {raw:text};
+  while((m=re.exec(clean))!==null) indices.push({n:m[1],start:m.index+m[0].length,raw:m[0]});
+  if(indices.length===0) return {};
   for(let i=0;i<indices.length;i++){
-    const end = i+1<indices.length ? indices[i+1].start-indices[i+1].raw.length : text.length;
-    secs[indices[i].n] = text.slice(indices[i].start,end).trim();
+    const end = i+1<indices.length ? indices[i+1].start-indices[i+1].raw.length : clean.length;
+    secs[indices[i].n] = clean.slice(indices[i].start,end).trim();
   }
   return secs;
 }
 
+function ydStripMarkdown(t){
+  return t.replace(/\*\*([^*]+)\*\*/g,'$1').replace(/\*([^*]+)\*/g,'$1').trim();
+}
+
 function ydBuildSteps(text){
-  const lines = text.split('\n').map(l=>l.trim()).filter(l=>l.length>2);
-  return lines.map((l,i)=>`<div class="yd-step"><div class="yd-step-n">${i+1}</div><div>${l.replace(/^[-•*\d+.)]+\s*/,'')}</div></div>`).join('');
+  // Each sentence or sub-line becomes a step
+  const lines = text.split(/\n|(?<=[.!?])\s+(?=[A-Z])/).map(l=>ydStripMarkdown(l.trim())).filter(l=>l.length>4);
+  return lines.slice(0,6).map((l,i)=>`<div class="yd-step"><div class="yd-step-n">${i+1}</div><div>${l.replace(/^[-•*\d+.)]+\s*/,'')}</div></div>`).join('');
+}
+
+function ydExtractDiseaseName(sec1){
+  // "Disease: Powdery Mildew — ..." or "**Problem:** Powdery..." or just "Powdery Mildew"
+  const clean = ydStripMarkdown(sec1.split('\n')[0]);
+  // Remove leading label like "Disease:", "Problem:", "Issue:" etc.
+  return clean.replace(/^(disease|problem|issue|pest|condition|diagnosis)[:\s-]+/i,'').replace(/[—–].+$/,'').trim().slice(0,80);
 }
 
 function ydRenderResult(d, lang){
@@ -1208,17 +1222,23 @@ function ydRenderResult(d, lang){
   const isHealthy = d.is_healthy ||
     /healthy|سالم|روغ|no disease|no sign|no problem/i.test(rawText.slice(0,200));
   const secs = ydExtractSections(rawText);
-  const hasSecs = Object.keys(secs).length > 1;
+  const numSecs = Object.keys(secs).length;
+
+  // Disease name — best source wins
   let diseaseName = '';
   if(d.top_detection) diseaseName = d.top_detection.label_en;
-  else if(hasSecs && secs['1']) diseaseName = secs['1'].split('\n')[0].replace(/^[^:]+:\s*/,'').trim().slice(0,80);
-  else diseaseName = isHealthy ? 'Plant looks healthy' : 'Analysis complete';
-  const sevText = (hasSecs&&secs['2'])||rawText;
-  const sev = ydParseSeverity(sevText+(isHealthy?' healthy':''));
+  else if(secs['1'])  diseaseName = ydExtractDiseaseName(secs['1']);
+  else                diseaseName = isHealthy ? 'Plant looks healthy' : 'Analysis complete';
+
+  // Severity — prefer section 2, fall back to scanning full text
+  const sevText = secs['2'] || rawText;
+  const sev = ydParseSeverity(sevText + (isHealthy?' healthy':''));
+
   const yoloBadge = d.top_detection ?
     `<div class="yd-yolo-badge">🎯 YOLO &middot; <span class="yd-yolo-conf">${Math.round(d.top_detection.confidence*100)}%</span> &middot; ${d.top_detection.label_en}</div>` : '';
+
   if(isHealthy){
-    const body = (hasSecs&&secs['1'])||rawText||'No disease or pest detected. Keep monitoring your field regularly.';
+    const body = ydStripMarkdown(secs['1']||rawText||'No disease or pest detected. Keep monitoring your field regularly.');
     res.innerHTML = `
       <div class="yd-result-card yd-healthy-card">
         ${yoloBadge}
@@ -1233,13 +1253,28 @@ function ydRenderResult(d, lang){
       </div>`;
     return;
   }
-  const stepsHtml = hasSecs && secs['3'] ? ydBuildSteps(secs['3']) :
-    ydBuildSteps(rawText.split('\n').filter(l=>/^[\d\-•]/.test(l.trim())||l.trim().length>30).slice(0,5).join('\n')||rawText.slice(0,400));
-  const productHtml = hasSecs && secs['4'] ?
-    `<div class="yd-sec"><div class="yd-sec-label">Treatment &middot; Product &amp; dose</div><div class="yd-product-box${rtlCls}">${secs['4'].replace(/\n/g,'<br>')}</div></div>` : '';
-  const preventHtml = hasSecs && secs['5'] ?
-    `<div class="yd-sec"><div class="yd-sec-label">Prevention next season</div><div class="yd-prevent-text${rtlCls}">${secs['5']}</div></div>` : '';
-  const fallbackText = !hasSecs ? `<div class="yd-sec"><div class="yd-sec-label">Full analysis</div><div class="yd-step${rtlCls}" style="display:block;white-space:pre-wrap">${rawText}</div></div>` : '';
+
+  // Steps — section 3 preferred; fallback: parse numbered/bulleted lines from full text
+  let stepsHtml = '';
+  if(secs['3']){
+    stepsHtml = ydBuildSteps(secs['3']);
+  } else {
+    const lines = rawText.split('\n').map(l=>l.trim()).filter(l=>/^[-•*\d]/.test(l)&&l.length>8);
+    stepsHtml = ydBuildSteps(lines.length ? lines.slice(0,6).join('\n') : rawText.slice(0,500));
+  }
+
+  // Product/dose — section 4
+  const productHtml = secs['4'] ?
+    `<div class="yd-sec"><div class="yd-sec-label">Treatment &middot; Product &amp; dose</div><div class="yd-product-box${rtlCls}">${ydStripMarkdown(secs['4']).replace(/\n/g,'<br>')}</div></div>` : '';
+
+  // Prevention — section 5
+  const preventHtml = secs['5'] ?
+    `<div class="yd-sec"><div class="yd-sec-label">Prevention next season</div><div class="yd-prevent-text${rtlCls}">${ydStripMarkdown(secs['5'])}</div></div>` : '';
+
+  // Raw fallback only when NO sections extracted at all
+  const fallbackText = numSecs===0 ?
+    `<div class="yd-sec"><div class="yd-sec-label">Full analysis</div><div style="font-size:12.5px;color:rgba(255,255,255,.7);line-height:1.7;white-space:pre-wrap${isRtl?';direction:rtl;text-align:right':''}">${rawText}</div></div>` : '';
+
   res.innerHTML = `
     <div class="yd-result-card yd-disease-card">
       <div class="yd-result-header">
