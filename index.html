@@ -146,6 +146,8 @@ section{padding:7rem 5rem;}
 .yd-controls{display:flex;align-items:center;gap:.6rem;}
 .yd-lang-row{display:flex;gap:3px;flex-shrink:0;}
 .yd-lang-btn{font-family:var(--M);font-size:10px;padding:5px 11px;border:1px solid rgba(74,222,128,.2);border-radius:20px;background:transparent;color:rgba(255,255,255,.4);cursor:pointer;transition:all .18s;letter-spacing:.04em;}
+.yd-lang-sel{font-family:var(--M);font-size:10px;padding:5px 10px;border:1px solid rgba(74,222,128,.2);border-radius:20px;background:#071a0b;color:#4ade80;cursor:pointer;outline:none;-webkit-appearance:none;letter-spacing:.03em;max-width:160px;}
+.yd-lang-sel option{background:#071a0b;color:#fff;}
 .yd-lang-btn.on,.yd-lang-btn:hover{background:#16a34a;border-color:#16a34a;color:#fff;}
 .yd-crop-sel{flex:1;font-family:var(--M);font-size:10px;padding:6px 10px;border:1px solid rgba(74,222,128,.18);border-radius:8px;background:rgba(255,255,255,.04);color:rgba(255,255,255,.6);cursor:pointer;outline:none;-webkit-appearance:none;letter-spacing:.03em;}
 .yd-crop-sel option{background:#0a1f0f;color:#fff;}
@@ -195,7 +197,7 @@ section{padding:7rem 5rem;}
 .yd-retry{display:block;width:100%;padding:9px;font-family:var(--M);font-size:10px;letter-spacing:.05em;background:rgba(255,255,255,.05);color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.09);border-radius:8px;cursor:pointer;transition:all .2s;text-align:center;margin-top:.6rem;}
 .yd-retry:hover{background:rgba(255,255,255,.09);color:rgba(255,255,255,.8);}
 .yd-error{padding:.7rem 1rem;font-family:var(--M);font-size:11px;color:#f87171;background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.18);border-radius:9px;}
-.yd-rtl{direction:rtl;text-align:right;}
+.yd-rtl{direction:rtl;text-align:right;font-family:var(--M),sans-serif;}
 .yd-mode-row{display:flex;gap:3px;width:100%;}
 .yd-mode-btn{flex:1;font-family:var(--M);font-size:9px;padding:6px 4px;border:1px solid rgba(74,222,128,.15);border-radius:8px;background:transparent;color:rgba(255,255,255,.35);cursor:pointer;transition:all .18s;letter-spacing:.03em;text-align:center;white-space:nowrap;}
 .yd-mode-btn.on{background:rgba(74,222,128,.12);border-color:rgba(74,222,128,.4);color:#4ade80;}
@@ -787,9 +789,20 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
     <div class="yd-card">
       <div class="yd-controls">
         <div class="yd-lang-row">
-          <button class="yd-lang-btn on" onclick="ydSetLang('en',this)">EN</button>
-          <button class="yd-lang-btn" onclick="ydSetLang('fa',this)">دری</button>
-          <button class="yd-lang-btn" onclick="ydSetLang('ps',this)">پښتو</button>
+          <select class="yd-lang-sel" id="ydLangSel" onchange="ydSetLang(this.value)">
+            <option value="en">🌍 English</option>
+            <option value="fa">🇦🇫 دری — Dari</option>
+            <option value="ps">🇦🇫 پښتو — Pashto</option>
+            <option value="ar">🌍 العربية — Arabic</option>
+            <option value="ur">🇵🇰 اردو — Urdu</option>
+            <option value="hi">🇮🇳 हिंदी — Hindi</option>
+            <option value="bn">🇧🇩 বাংলা — Bengali</option>
+            <option value="sw">🌍 Kiswahili — Swahili</option>
+            <option value="es">🌍 Español — Spanish</option>
+            <option value="fr">🌍 Français — French</option>
+            <option value="pt">🌍 Português — Portuguese</option>
+            <option value="am">🇪🇹 አማርኛ — Amharic</option>
+          </select>
         </div>
         <select class="yd-crop-sel" id="ydCropSel">
           <option value="">Any crop</option>
@@ -823,7 +836,7 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
         <img id="yPreview" class="yd-preview" alt="crop photo">
       </div>
       <div id="yResult" class="yd-result-wrap"></div>
-      <div class="yd-footer" id="ydFooter">🦠 Disease · 🐛 Pest · 🌾 Yield · 🌱 Soil · Claude Haiku Vision · EN · دری · پښتو</div>
+      <div class="yd-footer" id="ydFooter">🦠 Disease · 🐛 Pest · 🌾 Yield · 🌱 Soil · Claude Haiku Vision · 12 languages · Global</div>
     </div>
     <div class="yf-list">
       <div class="yf vis"><div class="yft" id="yf1t">Disease detection</div><div class="yfd" id="yf1d">YOLO identifies wheat rust, leaf blight, powdery mildew and 50+ crop diseases from a phone photo — with confidence score and treatment in the farmer's language.</div></div>
@@ -1142,6 +1155,24 @@ const YAPI=window.location.hostname==='localhost'||window.location.hostname==='1
 let _ydLang = 'en';
 let _ydMode = 'disease';
 let _ydServerReady = false;
+let _fieldCountry = 'Afghanistan';
+
+// RTL languages
+const _RTL_LANGS = new Set(['fa','ps','ar','ur']);
+
+async function ydDetectCountry(lat, lng){
+  try{
+    const r = await fetch(`${YAPI}/country`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({lat, lng}), signal:AbortSignal.timeout(10000)
+    });
+    const d = await r.json();
+    if(d.country && d.country !== 'Unknown'){
+      _fieldCountry = d.country;
+      console.log('ZaminAI: detected country =', _fieldCountry);
+    }
+  }catch(e){}
+}
 
 // Warm up the server as soon as the script loads — avoids cold-start on first upload
 (function ydWarmup(){
@@ -1177,10 +1208,13 @@ const _YD_MODE_CFG = {
   },
 };
 
-function ydSetLang(l, btn){
+function ydSetLang(l){
   _ydLang = l;
-  document.querySelectorAll('.yd-lang-btn').forEach(b=>b.classList.remove('on'));
-  if(btn) btn.classList.add('on');
+  const sel = document.getElementById('ydLangSel');
+  if(sel) sel.value = l;
+  // Apply RTL to entire card for RTL languages
+  const card = document.querySelector('.yd-card');
+  if(card) card.style.direction = _RTL_LANGS.has(l) ? 'rtl' : 'ltr';
 }
 
 function ydSetMode(m, btn){
@@ -1286,7 +1320,7 @@ function ydRenderResult(d, lang, mode){
   const res = document.getElementById('yResult');
   if(!res) return;
   const cfg = _YD_MODE_CFG[mode||_ydMode||'disease']||_YD_MODE_CFG.disease;
-  const isRtl = lang==='fa'||lang==='ps';
+  const isRtl = _RTL_LANGS.has(lang);
   const rtlCls = isRtl?' yd-rtl':'';
   const rawText = d.diagnosis||'';
   const isHealthy = d.is_healthy ||
@@ -1380,7 +1414,7 @@ async function yDiagnose(dataUrl, attempt){
     const r = await fetch(`${YAPI}/diagnose`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({image:dataUrl, language:lang, crop:crop, mode:_ydMode||'disease'}),
+      body:JSON.stringify({image:dataUrl, language:lang, crop:crop, mode:_ydMode||'disease', country:_fieldCountry||'Afghanistan'}),
       signal:ctrl.signal,
     });
     clearTimeout(t);

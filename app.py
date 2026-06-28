@@ -1610,9 +1610,21 @@ def ask():
             rain=float(fd.get("rain",240)); area_j=float(fd.get("area_jereb",fd.get("area_ha",1)*5))
             province=fd.get("province","Afghanistan")
             context=(f"Field: NDVI={ndvi}, Water={water}, Rain={rain}mm, Area={area_j}jereb, Province={province}")
-        lang_inst={"fa":"Afghan Dari (دری). Use دهقان for farmer, جریب for land. Eastern Arabic numerals ۱۲۳.",
-                   "ps":"Pashto (پښتو). Proper Pashto farming terms. Eastern Arabic numerals.",
-                   "en":"English. Concise and specific."}.get(language,"English.")
+        _LANG_INST_ASK = {
+            "fa": "Afghan Dari (دری). Use دهقان for farmer, جریب for land. Eastern Arabic numerals ۱۲۳.",
+            "ps": "Pashto (پښتو). Proper Pashto farming terms. Eastern Arabic numerals.",
+            "ar": "Arabic (العربية). Use right-to-left text. Clear farming terms.",
+            "ur": "Urdu (اردو). Right-to-left. Simple farming language.",
+            "hi": "Hindi (हिंदी). Simple farming terms a village farmer understands.",
+            "bn": "Bengali (বাংলা). Simple farming language.",
+            "sw": "Swahili (Kiswahili). Practical farming advice.",
+            "es": "Spanish (Español). Clear, practical farming language.",
+            "fr": "French (Français). Simple farming terms.",
+            "pt": "Portuguese (Português). Practical farming advice.",
+            "am": "Amharic (አማርኛ). Simple farming language.",
+            "en": "English. Concise and specific.",
+        }
+        lang_inst = _LANG_INST_ASK.get(language, "English. Concise and specific.")
         # Retrieve relevant knowledge chunks from vector DB
         rag_chunks = rag_retrieve(question, top_k=4, threshold=0.50)
         rag_section = (
@@ -1620,9 +1632,10 @@ def ask():
             "\n\n".join(f"• {c}" for c in rag_chunks)
         ) if rag_chunks else ""
         word_limit = "under 120 words" if rag_chunks else "under 90 words"
-        prompt=(f"You are ZaminAI, expert agricultural advisor for Afghan smallholder farmers.\n"
+        _location_label = province if province and province != "Afghanistan" else "the farmer's region"
+        prompt=(f"You are ZaminAI, expert agricultural advisor for smallholder farmers in {_location_label}.\n"
                 f"Satellite data: {context}{rag_section}\n\nRespond ONLY in {lang_inst}\n"
-                f"Rules: use the verified knowledge above, give exact amounts, {word_limit}, "
+                f"Rules: use the verified knowledge above, give exact amounts in local units (hectares or local equivalent), {word_limit}, "
                 f"speak as trusted local expert.\n\nQuestion: {question}")
         reply=call_gemini(prompt)
         if not reply or len(reply)<8:
@@ -3320,10 +3333,22 @@ def diagnose():
                 log.warning(f"YOLO import/run failed: {e}")
 
         # ── Build shared prompt ───────────────────────────────────────────────
-        lang_inst = {
+        _LANG_INST_DIAG = {
             "fa": "Respond ONLY in Dari (Afghan Persian). Use simple farming language a village farmer understands.",
             "ps": "Respond ONLY in Pashto. Use simple farming language a village farmer understands.",
-        }.get(language, "Respond in English. Use simple, practical language.")
+            "ar": "Respond ONLY in Arabic (العربية). Use right-to-left text. Simple farming language.",
+            "ur": "Respond ONLY in Urdu (اردو). Right-to-left. Simple farming language.",
+            "hi": "Respond ONLY in Hindi (हिंदी). Simple language a village farmer understands.",
+            "bn": "Respond ONLY in Bengali (বাংলা). Simple farming language.",
+            "sw": "Respond ONLY in Swahili (Kiswahili). Practical farming language.",
+            "es": "Respond ONLY in Spanish (Español). Clear, practical farming language.",
+            "fr": "Respond ONLY in French (Français). Simple farming terms.",
+            "pt": "Respond ONLY in Portuguese (Português). Practical farming language.",
+            "am": "Respond ONLY in Amharic (አማርኛ). Simple farming language.",
+        }
+        lang_inst = _LANG_INST_DIAG.get(language, "Respond in English. Use simple, practical language.")
+        country    = d.get("country", "").strip() or "Afghanistan"
+        land_unit  = "jerib" if country.lower() in ("afghanistan",) else "hectare"
 
         yolo_ctx = ""
         if yolo_result.get("ok") and yolo_result.get("detections"):
@@ -3331,6 +3356,7 @@ def diagnose():
             yolo_ctx = f"YOLO model detected: {top_det['label_en']} ({top_det['confidence']*100:.0f}% confidence). "
 
         crop_ctx = f"The farmer says this is a {crop_hint} crop. " if crop_hint else ""
+        location_ctx = f"Location: {country}. " if country and country != "Afghanistan" else ""
 
         # Augment with RAG knowledge
         rag_diag_ctx = ""
@@ -3355,7 +3381,7 @@ def diagnose():
                 "1. What pest(s) do you see? Name them; estimate count or infestation % if visible.\n"
                 "2. Infestation level: light / moderate / heavy\n"
                 "3. What must the farmer do RIGHT NOW? (3-4 numbered steps)\n"
-                "4. Which pesticide to apply, exact dose per litre and per jerib, and timing?\n"
+                "4. Which pesticide to apply, exact dose per litre and per "+land_unit+", and timing?\n"
                 "5. One sentence: how to prevent this pest next season."
             ),
             "yield": (
@@ -3371,16 +3397,16 @@ def diagnose():
                 "1. What soil type and colour do you see? Sandy / loam / clay / silty?\n"
                 "2. Moisture level: dry / moist / wet / waterlogged\n"
                 "3. Any visible signs of compaction, erosion, salinity, or nutrient deficiency? (3-4 steps to improve)\n"
-                "4. What organic or chemical amendments should this farmer add, and how much per jerib?\n"
+                "4. What organic or chemical amendments should this farmer add, and how much per "+land_unit+"?\n"
                 "5. Which crops grow best in this soil type in Afghanistan?"
             ),
         }
         mode_prompt = _MODE_PROMPTS.get(mode, _MODE_PROMPTS["disease"])
         diagnosis_prompt = (
-            f"{crop_ctx}{yolo_ctx}"
+            f"{location_ctx}{crop_ctx}{yolo_ctx}"
             f"{mode_prompt}\n\n"
             f"{lang_inst}\n"
-            "Be concise. Afghan smallholder farmers will act directly on this advice."
+            f"Be concise. Farmers in {country} will act directly on this advice. Use {land_unit}s as the land measurement unit."
             f"{rag_diag_ctx}"
         )
 
@@ -4183,6 +4209,35 @@ def regen_recommend():
 # Auto-seed RAG on startup if knowledge base is empty (handles fresh Render deploys)
 if rag_ok and GEMINI_KEY:
     threading.Thread(target=_auto_seed_rag, daemon=True).start()
+
+
+
+@app.route("/country", methods=["POST","OPTIONS"])
+def country_lookup():
+    """Reverse geocode lat/lng → country name via OpenStreetMap Nominatim."""
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    try:
+        d   = request.get_json(force=True)
+        lat = d.get("lat")
+        lng = d.get("lng")
+        if lat is None or lng is None:
+            return jsonify({"country": "Unknown", "error": "lat/lng required"}), 400
+        resp = requests.get(
+            "https://nominatim.openstreetmap.org/reverse",
+            params={"format": "json", "lat": lat, "lon": lng, "zoom": 3},
+            headers={"User-Agent": "ZaminAI/1.0 (zaminai.onrender.com)"},
+            timeout=8,
+        )
+        if resp.status_code == 200:
+            data    = resp.json()
+            country = data.get("address", {}).get("country", "Unknown")
+            code    = data.get("address", {}).get("country_code", "").upper()
+            return jsonify({"country": country, "country_code": code})
+        return jsonify({"country": "Unknown"})
+    except Exception as e:
+        log.warning(f"/country lookup failed: {e}")
+        return jsonify({"country": "Unknown"})
 
 if __name__=="__main__":
     port=int(os.environ.get("PORT",5000))
