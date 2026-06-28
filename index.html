@@ -1141,6 +1141,14 @@ const YAPI=window.location.hostname==='localhost'||window.location.hostname==='1
 // ── Disease detection state ────────────────────────────────────────────────
 let _ydLang = 'en';
 let _ydMode = 'disease';
+let _ydServerReady = false;
+
+// Warm up the server as soon as the script loads — avoids cold-start on first upload
+(function ydWarmup(){
+  fetch(`${YAPI}/health`, {method:'GET', signal:AbortSignal.timeout(60000)})
+    .then(()=>{ _ydServerReady=true; })
+    .catch(()=>{});
+})();
 
 const _YD_MODE_CFG = {
   disease: {
@@ -1362,7 +1370,8 @@ async function yDiagnose(dataUrl, attempt){
   const res = document.getElementById('yResult');
   if(!res) return;
   const retryLabel = attempt>1 ? `Retrying… (${attempt}/3)` : 'Analysing with AI';
-  res.innerHTML = `<div class="yd-loading"><div class="yd-spinner"></div><div class="yd-loading-text">${retryLabel}</div><div class="yd-loading-sub">Claude Vision &middot; Reading crop photo</div></div>`;
+  const warmNote = (!_ydServerReady && attempt===1) ? ' &middot; waking server…' : '';
+  res.innerHTML = `<div class="yd-loading"><div class="yd-spinner"></div><div class="yd-loading-text">${retryLabel}</div><div class="yd-loading-sub">Claude Vision &middot; Reading crop photo${warmNote}</div></div>`;
   const ctrl = new AbortController();
   const t = setTimeout(()=>ctrl.abort(), 90000);
   try{

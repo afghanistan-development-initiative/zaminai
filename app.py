@@ -3390,10 +3390,10 @@ def diagnose():
         if ANTHROPIC_KEY:
             try:
                 import anthropic
-                client = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
+                client = anthropic.Anthropic(api_key=ANTHROPIC_KEY, timeout=55.0)
                 msg = client.messages.create(
                     model="claude-haiku-4-5-20251001",
-                    max_tokens=600,
+                    max_tokens=800,
                     messages=[{
                         "role": "user",
                         "content": [
