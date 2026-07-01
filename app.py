@@ -1523,6 +1523,53 @@ def alerts_daily():
 # Async task store for farmer field analysis (same pattern as officer/analyse)
 _farmer_analyse_tasks = {}
 
+def get_weather_forecast(lat, lon):
+    """
+    Fetch 7-day daily forecast from Open-Meteo (free, no API key).
+    Returns list of {date, rain_mm, temp_max, temp_min, condition}.
+    Falls back to empty list on any error.
+    """
+    try:
+        url = (
+            "https://api.open-meteo.com/v1/forecast"
+            f"?latitude={lat}&longitude={lon}"
+            "&daily=precipitation_sum,temperature_2m_max,temperature_2m_min,weathercode"
+            "&forecast_days=7&timezone=auto"
+        )
+        r = requests.get(url, timeout=8)
+        if r.status_code != 200:
+            return []
+        d = r.json().get("daily", {})
+        WMO = {
+            0:"Clear", 1:"Mainly clear", 2:"Partly cloudy", 3:"Overcast",
+            45:"Fog", 48:"Icy fog",
+            51:"Light drizzle", 53:"Drizzle", 55:"Heavy drizzle",
+            61:"Light rain", 63:"Rain", 65:"Heavy rain",
+            71:"Light snow", 73:"Snow", 75:"Heavy snow",
+            80:"Rain showers", 81:"Rain showers", 82:"Violent showers",
+            85:"Snow showers", 86:"Heavy snow showers",
+            95:"Thunderstorm", 96:"Thunderstorm+hail", 99:"Thunderstorm+hail",
+        }
+        forecast = []
+        dates     = d.get("time", [])
+        rain      = d.get("precipitation_sum", [])
+        tmax      = d.get("temperature_2m_max", [])
+        tmin      = d.get("temperature_2m_min", [])
+        wcode     = d.get("weathercode", [])
+        for i in range(len(dates)):
+            forecast.append({
+                "date":      dates[i],
+                "rain_mm":   rain[i]  if i < len(rain)  else 0,
+                "temp_max":  tmax[i]  if i < len(tmax)  else None,
+                "temp_min":  tmin[i]  if i < len(tmin)  else None,
+                "condition": WMO.get(wcode[i] if i < len(wcode) else 0, "Unknown"),
+            })
+        return forecast
+    except Exception as e:
+        log.warning(f"weather forecast failed: {e}")
+        return []
+
+
 @app.route("/analyse", methods=["POST","OPTIONS"])
 def analyse():
     """Async farmer field analysis. Returns {task_id} immediately;
@@ -1568,6 +1615,7 @@ def analyse():
                         result["season"] = get_current_season_advice(reg["province"],result["ndvi"],result["mndwi"])
                         result["monthly_rain"] = get_monthly_rain(result["rain"] or reg["rain"],reg["province"])
                         result["soil"] = get_soil_data(clat,clon,reg["province"])
+                        result["weather_forecast"] = get_weather_forecast(clat, clon)
                         if result.get("trend"):
                             tv=[v for v in result["trend"].values() if v]
                             if tv:
@@ -1594,6 +1642,7 @@ def analyse():
                     "season":get_current_season_advice(reg["province"],reg["ndvi"],reg["mndwi"]),
                     "monthly_rain":get_monthly_rain(reg["rain"],reg["province"]),
                     "soil":get_soil_data(clat,clon,reg["province"]),
+                    "weather_forecast":get_weather_forecast(clat,clon),
                     "ndre":round(reg["ndvi"]*0.75,4),"gndvi":round(reg["ndvi"]*0.88,4),
                     "ndmi":round(reg["mndwi"]+0.08,4),"ndwi":round(reg["mndwi"]+0.05,4),
                     "vci":None,"drought_index":round(reg["mndwi"]-reg["ndvi"],4),

@@ -27,7 +27,7 @@ pushes, verifies production, then marks it DONE.
 
 ## Priority 2 — Farmer experience
 
-- [ ] **7-day weather forecast** — call Open-Meteo API (free, no key needed)
+- [x] **7-day weather forecast** — call Open-Meteo API (free, no key needed)
         `https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lng}&daily=precipitation_sum,temperature_2m_max`
         Return in /analyse response as `weather_forecast: [{day, rain_mm, temp_max}]`
         Show in index.html as a mini 7-day strip below the field stats card.

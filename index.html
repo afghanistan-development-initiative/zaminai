@@ -1567,6 +1567,7 @@ function _applyLiveData(d){
   fieldData.monthly_rain=d.monthly_rain||fieldData.monthly_rain||null;
   fieldData.source=d.source||'gee_live';
   fieldData.soil=d.soil||fieldData.soil||null;
+  fieldData.weather_forecast=d.weather_forecast||fieldData.weather_forecast||[];
   fieldData.ndre=n(d.ndre); fieldData.gndvi=n(d.gndvi);
   fieldData.vci=n(d.vci); fieldData.ndwi=n(d.ndwi); fieldData.ndmi=n(d.ndmi);
   fieldData.drought=n(d.drought_index);
@@ -2182,7 +2183,7 @@ async function tbAnalyse(){
   const curMonth=new Date().getMonth()+1;
   const estCrops=detectCropFrontend(ndvi,estEvi,estSavi,mndwi,estLswi,curMonth,prov);
   const estSeason=detectSeasonFrontend(prov,ndvi,mndwi,curMonth);
-  fieldData={ndvi,mndwi,rain,prov,aHa,aJ,trend,evi:estEvi,savi:estSavi,lswi:estLswi,crops:estCrops,season:estSeason,monthly_rain:estMonthlyRain,source:'regional',soil:null,ndre:null,gndvi:null,vci:null,ndwi:null,ndmi:null,drought:null};
+  fieldData={ndvi,mndwi,rain,prov,aHa,aJ,trend,evi:estEvi,savi:estSavi,lswi:estLswi,crops:estCrops,season:estSeason,monthly_rain:estMonthlyRain,source:'regional',soil:null,ndre:null,gndvi:null,vci:null,ndwi:null,ndmi:null,drought:null,weather_forecast:[]};
 
   // Save field to database if logged in
   if(farmerId){
@@ -2387,6 +2388,40 @@ function makeTrendSVG(trend,lang){
   return`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:${W}px;display:block"><defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${lineCol}" stop-opacity=".15"/><stop offset="100%" stop-color="${lineCol}" stop-opacity="0"/></linearGradient></defs>${gridLines}<path d="${fillD}" fill="url(#${gradId})"/><path d="${pathD}" fill="none" stroke="${lineCol}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${dots}${xLabels}</svg>`;
 }
 
+function makeWeatherStrip(forecast){
+  if(!forecast||!forecast.length) return '';
+  const WMO_ICON={
+    'Clear':'☀️','Mainly clear':'🌤️','Partly cloudy':'⛅','Overcast':'☁️',
+    'Fog':'🌫️','Icy fog':'🌫️',
+    'Light drizzle':'🌦️','Drizzle':'🌧️','Heavy drizzle':'🌧️',
+    'Light rain':'🌧️','Rain':'🌧️','Heavy rain':'⛈️',
+    'Light snow':'🌨️','Snow':'❄️','Heavy snow':'❄️',
+    'Rain showers':'🌦️','Violent showers':'⛈️',
+    'Snow showers':'🌨️','Heavy snow showers':'❄️',
+    'Thunderstorm':'⛈️','Thunderstorm+hail':'⛈️','Unknown':'🌡️'
+  };
+  const days = forecast.slice(0,7);
+  const cols = days.map(day=>{
+    const dt  = new Date(day.date);
+    const dow = dt.toLocaleDateString('en',{weekday:'short'});
+    const dm  = dt.toLocaleDateString('en',{month:'short',day:'numeric'});
+    const ico = WMO_ICON[day.condition]||'🌡️';
+    const rain= (day.rain_mm||0).toFixed(1);
+    const tmax= day.temp_max!=null ? Math.round(day.temp_max)+'°' : '--';
+    const tmin= day.temp_min!=null ? Math.round(day.temp_min)+'°' : '--';
+    const rainCol = day.rain_mm>10?'#1d4ed8':day.rain_mm>2?'#3b82f6':'#9ca3af';
+    return `<div style="flex:1;min-width:0;text-align:center;padding:8px 4px;background:#f8fafc;border-radius:10px;border:1px solid #e5e7eb">
+      <div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.04em">${dow}</div>
+      <div style="font-size:9px;color:#9ca3af;margin-bottom:4px">${dm}</div>
+      <div style="font-size:22px;line-height:1.2;margin:4px 0">${ico}</div>
+      <div style="font-size:11px;font-weight:700;color:#1f2937">${tmax}</div>
+      <div style="font-size:10px;color:#6b7280">${tmin}</div>
+      <div style="font-size:10px;color:${rainCol};font-weight:600;margin-top:4px">💧${rain}mm</div>
+    </div>`;
+  }).join('');
+  return `<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px">${cols}</div>`;
+}
+
 function makeRainSVG(monthly,lang){
   if(!monthly||!monthly.length)return'';
   const T=RPT[lang]||RPT.en;
@@ -2479,6 +2514,7 @@ function buildReportHTML(){
 <div style="margin-bottom:24px"><div style="font-size:16px;font-weight:700;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #f3f4f6">${T.metrics}</div><table><tbody>${metricRows}</tbody></table></div>
 ${trendSVG?`<div style="margin-bottom:24px"><div style="font-size:16px;font-weight:700;margin-bottom:6px;padding-bottom:8px;border-bottom:2px solid #f3f4f6">${T.trend}</div><div style="font-size:11px;color:#6b7280;margin-bottom:10px">${T.trendNote}</div>${trendSVG}</div>`:''}
 ${rainSVG?`<div style="margin-bottom:24px"><div style="font-size:16px;font-weight:700;margin-bottom:6px;padding-bottom:8px;border-bottom:2px solid #f3f4f6">${T.monthly}</div><div style="font-size:11px;color:#6b7280;margin-bottom:10px">${T.monthlyNote}</div>${rainSVG}</div>`:''}
+${(()=>{const ws=makeWeatherStrip(d.weather_forecast||fieldData.weather_forecast);return ws?`<div style="margin-bottom:24px"><div style="font-size:14px;font-weight:700;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #f3f4f6">7-Day Forecast</div>${ws}</div>`:''})()}
 ${soilHTML}
 ${cropsRows?`<div style="margin-bottom:24px"><div style="font-size:16px;font-weight:700;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #f3f4f6">${T.crops}</div><table><tbody>${cropsRows}</tbody></table></div>`:''}
 <div style="margin-bottom:24px"><div style="font-size:16px;font-weight:700;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #f3f4f6">${T.income}</div><table><tbody><tr><td style="padding:9px 14px;border-bottom:1px solid #f3f4f6">${T.yieldEst}</td><td style="padding:9px 14px;border-bottom:1px solid #f3f4f6;font-family:monospace;font-weight:700">${yieldKg.toLocaleString()} ${T.kgUnit}</td></tr><tr><td style="padding:9px 14px;border-bottom:1px solid #f3f4f6">${T.seed}</td><td style="padding:9px 14px;border-bottom:1px solid #f3f4f6;font-family:monospace;color:#dc2626">−${seedCost.toLocaleString()} ${T.afn}</td></tr><tr><td style="padding:9px 14px;border-bottom:1px solid #f3f4f6">${T.irr}</td><td style="padding:9px 14px;border-bottom:1px solid #f3f4f6;font-family:monospace;color:#dc2626">−${irrCost.toLocaleString()} ${T.afn}</td></tr><tr><td style="padding:9px 14px;border-bottom:1px solid #f3f4f6">${T.gross}</td><td style="padding:9px 14px;border-bottom:1px solid #f3f4f6;font-family:monospace;color:#16a34a;font-weight:700">${grossInc.toLocaleString()} ${T.afn}</td></tr><tr style="background:#f0fdf4"><td style="padding:12px 14px;font-weight:700;font-size:15px">${T.net}</td><td style="padding:12px 14px;font-family:monospace;font-size:18px;font-weight:800;color:${netProfit>0?'#16a34a':'#dc2626'}">${netProfit>0?'+':''}${netProfit.toLocaleString()} ${T.afn}</td></tr></tbody></table></div>
