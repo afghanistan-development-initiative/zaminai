@@ -357,6 +357,33 @@ def db_save_analysis(field_id, farmer_id, analysis_data):
         return None
 
 
+def db_get_cached_analysis(field_id, max_age_hours=24):
+    """Return the most recent analysis for field_id if within max_age_hours, else None."""
+    if not sb_ok or not field_id:
+        return None
+    try:
+        from datetime import timezone
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=max_age_hours)).isoformat()
+        res = (sb.table("analyses")
+                 .select("full_data, analysed_at, source")
+                 .eq("field_id", field_id)
+                 .gte("analysed_at", cutoff)
+                 .order("analysed_at", desc=True)
+                 .limit(1)
+                 .execute())
+        if res.data:
+            row = res.data[0]
+            cached = json.loads(row["full_data"]) if isinstance(row["full_data"], str) else row["full_data"]
+            cached["_cached"]       = True
+            cached["_cached_at"]    = row["analysed_at"]
+            cached["_cache_source"] = row.get("source", "db")
+            log.info(f"Cache hit for field {field_id} (analysed {row['analysed_at'][:16]})")
+            return cached
+    except Exception as e:
+        log.warning(f"db_get_cached_analysis: {e}")
+    return None
+
+
 def db_save_chat(farmer_id, field_id, question, answer, language):
     """
     Save AI conversation to database.
@@ -1523,6 +1550,13 @@ def analyse():
         def _worker():
             try:
                 result = {}
+                # Check 24-hour cache first — skip GEE if fresh result exists
+                if field_id:
+                    cached = db_get_cached_analysis(field_id, max_age_hours=24)
+                    if cached:
+                        cached.update({"label": label, "area_ha": area_ha, "area_jereb": area_jereb})
+                        _farmer_analyse_tasks[task_id] = {"status": "done", "data": cached}
+                        return
                 if gee_ok:
                     try:
                         result = gee_analyse(coords, year, clat, clon)

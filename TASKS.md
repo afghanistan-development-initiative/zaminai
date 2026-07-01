@@ -18,7 +18,7 @@ pushes, verifies production, then marks it DONE.
 - [x] Globalise: 12 languages, country detection, dynamic land units
 - [x] Fix disease name parser ("Analysis complete" bug)
 - [x] 4-mode vision card: Disease / Pest / Yield / Soil
-- [ ] **Cache GEE results** — save satellite analysis per field_id + date in Supabase
+- [x] **Cache GEE results** — save satellite analysis per field_id + date in Supabase
         `analyses` table already exists; add 24h cache check before calling GEE.
         Avoids repeated API calls for same field. Fallback: call GEE if no cached row.
 - [ ] **Retry on GEE failure** — currently returns regional fallback immediately.
