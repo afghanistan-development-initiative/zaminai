@@ -1,0 +1,73 @@
+name: ZaminAI CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate & Syntax Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install flask anthropic google-generativeai supabase requests python-dotenv
+
+      - name: Syntax check app.py
+        run: python -c "import ast; ast.parse(open('app.py').read()); print('app.py OK')"
+
+      - name: Check required endpoints exist
+        run: |
+          python - <<'EOF'
+          import ast, sys
+          src = open('app.py').read()
+          required = ['/health', '/analyse', '/ask', '/diagnose', '/country']
+          missing = [r for r in required if f'"{r}"' not in src and f"'{r}'" not in src]
+          if missing:
+              print(f'MISSING endpoints: {missing}')
+              sys.exit(1)
+          print(f'All {len(required)} endpoints present')
+          EOF
+
+      - name: Check index.html exists and has key markers
+        run: |
+          python - <<'EOF'
+          src = open('index.html').read()
+          markers = ['_fieldCountry', 'ydDetectCountry', '_YD_MODE_CFG', 'yd-lang-sel']
+          missing = [m for m in markers if m not in src]
+          if missing:
+              print(f'Missing markers in index.html: {missing}')
+          else:
+              print(f'index.html: all {len(markers)} markers OK')
+          EOF
+
+  health-check:
+    name: Production Health Check
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Wait for Render deploy (90s)
+        run: sleep 90
+
+      - name: Check /health endpoint
+        run: |
+          RESPONSE=$(curl -s --max-time 120 https://zaminai.onrender.com/health)
+          echo "Response: $RESPONSE"
+          echo "$RESPONSE" | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          assert d.get('status') == 'ok', f'status not ok: {d}'
+          print('Production health OK')
+          print(f'  claude_vision: {d.get(\"claude_vision\")}')
+          print(f'  version: {d.get(\"version\")}')
+          "
