@@ -37,7 +37,7 @@ pushes, verifies production, then marks it DONE.
         satellite date, AI advice, disease results if any.
         Frontend: "Download Report" button on the analysis result panel.
 
-- [ ] **Offline cache** — store last field analysis in localStorage (IndexedDB).
+- [x] **Offline cache** — store last field analysis in localStorage (IndexedDB).
         On page load with no network, show cached data with "Last updated: X days ago" banner.
         Key: `zaminai_field_{field_id}`, value: full JSON response + timestamp.
 
@@ -48,7 +48,7 @@ pushes, verifies production, then marks it DONE.
 
 ## Priority 3 — AI improvements
 
-- [ ] **Confidence score on disease detection** — in /diagnose response add
+- [x] **Confidence score on disease detection** — in /diagnose response add
         `confidence: "high" | "medium" | "low"` based on Claude's response certainty.
         Parse: if Claude says "likely", "possibly", "may be" → medium/low.
         Show as a small badge next to the severity pill in the UI.

@@ -1148,6 +1148,45 @@ const io=new IntersectionObserver(es=>{es.forEach((e,i)=>{if(e.isIntersecting)se
 
 // ── YOLO CROP DIAGNOSIS ──────────────────────────────────────────────────────
 const YAPI=window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1'
+
+// ── Offline field cache (localStorage) ──────────────────────────────────────
+const _CACHE_KEY = 'zaminai_field_cache_v1';
+const _CACHE_TTL  = 7 * 24 * 60 * 60 * 1000;  // 7 days in ms
+
+function offlineSave(data) {
+  try {
+    const entry = { ts: Date.now(), data: data };
+    localStorage.setItem(_CACHE_KEY, JSON.stringify(entry));
+  } catch(e) {}
+}
+
+function offlineLoad() {
+  try {
+    const raw = localStorage.getItem(_CACHE_KEY);
+    if (!raw) return null;
+    const entry = JSON.parse(raw);
+    if (Date.now() - entry.ts > _CACHE_TTL) { localStorage.removeItem(_CACHE_KEY); return null; }
+    return entry;
+  } catch(e) { return null; }
+}
+
+function offlineClear() {
+  try { localStorage.removeItem(_CACHE_KEY); } catch(e) {}
+}
+
+function _showOfflineBanner(ts) {
+  const ago   = Math.round((Date.now() - ts) / 3600000);
+  const label = ago < 1 ? 'less than 1h ago' : ago < 24 ? ago + 'h ago' : Math.round(ago/24) + ' days ago';
+  const bar   = document.createElement('div');
+  bar.id      = 'offlineBanner';
+  bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#d97706;color:#fff;'
+    + 'font-family:var(--M,monospace);font-size:11px;text-align:center;padding:7px 12px;letter-spacing:.04em;'
+    + 'display:flex;align-items:center;justify-content:center;gap:10px';
+  bar.innerHTML = '📶 Offline — showing cached data from ' + label
+    + ' <button onclick="document.getElementById(\'offlineBanner\').remove()" '
+    + 'style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px">✕</button>';
+  document.body.prepend(bar);
+}
   ?`${window.location.protocol}//${window.location.hostname}:5000`
   :API;
 
@@ -1341,6 +1380,12 @@ function ydRenderResult(d, lang, mode){
   const yoloBadge = d.top_detection ?
     `<div class="yd-yolo-badge">🎯 YOLO &middot; <span class="yd-yolo-conf">${Math.round(d.top_detection.confidence*100)}%</span> &middot; ${d.top_detection.label_en}</div>` : '';
 
+  const _confMap = {high:{label:'High confidence',col:'#4ade80',bg:'rgba(74,222,128,.1)'},
+                    medium:{label:'Medium confidence',col:'#facc15',bg:'rgba(250,204,21,.1)'},
+                    low:{label:'Low confidence',col:'#f87171',bg:'rgba(248,113,113,.1)'}};
+  const _conf    = _confMap[d.confidence] || _confMap.medium;
+  const confBadge = `<span style="font-size:9.5px;padding:3px 8px;border-radius:10px;font-family:var(--M);letter-spacing:.04em;background:${_conf.bg};color:${_conf.col};border:1px solid ${_conf.col}33">${_conf.label}</span>`;
+
   if(isHealthy){
     const body = ydStripMarkdown(secs['1']||rawText||'No disease or pest detected. Keep monitoring your field regularly.');
     res.innerHTML = `
@@ -1385,6 +1430,7 @@ function ydRenderResult(d, lang, mode){
         <div>
           <div class="yd-result-eyebrow">${cfg.eyebrow}</div>
           <div class="yd-result-name">${diseaseName}</div>
+          <div style="margin-top:5px">${confBadge}</div>
         </div>
         <div class="yd-sev ${sev.cls}">${sev.label}</div>
       </div>
@@ -1560,6 +1606,7 @@ updLand();
 function _applyLiveData(d){
   const n=v=>v!=null?v:null;
   fieldData.ndvi=n(d.ndvi); fieldData.mndwi=n(d.mndwi??d.water); fieldData.rain=n(d.rain);
+  fieldData._cachedPts = (typeof pts !== 'undefined' ? pts.slice() : []);
   fieldData.trend=d.trend||d.ndvi_trend||fieldData.trend;
   fieldData.evi=n(d.evi); fieldData.savi=n(d.savi); fieldData.lswi=n(d.lswi);
   fieldData.crops=d.crops||fieldData.crops||[];
@@ -2236,7 +2283,7 @@ async function tbAnalyse(){
     // Legacy sync response (no task_id)
     if(!start.task_id){
       if(start.status==='success'&&start.ndvi!=null){
-        _applyLiveData(start); renderReport();
+        _applyLiveData(start); renderReport(); offlineSave(fieldData);
         _setSatBanner('📡 Live Sentinel-2 data','#16a34a');
       }
       return;
@@ -2251,7 +2298,7 @@ async function tbAnalyse(){
         const pd=await poll.json();
         if(pd.status==='done'){
           if(pd.data&&pd.data.status==='success'&&pd.data.ndvi!=null){
-            _applyLiveData(pd.data); renderReport();
+            _applyLiveData(pd.data); renderReport(); offlineSave(fieldData);
             const isLive=(pd.data.source||'').includes('gee')||['sentinel','landsat','modis'].some(s=>(pd.data.source||'').includes(s));
             _setSatBanner(isLive?'📡 Live Sentinel-2 data':'📊 Regional database',isLive?'#16a34a':'var(--m2)');
             notify(isLive?'🛰️ Live satellite data loaded':'📊 Regional data loaded');
@@ -3021,6 +3068,25 @@ async function loadWeather(lat,lon,lang){
   }catch(e){return'';}
 }
 function closeRp(){document.getElementById('reportPanel').classList.remove('open');}
+
+// On load: restore cached analysis if offline
+(function _offlineRestore(){
+  if (navigator.onLine) return;                     // online — normal flow
+  const entry = offlineLoad();
+  if (!entry) return;                               // no cache
+  const d = entry.data;
+  if (!d || !d.ndvi) return;
+  // Restore fieldData
+  fieldData = d;
+  pts = d._cachedPts || pts;
+  // Show report
+  const panel = document.getElementById('reportPanel');
+  if (panel) panel.classList.add('open');
+  renderReport();
+  _showOfflineBanner(entry.ts);
+  notify('📶 Offline — cached field data loaded');
+})();
+
 
 // ── AI ────────────────────────────────────────────────────────────────────────
 function openAIPanel(){document.getElementById('aiPanel').classList.add('open');}

@@ -3374,6 +3374,33 @@ def agent_ui():
 
 # ── CROP PHOTO DIAGNOSIS ──────────────────────────────────────────────────────
 
+def _parse_diagnosis_confidence(text):
+    """
+    Infer confidence level from Claude's language in the diagnosis.
+    Returns "high" | "medium" | "low"
+    """
+    if not text:
+        return "low"
+    t = text.lower()
+    # Explicit uncertainty markers → low
+    if any(w in t for w in ["cannot determine", "unclear", "unable to", "not enough",
+                              "hard to tell", "difficult to identify", "no clear"]):
+        return "low"
+    # Hedging language → medium
+    if any(w in t for w in ["possibly", "possibly", "may be", "might be", "could be",
+                              "appears to", "seems to", "likely", "probable", "suspect"]):
+        return "medium"
+    # Healthy / no problem → high (confident assessment)
+    if any(w in t for w in ["healthy", "no disease", "no sign", "no pest", "looks good"]):
+        return "high"
+    # Disease named directly without hedging → high
+    if any(w in t for w in ["confirmed", "clearly", "definite", "identified", "detected",
+                              "infected with", "caused by", "rust", "blight", "mildew",
+                              "aphid", "locust", "wilt", "rot"]):
+        return "high"
+    return "medium"
+
+
 @app.route("/diagnose", methods=["POST", "OPTIONS"])
 def diagnose():
     """
@@ -3545,7 +3572,11 @@ def diagnose():
             except Exception as e:
                 log.error(f"Gemini Vision error: {e}")
 
-        top = yolo_result["detections"][0] if yolo_result.get("detections") else None
+        top        = yolo_result["detections"][0] if yolo_result.get("detections") else None
+        confidence = _parse_diagnosis_confidence(ai_diagnosis)
+        # Boost to high if YOLO has a strong detection
+        if top and not top.get("is_healthy") and top.get("confidence", 0) > 0.75:
+            confidence = "high"
         return jsonify({
             "ok":             True,
             "detections":     yolo_result.get("detections", []),
@@ -3554,6 +3585,7 @@ def diagnose():
             "yolo_ok":        yolo_result.get("ok", False),
             "yolo_available": yolo_result.get("yolo_available", False),
             "diagnosis":      ai_diagnosis,
+            "confidence":     confidence,
             "model":          f"yolov8m-plant-disease + {ai_model_used or 'no-vision-key'}",
             "language":       language,
         })
