@@ -32,7 +32,7 @@ pushes, verifies production, then marks it DONE.
         Return in /analyse response as `weather_forecast: [{day, rain_mm, temp_max}]`
         Show in index.html as a mini 7-day strip below the field stats card.
 
-- [ ] **Field report PDF export** — add GET /report/<field_id> endpoint
+- [x] **Field report PDF export** — add GET /report/<field_id> endpoint
         Returns HTML (print-ready) with: field map thumbnail, NDVI value,
         satellite date, AI advice, disease results if any.
         Frontend: "Download Report" button on the analysis result panel.

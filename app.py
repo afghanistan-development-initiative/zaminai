@@ -4322,6 +4322,184 @@ def country_lookup():
         log.warning(f"/country lookup failed: {e}")
         return jsonify({"country": "Unknown"})
 
+
+
+@app.route("/report/<field_id>", methods=["GET"])
+def field_report(field_id):
+    """
+    Render a print-ready HTML field report from stored Supabase data.
+    GET /report/<field_id>?lang=en
+    Returns text/html — open in browser, print to PDF.
+    """
+    lang = request.args.get("lang", "en")
+    try:
+        if not sb_ok:
+            return "<h2>Database not connected</h2>", 503
+
+        # Fetch latest analysis for this field
+        a_res = (sb.table("analyses")
+                   .select("full_data, analysed_at, ndvi, rain, province, source, area_ha")
+                   .eq("field_id", field_id)
+                   .order("analysed_at", desc=True)
+                   .limit(1)
+                   .execute())
+        if not a_res.data:
+            return "<h2>No analysis found for this field.</h2>", 404
+
+        row  = a_res.data[0]
+        data = json.loads(row["full_data"]) if isinstance(row["full_data"], str) else (row["full_data"] or {})
+
+        # Fetch field metadata
+        f_res = (sb.table("fields")
+                   .select("label, province, area_ha, area_jereb, coords")
+                   .eq("id", field_id)
+                   .limit(1)
+                   .execute())
+        field_meta = f_res.data[0] if f_res.data else {}
+
+        label     = field_meta.get("label") or data.get("label", "Field")
+        province  = field_meta.get("province") or data.get("province", "")
+        area_ha   = field_meta.get("area_ha")  or data.get("area_ha", 0)
+        area_j    = field_meta.get("area_jereb") or data.get("area_jereb", round(float(area_ha or 0)*5,1))
+        ndvi      = data.get("ndvi") or row.get("ndvi") or 0
+        mndwi     = data.get("mndwi") or data.get("water") or 0
+        rain      = data.get("rain")  or row.get("rain")  or 0
+        source    = data.get("source") or row.get("source") or "satellite"
+        sat_date  = data.get("latest_date") or row.get("analysed_at","")[:10]
+        analysed  = row.get("analysed_at","")[:16].replace("T"," ")
+
+        ndvi  = float(ndvi  or 0)
+        mndwi = float(mndwi or 0)
+        rain  = float(rain  or 0)
+
+        # Health classification
+        if ndvi >= 0.35:   health, hcol = "Healthy vegetation", "#16a34a"
+        elif ndvi >= 0.20: health, hcol = "Moderate stress", "#d97706"
+        else:              health, hcol = "Severe stress / bare soil", "#dc2626"
+
+        # Crops detected
+        crops_html = ""
+        for c in (data.get("crops") or []):
+            conf = int(float(c.get("confidence",0))*100)
+            crops_html += f'<tr><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6">{c.get("label_en","")}</td><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;color:#16a34a;font-weight:700">{conf}%</td></tr>'
+
+        # Season advice
+        season_html = ""
+        for s in (data.get("season") or []):
+            icon = s.get("icon","•")
+            season_html += f'<li style="margin-bottom:6px">{icon} {s.get("text","")}</li>'
+
+        # Soil
+        soil = data.get("soil") or {}
+        soil_rows = ""
+        if soil:
+            for k,v in [("Type", soil.get("texture","")), ("pH", soil.get("ph","")),
+                        ("Organic matter", soil.get("organic_carbon","")),
+                        ("N content", soil.get("nitrogen",""))]:
+                if v: soil_rows += f'<tr><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;color:#6b7280">{k}</td><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;font-weight:600">{v}</td></tr>'
+
+        # Weather forecast strip
+        wx_html = ""
+        WMO_EMOJI = {"Clear":"☀️","Mainly clear":"🌤️","Partly cloudy":"⛅","Overcast":"☁️",
+                     "Light rain":"🌧️","Rain":"🌧️","Heavy rain":"⛈️","Thunderstorm":"⛈️",
+                     "Light drizzle":"🌦️","Drizzle":"🌧️","Snow":"❄️","Fog":"🌫️"}
+        for day in (data.get("weather_forecast") or [])[:7]:
+            ico  = WMO_EMOJI.get(day.get("condition",""), "🌡️")
+            tmax = f'{round(day["temp_max"])}°' if day.get("temp_max") is not None else "--"
+            rmm  = f'{day.get("rain_mm",0):.1f}mm'
+            dt   = day.get("date","")[-5:]  # MM-DD
+            wx_html += (f'<div style="flex:1;text-align:center;padding:8px 4px;background:#f8fafc;'
+                        f'border-radius:8px;border:1px solid #e5e7eb;min-width:60px">'
+                        f'<div style="font-size:9px;color:#6b7280">{dt}</div>'
+                        f'<div style="font-size:20px">{ico}</div>'
+                        f'<div style="font-size:11px;font-weight:700">{tmax}</div>'
+                        f'<div style="font-size:10px;color:#3b82f6">{rmm}</div></div>')
+        wx_section = (f'<div style="margin-bottom:22px"><div style="font-size:14px;font-weight:700;'
+                      f'margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #f3f4f6">7-Day Forecast</div>'
+                      f'<div style="display:flex;gap:6px;flex-wrap:wrap">{wx_html}</div></div>') if wx_html else ""
+
+        # Lat/lon for map link
+        lat = data.get("lat") or data.get("clat") or ""
+        lon = data.get("lon") or data.get("clon") or data.get("lng") or ""
+        map_link = (f'<a href="https://www.google.com/maps?q={lat},{lon}" target="_blank" '
+                    f'style="color:#16a34a;font-size:11px">View on Google Maps →</a>') if lat and lon else ""
+
+        html_out = f"""<!DOCTYPE html>
+<html lang="{lang}"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZaminAI Field Report — {label}</title>
+<style>
+*{{margin:0;padding:0;box-sizing:border-box}}
+body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1f2937;background:#fff;font-size:14px;line-height:1.6}}
+.page{{max-width:780px;margin:0 auto;padding:28px 28px 48px}}
+table{{border-collapse:collapse;width:100%}}
+.no-print{{margin-bottom:20px}}
+@media print{{.no-print{{display:none!important}}.page{{padding:12mm 15mm;max-width:none}}body{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}}}
+@page{{margin:15mm}}
+</style></head><body><div class="page">
+
+<div class="no-print">
+  <button onclick="window.print()" style="padding:10px 22px;background:#16a34a;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600">🖨️ Print / Save as PDF</button>
+</div>
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #16a34a;padding-bottom:16px;margin-bottom:22px">
+  <div><div style="font-size:26px;font-weight:800;color:#16a34a">🌱 ZaminAI</div>
+  <div style="font-size:12px;color:#6b7280;margin-top:2px">Satellite Farming Intelligence</div></div>
+  <div style="text-align:right"><div style="font-size:10px;color:#9ca3af;text-transform:uppercase">Report generated</div>
+  <div style="font-weight:700;font-size:13px">{analysed} UTC</div></div>
+</div>
+
+<div style="background:#f0fdf4;border-radius:12px;padding:18px;margin-bottom:22px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
+  <div><div style="font-size:10px;color:#6b7280;text-transform:uppercase;margin-bottom:3px">Field</div>
+  <div style="font-size:18px;font-weight:700">{label}</div>{map_link}</div>
+  <div><div style="font-size:10px;color:#6b7280;text-transform:uppercase;margin-bottom:3px">Area</div>
+  <div style="font-size:18px;font-weight:700">{area_j} jereb · {area_ha:.2f} ha</div></div>
+  <div><div style="font-size:10px;color:#6b7280;text-transform:uppercase;margin-bottom:3px">Province / Region</div>
+  <div style="font-size:15px;font-weight:600">{province}</div></div>
+  <div><div style="font-size:10px;color:#6b7280;text-transform:uppercase;margin-bottom:3px">Satellite date</div>
+  <div style="font-size:13px;font-weight:600">{sat_date} · {source}</div></div>
+</div>
+
+<div style="background:#fff;border:2px solid {hcol};border-radius:12px;padding:18px;margin-bottom:22px;display:flex;align-items:center;gap:16px">
+  <div style="width:56px;height:56px;background:{hcol};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;flex-shrink:0">{"✓" if ndvi>=0.30 else "!" if ndvi>=0.18 else "⚠"}</div>
+  <div style="flex:1"><div style="font-size:10px;text-transform:uppercase;color:{hcol};letter-spacing:.06em">Crop Health</div>
+  <div style="font-size:22px;font-weight:800;color:{hcol}">{health}</div></div>
+  <div style="background:#f9fafb;border-radius:10px;padding:10px 18px;text-align:center;flex-shrink:0">
+  <div style="font-family:monospace;font-size:32px;font-weight:800;color:{hcol}">{ndvi:.3f}</div>
+  <div style="font-size:10px;color:#6b7280;text-transform:uppercase">NDVI</div></div>
+</div>
+
+<div style="margin-bottom:22px"><div style="font-size:15px;font-weight:700;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #f3f4f6">Satellite Measurements</div>
+<table><tbody>
+<tr><td style="padding:9px 12px;border-bottom:1px solid #f3f4f6;color:#6b7280">NDVI (vegetation health)</td><td style="padding:9px 12px;border-bottom:1px solid #f3f4f6;font-family:monospace;font-weight:700">{ndvi:.4f}</td></tr>
+<tr><td style="padding:9px 12px;border-bottom:1px solid #f3f4f6;color:#6b7280">MNDWI (water / moisture)</td><td style="padding:9px 12px;border-bottom:1px solid #f3f4f6;font-family:monospace;font-weight:700">{mndwi:.4f}</td></tr>
+<tr><td style="padding:9px 12px;border-bottom:1px solid #f3f4f6;color:#6b7280">Annual rainfall</td><td style="padding:9px 12px;border-bottom:1px solid #f3f4f6;font-family:monospace;font-weight:700">{round(rain)} mm</td></tr>
+<tr><td style="padding:9px 12px;border-bottom:1px solid #f3f4f6;color:#6b7280">EVI</td><td style="padding:9px 12px;border-bottom:1px solid #f3f4f6;font-family:monospace">{data.get("evi") or "—"}</td></tr>
+<tr><td style="padding:9px 12px;border-bottom:1px solid #f3f4f6;color:#6b7280">SAVI</td><td style="padding:9px 12px;border-bottom:1px solid #f3f4f6;font-family:monospace">{data.get("savi") or "—"}</td></tr>
+<tr><td style="padding:9px 12px;color:#6b7280">VCI (vegetation condition)</td><td style="padding:9px 12px;font-family:monospace">{f'{data.get("vci")}%' if data.get("vci") is not None else "—"}</td></tr>
+</tbody></table></div>
+
+{f'<div style="margin-bottom:22px"><div style="font-size:15px;font-weight:700;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #f3f4f6">Detected Crops</div><table><tbody>{crops_html}</tbody></table></div>' if crops_html else ""}
+
+{f'<div style="margin-bottom:22px"><div style="font-size:15px;font-weight:700;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #f3f4f6">Season Advice</div><ul style="padding-left:18px;color:#374151">{season_html}</ul></div>' if season_html else ""}
+
+{f'<div style="margin-bottom:22px"><div style="font-size:15px;font-weight:700;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #f3f4f6">Soil</div><table><tbody>{soil_rows}</tbody></table></div>' if soil_rows else ""}
+
+{wx_section}
+
+<div style="margin-top:36px;padding-top:14px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+  <div style="font-size:11px;color:#9ca3af">Generated by ZaminAI · zaminai.onrender.com</div>
+  <div style="font-size:11px;color:#9ca3af">For agricultural advisory purposes only.</div>
+</div>
+</div></body></html>"""
+
+        return html_out, 200, {"Content-Type": "text/html; charset=utf-8"}
+
+    except Exception as e:
+        log.error(f"/report/{field_id}: {e}")
+        return f"<h2>Report error: {e}</h2>", 500
+
 if __name__=="__main__":
     port=int(os.environ.get("PORT",5000))
     log.info(f"ZaminAI API v7.0 starting on port {port}")
