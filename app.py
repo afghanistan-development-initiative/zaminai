@@ -473,10 +473,16 @@ def db_delete_alert(alert_id, farmer_id):
         return False
 
 
-def check_alerts_fire(alerts, ndvi, mndwi, rain, province):
+def check_alerts_fire(alerts, ndvi, mndwi, rain, province, full_data=None):
     """Return alerts that fire given current satellite readings."""
     fired = []
     month = datetime.now().month
+    fd    = full_data or {}
+
+    # Seasonal rain helper: expected rain for current month from monthly_rain list
+    monthly_rain = fd.get("monthly_rain") or []
+    cur_month_rain = monthly_rain[month - 1] if len(monthly_rain) == 12 else None
+
     for a in alerts:
         atype = a.get("alert_type", "")
         thr   = a.get("threshold")
@@ -484,12 +490,31 @@ def check_alerts_fire(alerts, ndvi, mndwi, rain, province):
             if atype == "ndvi_low" and ndvi is not None and thr is not None and ndvi < thr:
                 fired.append({**a, "value": ndvi,
                               "msg": f"NDVI {ndvi} below {thr} — crop stress detected"})
+
             elif atype == "water_stress" and mndwi is not None and thr is not None and mndwi < thr:
                 fired.append({**a, "value": mndwi,
                               "msg": f"Water index {mndwi} below {thr} — irrigate soon"})
-            elif atype == "rain_deficit" and rain is not None and thr is not None and rain < thr:
-                fired.append({**a, "value": rain,
-                              "msg": f"Rainfall {rain}mm below {thr}mm threshold"})
+
+            elif atype == "rain_deficit":
+                # Improved: compare current month's satellite rain against 60% of
+                # expected monthly average for this province and crop type.
+                if cur_month_rain is not None and rain is not None:
+                    # Estimate this month's actual rain from annual CHIRPS + monthly fraction
+                    ptype = get_province_type(province)
+                    fracs = MONTHLY_RAIN_FRACTION.get(ptype, MONTHLY_RAIN_FRACTION["central"])
+                    expected_month = rain * fracs[month - 1]
+                    deficit_threshold = expected_month * 0.60
+                    if cur_month_rain < deficit_threshold:
+                        pct = round(cur_month_rain / expected_month * 100) if expected_month > 0 else 0
+                        fired.append({**a, "value": cur_month_rain,
+                                      "msg": (f"Rain deficit: {cur_month_rain:.0f}mm this month "
+                                              f"({pct}% of expected {expected_month:.0f}mm) — "
+                                              f"crop water stress likely")})
+                elif rain is not None and thr is not None and rain < thr:
+                    # Fallback: compare annual rain against threshold
+                    fired.append({**a, "value": rain,
+                                  "msg": f"Annual rainfall {rain}mm below {thr}mm threshold"})
+
             elif atype == "harvest_window":
                 crop  = a.get("crop", "wheat")
                 ptype = get_province_type(province)
@@ -498,6 +523,27 @@ def check_alerts_fire(alerts, ndvi, mndwi, rain, province):
                 if month in zone.get("harvest", []):
                     fired.append({**a, "value": month,
                                   "msg": f"Harvest window open for {crop} — act now"})
+
+            elif atype == "disease_detected":
+                # Fires if the last /diagnose for this field found a disease with
+                # severity "severe" or "high" within the past 7 days.
+                disease_sev  = fd.get("disease_severity", "")
+                disease_name = fd.get("disease_name", "")
+                disease_date = fd.get("disease_diagnosed_at", "")
+                is_recent    = True
+                if disease_date:
+                    try:
+                        from datetime import timezone
+                        diag_dt = datetime.fromisoformat(disease_date.replace("Z", "+00:00"))
+                        now_utc = datetime.now(timezone.utc)
+                        is_recent = (now_utc - diag_dt).days <= 7
+                    except Exception:
+                        pass
+                if disease_sev in ("severe", "high") and disease_name and is_recent:
+                    fired.append({**a, "value": disease_sev,
+                                  "msg": (f"Disease alert: {disease_name} detected "
+                                          f"(severity: {disease_sev}) — treat immediately")})
+
         except Exception:
             pass
     return fired
@@ -1510,22 +1556,51 @@ def send_telegram(chat_id, text):
 def build_alert_message(fired, ndvi, mndwi, rain, province, lang="en"):
     """Build a multilingual alert message for Telegram."""
     now = datetime.now().strftime("%d %b %Y")
+
+    # Per-type translated messages
+    _TYPE_FA = {
+        "ndvi_low":          "🌿 فشار بر محصول: شاخص NDVI پایین است — آبیاری یا کود دهی لازم است",
+        "water_stress":      "💧 کمبود آب: شاخص رطوبت پایین — فوری آبیاری کنید",
+        "rain_deficit":      "🌦 کمبود باران: آب کافی برای محصول نیست — آبیاری اضافه کنید",
+        "harvest_window":    "🌾 وقت برداشت فرا رسیده — هرچه زودتر اقدام کنید",
+        "disease_detected":  "🦠 بیماری شناسایی شد",
+    }
+    _TYPE_PS = {
+        "ndvi_low":          "🌿 د فصل فشار: NDVI ټیټ دی — اوبه ورکول یا سره لپاره لازمه ده",
+        "water_stress":      "💧 د اوبو کمښت: سمدستي اوبه ورکړئ",
+        "rain_deficit":      "🌦 د باران کمښت: کافي اوبه نشته — اضافي اوبه ورکړئ",
+        "harvest_window":    "🌾 د لیو کولو موسم دی — چټک اقدام وکړئ",
+        "disease_detected":  "🦠 ناروغي وموندل شوه",
+    }
+
+    def _render_alert(a, translations):
+        atype = a.get("alert_type", "")
+        base  = translations.get(atype, "")
+        if atype == "disease_detected":
+            val   = a.get("value", "")
+            msg_e = a.get("msg", "")
+            disease_part = msg_e.split("Disease alert:")[-1].split("—")[0].strip() if "Disease alert:" in msg_e else msg_e
+            return f"🚨 {base}: {disease_part}" if base else f"🚨 {msg_e}"
+        if base:
+            return f"🚨 {base}"
+        return f"🚨 {a.get('msg', '')}"
+
     if lang == "fa":
         lines = [f"🌾 <b>ZaminAI هشدار</b>", f"📍 {province}  ·  {now}"]
         for a in fired:
-            lines.append(f"\n🚨 {a.get('msg','')}")
+            lines.append(_render_alert(a, _TYPE_FA))
         lines.append(f"\n📊 NDVI: {ndvi}  |  آب: {mndwi}  |  باران: {rain}mm")
         lines.append("🌐 zaminai.org")
     elif lang == "ps":
         lines = [f"🌾 <b>ZaminAI خبرداری</b>", f"📍 {province}  ·  {now}"]
         for a in fired:
-            lines.append(f"\n🚨 {a.get('msg','')}")
+            lines.append(_render_alert(a, _TYPE_PS))
         lines.append(f"\n📊 NDVI: {ndvi}  |  اوبه: {mndwi}  |  باران: {rain}mm")
         lines.append("🌐 zaminai.org")
     else:
         lines = [f"🌾 <b>ZaminAI Alert</b>", f"📍 {province}  ·  {now}"]
         for a in fired:
-            lines.append(f"\n🚨 {a.get('msg','')}")
+            lines.append(f"🚨 {a.get('msg', '')}")
         lines.append(f"\n📊 NDVI: {ndvi}  |  Water: {mndwi}  |  Rain: {rain}mm")
         lines.append("🌐 zaminai.org")
     return "\n".join(lines)
@@ -1584,9 +1659,13 @@ def run_daily_alerts():
             mndwi    = latest.get("mndwi")
             rain     = latest.get("rain")
             province = latest.get("province", "Afghanistan")
+            try:
+                full_data = json.loads(latest["full_data"]) if isinstance(latest.get("full_data"), str) else (latest.get("full_data") or {})
+            except Exception:
+                full_data = {}
 
             alerts = db_get_alerts(farmer_id)
-            fired  = check_alerts_fire(alerts, ndvi, mndwi, rain, province)
+            fired  = check_alerts_fire(alerts, ndvi, mndwi, rain, province, full_data=full_data)
 
             if fired:
                 msg = build_alert_message(fired, ndvi, mndwi, rain, province, lang)
@@ -3887,6 +3966,33 @@ def diagnose():
         # Boost to high if YOLO has a strong detection
         if top and not top.get("is_healthy") and top.get("confidence", 0) > 0.75:
             confidence = "high"
+
+        # Derive disease name and severity for alert storage
+        disease_name = ""
+        disease_severity = ""
+        if top and not top.get("is_healthy"):
+            disease_name = top.get("label_en", top.get("label", ""))
+            disease_severity = "severe" if confidence == "high" else "moderate" if confidence == "medium" else "mild"
+
+        # Optionally persist disease result to field's latest analysis for alerts
+        field_id_diag = d.get("field_id")
+        if sb_ok and field_id_diag and (disease_name or ai_diagnosis):
+            try:
+                an_res = (sb.table("analyses").select("id, full_data")
+                            .eq("field_id", field_id_diag)
+                            .order("analysed_at", desc=True).limit(1).execute())
+                if an_res.data:
+                    an_row = an_res.data[0]
+                    fd = json.loads(an_row["full_data"]) if isinstance(an_row.get("full_data"), str) else (an_row.get("full_data") or {})
+                    fd["disease_name"]         = disease_name or ""
+                    fd["disease_severity"]     = disease_severity or ""
+                    fd["disease_diagnosed_at"] = datetime.utcnow().isoformat()
+                    fd["disease_diagnosis"]    = ai_diagnosis[:800] if ai_diagnosis else ""
+                    sb.table("analyses").update({"full_data": json.dumps(fd)}).eq("id", an_row["id"]).execute()
+                    log.info(f"Disease result persisted to analyses for field {field_id_diag}")
+            except Exception as de:
+                log.warning(f"Could not persist disease to analyses: {de}")
+
         return jsonify({
             "ok":             True,
             "detections":     yolo_result.get("detections", []),
@@ -3896,6 +4002,8 @@ def diagnose():
             "yolo_available": yolo_result.get("yolo_available", False),
             "diagnosis":      ai_diagnosis,
             "confidence":     confidence,
+            "disease_name":   disease_name,
+            "disease_severity": disease_severity,
             "model":          f"yolov8m-plant-disease + {ai_model_used or 'no-vision-key'}",
             "language":       language,
         })

@@ -79,9 +79,12 @@ pushes, verifies production, then marks it DONE.
           CREATE UNIQUE INDEX IF NOT EXISTS fields_share_token_idx ON fields(share_token);
         After running SQL, the endpoints go live automatically.
 
-- [ ] **Telegram alert improvements** — current alerts only check NDVI threshold.
-        Add: disease_detected (if last /diagnose showed severe disease for this field),
-        rain_deficit (if 30-day rain < 60% of seasonal average for crop type).
+- [x] **Telegram alert improvements** — expanded check_alerts_fire() with two new types:
+        disease_detected (fires when latest /diagnose stored severe/high disease in analyses.full_data
+        within past 7 days); rain_deficit improved to compare current month's satellite rain against
+        60% of province seasonal average (MONTHLY_RAIN_FRACTION). /diagnose now persists
+        disease_name, disease_severity, disease_diagnosed_at to analyses.full_data when field_id
+        provided. build_alert_message() expanded with FA/PS translations for all 5 alert types.
 
 - [ ] **Drone integration endpoint** — POST /drone/mission
         Accepts field_id, returns GeoJSON waypoints for the ZaminAI Agri Pro drone:
