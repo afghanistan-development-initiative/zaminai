@@ -63,11 +63,11 @@ pushes, verifies production, then marks it DONE.
         FA, PS, AR, HI, SW so offline fallback still works for farmers without data.
         Extended to all 12 languages: AR, UR, HI, BN, SW, ES, FR, PT, AM added.
 
-- [ ] **RAG expansion** — seed 20 more knowledge chunks covering:
+- [x] **RAG expansion** — seed 20 more knowledge chunks covering:
         - East Africa (Kenya, Ethiopia, Tanzania) crop calendars
         - South Asia (Bangladesh, Pakistan) flooding / waterlogging advice
         - Central America (Guatemala, Honduras) coffee / maize disease guide
-        Use the existing /seed endpoint pattern in app.py.
+        Added 21 chunks; total _RAG_SEED_DOCS = 45. Auto-seeded on next cold start.
 
 ## Priority 4 — Platform
 
