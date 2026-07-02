@@ -591,10 +591,10 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
     </div>
     <div class="hstats">
       <div><div class="sv" id="c1">0</div><div class="sl" id="sl1">Satellites</div></div>
-      <div><div class="sv" id="c2">0</div><div class="sl" id="sl2">Countries live</div></div>
+      <div><div class="sv" id="c2">0</div><div class="sl" id="sl2">Countries</div></div>
       <div><div class="sv" id="c3">0</div><div class="sl" id="sl3">Years of data</div></div>
       <div><div class="sv" id="c4">0</div><div class="sl" id="sl4">Languages</div></div>
-      <div><div class="sv" id="c5">0</div><div class="sl" id="sl5">Data sources</div></div>
+      <div><div class="sv" id="c5">0</div><div class="sl" id="sl5">Satellite types</div></div>
     </div>
   </div>
 </section>
@@ -1140,8 +1140,11 @@ document.querySelectorAll('a,button,[onclick]').forEach(el=>{
 
 // ── COUNTERS ──────────────────────────────────────────────────────────────────
 function cnt(id,t,d=0){setTimeout(()=>{const el=document.getElementById(id);if(!el)return;let v=0;const iv=setInterval(()=>{v+=t/80;if(v>=t){v=t;clearInterval(iv);}el.textContent=Math.floor(v);},18);},d);}
-const obs=new IntersectionObserver(en=>{if(en[0].isIntersecting){cnt('c1',2,0);cnt('c2',1,120);cnt('c3',6,240);cnt('c4',3,360);cnt('c5',10,480);obs.disconnect();}},{threshold:.4});
+function _runCounters(){cnt('c1',4,0);cnt('c2',196,120);cnt('c3',13,240);cnt('c4',12,360);cnt('c5',4,480);}
+const obs=new IntersectionObserver(en=>{if(en[0].isIntersecting){_runCounters();obs.disconnect();}},{threshold:.1});
 const hs=document.querySelector('.hstats');if(hs)obs.observe(hs);
+// Fallback: fire after 1.2s if observer never triggers (above-fold on mobile)
+setTimeout(()=>{const el=document.getElementById('c1');if(el&&el.textContent==='0')_runCounters();},1200);
 
 // ── SCROLL ANIMATIONS ────────────────────────────────────────────────────────
 const io=new IntersectionObserver(es=>{es.forEach((e,i)=>{if(e.isIntersecting)setTimeout(()=>e.target.classList.add('vis'),i*80);});},{threshold:.1});
