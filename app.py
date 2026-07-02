@@ -715,6 +715,77 @@ def get_current_season_advice(province,ndvi,mndwi):
         advice.append({"type":"urgent","crop":"all","action":f"Irrigate within {days} days — water index low"})
     return advice
 
+
+# Crop emoji lookup
+_CROP_EMOJI = {
+    "wheat": "🌾", "saffron": "🌸", "vegetables": "🥦",
+    "orchard": "🍎", "bare_fallow": "🏜️",
+}
+
+# Stage definitions per crop: (months_list, stage_key, stage_label, color)
+_SEASON_STAGES = {
+    "wheat": [
+        ([10, 11],           "planting",     "Planting Window",    "green"),
+        ([12, 1, 2],         "vegetative",   "Vegetative Growth",  "green"),
+        ([3, 4],             "heading",      "Jointing & Heading", "green"),
+        ([5],                "grain_filling","Grain Filling",      "amber"),
+        ([6, 7],             "harvest",      "Harvest Now",        "red"),
+        ([8, 9],             "fallow",       "Post-Harvest Fallow","gray"),
+    ],
+    "saffron": [
+        ([9, 10],            "planting",     "Saffron Planting",   "green"),
+        ([10, 11],           "harvest",      "Saffron Harvest",    "amber"),
+        ([12, 1, 2, 3, 4, 5, 6, 7, 8], "dormant", "Dormant Season", "gray"),
+    ],
+    "vegetables": [
+        ([3, 4],             "planting",     "Planting Season",    "green"),
+        ([5, 6],             "growing",      "Active Growing",     "green"),
+        ([7, 8, 9],          "harvest",      "Harvest Season",     "amber"),
+        ([10, 11, 12, 1, 2], "fallow",       "Off Season",         "gray"),
+    ],
+    "orchard": [
+        ([2, 3],             "flowering",    "Flowering",          "green"),
+        ([4, 5, 6, 7],       "fruit_set",    "Fruit Development",  "green"),
+        ([8, 9, 10],         "harvest",      "Harvest Season",     "amber"),
+        ([11, 12, 1],        "dormant",      "Winter Dormancy",    "gray"),
+    ],
+}
+
+def get_season_stage(province, crops, month):
+    """Returns current crop calendar stage for the sidebar crop band."""
+    primary_crop = "wheat"
+    if isinstance(crops, list) and crops:
+        c0 = crops[0].get("crop", "wheat") if crops else "wheat"
+        if c0 in _SEASON_STAGES:
+            primary_crop = c0
+
+    stages = _SEASON_STAGES.get(primary_crop, _SEASON_STAGES["wheat"])
+    for months_list, stage, stage_label, color in stages:
+        if month in months_list:
+            harvest_months = sorted(set(m for ml, st, _, _ in stages if st == "harvest" for m in ml))
+            days_to_harvest = None
+            if stage not in ("harvest", "fallow", "dormant") and harvest_months:
+                hm = next((m for m in harvest_months if m > month), harvest_months[0])
+                delta = (hm - month) % 12
+                days_to_harvest = delta * 30 if delta > 0 else None
+            crop_label = primary_crop.replace("_", " ").title()
+            days_str = f" · Harvest in ~{days_to_harvest} days" if days_to_harvest else ""
+            return {
+                "crop": primary_crop,
+                "crop_label": crop_label,
+                "emoji": _CROP_EMOJI.get(primary_crop, "🌿"),
+                "stage": stage,
+                "stage_label": stage_label,
+                "color": color,
+                "days_to_harvest": days_to_harvest,
+                "message": f"{crop_label} — {stage_label}{days_str}",
+                "month": month,
+            }
+    crop_label = primary_crop.replace("_", " ").title()
+    return {"crop": primary_crop, "crop_label": crop_label, "emoji": "🌿",
+            "stage": "growing", "stage_label": "Growing Season", "color": "green",
+            "days_to_harvest": None, "message": f"{crop_label} — Growing Season", "month": month}
+
 def detect_crop(ndvi,evi,savi,mndwi,lswi,month,province):
     candidates=[]
     ptype=get_province_type(province)
@@ -1697,6 +1768,7 @@ def analyse():
                             result["crops"] = detect_crop(result["ndvi"],result["evi"],result["savi"],
                                 result["mndwi"],result["lswi"],month,reg["province"])
                             result["season"] = get_current_season_advice(reg["province"],result["ndvi"],result["mndwi"])
+                            result["season_stage"] = get_season_stage(reg["province"],result.get("crops",[]),month)
                             result["monthly_rain"] = get_monthly_rain(result["rain"] or reg["rain"],reg["province"])
                             result["soil"] = get_soil_data(clat,clon,reg["province"])
                             result["weather_forecast"] = get_weather_forecast(clat, clon)
@@ -1732,6 +1804,7 @@ def analyse():
                     "latest_date":f"{year}-05-15",
                     "crops":detect_crop(reg["ndvi"],reg["evi"],reg["savi"],reg["mndwi"],reg["lswi"],month,reg["province"]),
                     "season":get_current_season_advice(reg["province"],reg["ndvi"],reg["mndwi"]),
+                    "season_stage":get_season_stage(reg["province"],[],month),
                     "monthly_rain":get_monthly_rain(reg["rain"],reg["province"]),
                     "soil":get_soil_data(clat,clon,reg["province"]),
                     "weather_forecast":get_weather_forecast(clat,clon),

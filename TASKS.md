@@ -44,10 +44,12 @@ pushes, verifies production, then marks it DONE.
         On page load with no network, show cached data with "Last updated: X days ago" banner.
         Key: `zaminai_field_{field_id}`, value: full JSON response + timestamp.
 
-- [ ] **Crop calendar overlay** — on the Leaflet map, show a colour-coded band
+- [x] **Crop calendar overlay** — on the Leaflet map, show a colour-coded band
         at the top of the sidebar showing current season stage for detected crop
         (e.g. "Wheat — Grain filling" in green, "Harvest in ~18 days" in amber).
         Data: use existing CROP_CALENDAR dict in app.py.
+        Implemented: get_season_stage() in app.py, makeSeasonBand() in index.html.
+        Supports wheat/saffron/vegetables/orchard with days-to-harvest countdown.
 
 ## Priority 3 — AI improvements
 
