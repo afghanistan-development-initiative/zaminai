@@ -1326,6 +1326,151 @@ def db_analysis_save():
     except Exception as e:
         return jsonify({"error":str(e)}),500
 
+@app.route("/db/field/share", methods=["POST","OPTIONS"])
+def db_field_share():
+    """
+    Generate a shareable 8-char token for a field.
+    Requires schema: ALTER TABLE fields ADD COLUMN IF NOT EXISTS share_token VARCHAR(8);
+    POST body: {field_id, farmer_id}
+    Returns: {token, share_url}
+    """
+    if request.method == "OPTIONS": return jsonify({}), 200
+    try:
+        d         = request.get_json(force=True)
+        field_id  = d.get("field_id")
+        farmer_id = d.get("farmer_id")
+        if not field_id:
+            return jsonify({"error": "field_id required"}), 400
+        if not sb_ok:
+            return jsonify({"error": "Database not available"}), 503
+
+        # Reuse existing token if present
+        existing = (sb.table("fields").select("share_token")
+                     .eq("id", field_id).limit(1).execute())
+        if existing.data and existing.data[0].get("share_token"):
+            token = existing.data[0]["share_token"]
+        else:
+            # Generate unique 8-char alphanumeric token
+            import string, secrets
+            alphabet = string.ascii_lowercase + string.digits
+            for _ in range(10):
+                token = ''.join(secrets.choice(alphabet) for _ in range(8))
+                check = (sb.table("fields").select("id")
+                           .eq("share_token", token).limit(1).execute())
+                if not check.data:
+                    break
+            sb.table("fields").update({"share_token": token}).eq("id", field_id).execute()
+
+        share_url = f"{request.host_url}field/{token}"
+        return jsonify({"ok": True, "token": token, "share_url": share_url})
+    except Exception as e:
+        log.error(f"/db/field/share: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/field/<token>", methods=["GET"])
+def field_share_view(token):
+    """
+    Read-only public view of a shared field analysis.
+    Fetches latest analysis for the field and returns a minimal HTML page.
+    """
+    if not sb_ok:
+        return "<h2>Database unavailable</h2>", 503
+    try:
+        # Look up field by token
+        field_res = (sb.table("fields").select("id, label, province, area_ha, area_jereb, farmer_id")
+                       .eq("share_token", token.lower()).limit(1).execute())
+        if not field_res.data:
+            return "<h2>Field not found or link expired.</h2>", 404
+
+        field     = field_res.data[0]
+        field_id  = field["id"]
+        label     = field.get("label", "Field")
+        province  = field.get("province", "")
+        area_ha   = field.get("area_ha", 0)
+        area_j    = field.get("area_jereb", 0)
+
+        # Latest analysis
+        an_res = (sb.table("analyses").select("full_data, analysed_at, source")
+                    .eq("field_id", field_id).order("analysed_at", desc=True).limit(1).execute())
+        if not an_res.data:
+            return f"<h2>{label}</h2><p>No analysis available yet.</p>", 200
+
+        row      = an_res.data[0]
+        an_date  = row["analysed_at"][:10] if row.get("analysed_at") else "unknown"
+        src      = row.get("source", "satellite")
+        data     = json.loads(row["full_data"]) if isinstance(row.get("full_data"), str) else (row.get("full_data") or {})
+        ndvi     = data.get("ndvi", 0)
+        mndwi    = data.get("mndwi", 0)
+        rain     = data.get("rain", 0)
+        advice   = data.get("season", [])
+        advice_html = ''.join(
+            f'<div style="padding:8px 0;border-bottom:1px solid #e5e7eb"><span style="font-size:16px">'
+            f'{"🚨" if a.get("type")=="urgent" else "📅"}</span> {a.get("action","")}</div>'
+            for a in (advice or [])
+        )
+        ndvi_col  = '#16a34a' if ndvi >= 0.30 else '#d97706' if ndvi >= 0.18 else '#dc2626'
+        ndvi_lbl  = 'Healthy' if ndvi >= 0.30 else 'Moderate stress' if ndvi >= 0.18 else 'Stressed'
+
+        html_page = f"""<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZaminAI — {label}</title>
+<style>
+  body{{font-family:-apple-system,sans-serif;margin:0;background:#f9fafb;color:#111}}
+  .hd{{background:#0d1117;color:#fff;padding:14px 20px;display:flex;align-items:center;gap:10px}}
+  .hd-logo{{font-size:20px;color:#4ade80;font-weight:700;letter-spacing:.04em}}
+  .hd-sub{{font-size:11px;color:rgba(255,255,255,.5);margin-top:2px}}
+  .card{{background:#fff;border-radius:12px;padding:20px;margin:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)}}
+  .metric{{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f3f4f6}}
+  .metric:last-child{{border:none}}
+  .m-label{{color:#6b7280;font-size:13px}}
+  .m-val{{font-weight:700;font-size:14px}}
+  .badge{{display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600}}
+  .ft{{text-align:center;color:#9ca3af;font-size:11px;padding:20px}}
+</style>
+</head>
+<body>
+<div class="hd">
+  <div>
+    <div class="hd-logo">🌱 ZaminAI</div>
+    <div class="hd-sub">Satellite field intelligence · Shared view</div>
+  </div>
+</div>
+
+<div class="card">
+  <h2 style="margin:0 0 4px">{label}</h2>
+  <div style="color:#6b7280;font-size:12px">{province} · {area_j} jerib ({area_ha} ha) · Analysed {an_date}</div>
+  <div style="margin-top:14px">
+    <span style="font-size:42px;font-weight:700;color:{ndvi_col}">{ndvi}</span>
+    <span style="font-size:14px;color:{ndvi_col};margin-left:6px">NDVI · {ndvi_lbl}</span>
+  </div>
+  <div style="background:#f3f4f6;border-radius:6px;height:10px;margin-top:10px">
+    <div style="width:{min(100,int(ndvi*100))}%;height:100%;background:{ndvi_col};border-radius:6px"></div>
+  </div>
+</div>
+
+<div class="card">
+  <div style="font-weight:700;margin-bottom:10px">Field Metrics</div>
+  <div class="metric"><span class="m-label">Water index (MNDWI)</span><span class="m-val" style="color:{'#0284c7' if mndwi>-0.1 else '#d97706'}">{mndwi}</span></div>
+  <div class="metric"><span class="m-label">Annual rainfall</span><span class="m-val">{rain} mm</span></div>
+  <div class="metric"><span class="m-label">Data source</span><span class="m-val">{src.replace('_',' ').title()}</span></div>
+</div>
+
+{"<div class='card'><div style='font-weight:700;margin-bottom:10px'>Seasonal Advice</div>" + advice_html + "</div>" if advice_html else ""}
+
+<div class="ft">
+  Powered by <strong>ZaminAI</strong> · satellite.zaminai.org<br>
+  This is a read-only shared view · data as of {an_date}
+</div>
+</body></html>"""
+        return html_page, 200, {"Content-Type": "text/html; charset=utf-8"}
+    except Exception as e:
+        log.error(f"/field/<token>: {e}")
+        return "<h2>Error loading field data.</h2>", 500
+
+
+
 
 @app.route("/db/chat/save", methods=["POST","OPTIONS"])
 def db_chat_save():

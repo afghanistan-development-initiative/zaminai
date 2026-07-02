@@ -71,10 +71,13 @@ pushes, verifies production, then marks it DONE.
 
 ## Priority 4 — Platform
 
-- [ ] **Field sharing** — add POST /db/field/share endpoint.
-        Generates a shareable 8-char token stored in Supabase.
-        GET /field/<token> returns read-only field view (no farmer login needed).
-        Useful for field officers sharing analysis with NGO partners.
+- [!] **Field sharing** — ENDPOINTS IMPLEMENTED, needs Supabase schema migration.
+        POST /db/field/share → generates 8-char token, saves to fields.share_token
+        GET /field/<token> → read-only HTML page with NDVI, metrics, seasonal advice
+        REQUIRED SQL (run in Supabase dashboard → SQL Editor):
+          ALTER TABLE fields ADD COLUMN IF NOT EXISTS share_token VARCHAR(8);
+          CREATE UNIQUE INDEX IF NOT EXISTS fields_share_token_idx ON fields(share_token);
+        After running SQL, the endpoints go live automatically.
 
 - [ ] **Telegram alert improvements** — current alerts only check NDVI threshold.
         Add: disease_detected (if last /diagnose showed severe disease for this field),
