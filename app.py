@@ -1269,7 +1269,8 @@ def health():
             "/alerts/save", "/alerts/<farmer_id>", "/alerts/delete",
             "/alerts/check", "/alerts/daily",
             "/telegram/webhook", "/telegram/setup",
-            "/rag/setup", "/rag/seed", "/rag/ingest", "/rag/search", "/rag/stats"
+            "/rag/setup", "/rag/seed", "/rag/ingest", "/rag/search", "/rag/stats",
+            "/drone/mission"
         ]
     })
 
@@ -4010,6 +4011,161 @@ def diagnose():
     except Exception as e:
         log.error(f"/diagnose: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# DRONE ENDPOINTS
+# ════════════════════════════════════════════════════════════════════════════════
+
+def _polygon_bbox(coords):
+    """Return (lat_min, lat_max, lng_min, lng_max) for a polygon ring."""
+    lngs = [c[0] for c in coords]
+    lats = [c[1] for c in coords]
+    return min(lats), max(lats), min(lngs), max(lngs)
+
+
+def _point_in_polygon(lat, lng, coords):
+    """Ray-casting point-in-polygon test for a ring of [lng, lat] coords."""
+    n = len(coords)
+    inside = False
+    j = n - 1
+    for i in range(n):
+        xi, yi = coords[i][0], coords[i][1]
+        xj, yj = coords[j][0], coords[j][1]
+        if ((yi > lat) != (yj > lat)) and (lng < (xj - xi) * (lat - yi) / (yj - yi + 1e-15) + xi):
+            inside = not inside
+        j = i
+    return inside
+
+
+def _generate_waypoints(polygon_coords, ndvi, altitude_m=30, row_spacing_m=15):
+    """
+    Generate a lawnmower-pattern flight grid over a polygon field.
+    row_spacing_m: metres between parallel flight rows (~15m for 10m swath + overlap).
+    Returns list of {lat, lng, altitude_m, spray, ndvi}.
+    """
+    lat_min, lat_max, lng_min, lng_max = _polygon_bbox(polygon_coords)
+
+    # Convert spacing to degrees (approximate: 1 deg lat ≈ 111 km)
+    lat_step = row_spacing_m / 111_000
+    lng_step = row_spacing_m / (111_000 * math.cos(math.radians((lat_min + lat_max) / 2)) or 1)
+
+    waypoints = []
+    row = 0
+    lat = lat_min + lat_step / 2
+    while lat <= lat_max:
+        lngs_in_row = []
+        lng = lng_min + lng_step / 2
+        while lng <= lng_max:
+            if _point_in_polygon(lat, lng, polygon_coords):
+                lngs_in_row.append(lng)
+            lng += lng_step
+
+        # Alternate row direction for efficient lawnmower path
+        if row % 2 == 1:
+            lngs_in_row = list(reversed(lngs_in_row))
+
+        for lv in lngs_in_row:
+            # NDVI < 0.3 → spray=true (severe stress), 0.3–0.45 → borderline, >0.45 → healthy
+            spray = ndvi is not None and ndvi < 0.30
+            waypoints.append({
+                "lat":         round(lat, 7),
+                "lng":         round(lv,  7),
+                "altitude_m":  altitude_m,
+                "spray":       spray,
+                "ndvi":        round(ndvi, 3) if ndvi is not None else None,
+            })
+
+        row += 1
+        lat += lat_step
+
+    return waypoints
+
+
+@app.route("/drone/mission", methods=["POST"])
+def drone_mission():
+    """
+    POST /drone/mission
+    Body: {field_id: "uuid", altitude_m: 30 (opt), row_spacing_m: 15 (opt)}
+    Returns GeoJSON FeatureCollection of flight waypoints.
+    Waypoints cover the entire field in a lawnmower pattern;
+    spray=true where NDVI < 0.3 (stress zone requiring treatment).
+    """
+    d         = request.get_json(force=True, silent=True) or {}
+    field_id  = d.get("field_id")
+    altitude  = float(d.get("altitude_m",    30))
+    row_space = float(d.get("row_spacing_m", 15))
+
+    if not field_id:
+        return jsonify({"error": "field_id required"}), 400
+
+    # Fetch field polygon
+    polygon_coords = None
+    ndvi           = None
+
+    if sb_ok:
+        try:
+            f_res = sb.table("fields").select("polygon").eq("id", field_id).limit(1).execute()
+            if f_res.data:
+                raw_poly = f_res.data[0].get("polygon")
+                if isinstance(raw_poly, str):
+                    raw_poly = json.loads(raw_poly)
+                # polygon may be GeoJSON Feature, FeatureCollection, or bare coords
+                if isinstance(raw_poly, dict):
+                    geom = raw_poly.get("geometry", raw_poly)
+                    coords_list = geom.get("coordinates", [])
+                    if coords_list:
+                        polygon_coords = coords_list[0] if isinstance(coords_list[0], list) else coords_list
+                elif isinstance(raw_poly, list):
+                    polygon_coords = raw_poly[0] if isinstance(raw_poly[0], list) and isinstance(raw_poly[0][0], list) else raw_poly
+        except Exception as pe:
+            log.warning(f"drone/mission polygon fetch: {pe}")
+
+        # Latest NDVI for the field
+        try:
+            a_res = (sb.table("analyses").select("ndvi")
+                       .eq("field_id", field_id)
+                       .order("analysed_at", desc=True).limit(1).execute())
+            if a_res.data:
+                ndvi = a_res.data[0].get("ndvi")
+        except Exception as ae:
+            log.warning(f"drone/mission ndvi fetch: {ae}")
+
+    if not polygon_coords:
+        return jsonify({"error": "field polygon not found — run /analyse first"}), 404
+
+    waypoints = _generate_waypoints(polygon_coords, ndvi, altitude_m=altitude, row_spacing_m=row_space)
+
+    stress_count = sum(1 for w in waypoints if w["spray"])
+    total_count  = len(waypoints)
+
+    # GeoJSON FeatureCollection
+    features = []
+    for i, wp in enumerate(waypoints):
+        features.append({
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [wp["lng"], wp["lat"]]},
+            "properties": {
+                "seq":         i + 1,
+                "altitude_m":  wp["altitude_m"],
+                "spray":       wp["spray"],
+                "ndvi":        wp["ndvi"],
+            }
+        })
+
+    return jsonify({
+        "ok":          True,
+        "field_id":    field_id,
+        "waypoint_count":  total_count,
+        "spray_zones":     stress_count,
+        "altitude_m":      altitude,
+        "row_spacing_m":   row_space,
+        "field_ndvi":      round(ndvi, 3) if ndvi is not None else None,
+        "mission": {
+            "type":     "FeatureCollection",
+            "features": features,
+        }
+    })
 
 
 # ════════════════════════════════════════════════════════════════════════════════

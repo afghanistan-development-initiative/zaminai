@@ -86,10 +86,12 @@ pushes, verifies production, then marks it DONE.
         disease_name, disease_severity, disease_diagnosed_at to analyses.full_data when field_id
         provided. build_alert_message() expanded with FA/PS translations for all 5 alert types.
 
-- [ ] **Drone integration endpoint** — POST /drone/mission
-        Accepts field_id, returns GeoJSON waypoints for the ZaminAI Agri Pro drone:
-        GPS coordinates of stress spots (NDVI < 0.3 zones) with nozzle-on/off flags.
-        Format: `{waypoints: [{lat, lng, spray: true/false, ndvi: 0.22}]}`
+- [x] **Drone integration endpoint** — POST /drone/mission
+        Accepts field_id + optional altitude_m/row_spacing_m. Fetches field polygon
+        from Supabase, generates lawnmower-pattern flight grid (default 15m row spacing),
+        marks waypoints spray=true where field NDVI < 0.3. Returns GeoJSON FeatureCollection
+        with seq, altitude_m, spray, ndvi per waypoint. Helpers: _polygon_bbox(),
+        _point_in_polygon() (ray-casting), _generate_waypoints() (alternating row direction).
 
 ---
 
