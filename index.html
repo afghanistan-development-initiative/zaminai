@@ -28,6 +28,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:500;display:flex;align-items:cen
 .lang-sw{display:flex;gap:5px;}
 .lsw{font-family:var(--M);font-size:11px;padding:4px 10px;border:1px solid var(--gbr);border-radius:20px;background:var(--w);color:var(--m);cursor:pointer;transition:all .2s;}
 .lsw.on,.lsw:hover{background:var(--gb);border-color:var(--g);color:var(--g);}
+.lang-sel{font-family:var(--M);font-size:11px;padding:4px 10px;border:1px solid var(--gbr);border-radius:20px;background:var(--w);color:var(--m);cursor:pointer;outline:none;-webkit-appearance:none;appearance:none;max-width:120px;}
+.lang-sel:focus{border-color:var(--g);}
 .nav-cta{font-family:var(--M);font-size:12px;padding:9px 22px;background:var(--g);color:#fff;border:none;border-radius:4px;cursor:pointer;transition:all .2s;}
 .nav-cta:hover{background:var(--gd);}
 .nav-officer{font-family:var(--M);font-size:11px;padding:8px 14px;border:1px solid var(--g);border-radius:4px;color:var(--g);text-decoration:none;letter-spacing:.06em;transition:all .2s;}
@@ -247,6 +249,8 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
 .ao-lang{display:flex;gap:5px;}
 .ao-lang button{font-family:var(--M);font-size:11px;padding:4px 11px;border:1px solid var(--gbr);border-radius:20px;background:var(--bg);color:var(--m);cursor:pointer;transition:all .2s;}
 .ao-lang button.on{background:var(--gb);border-color:var(--g);color:var(--g);}
+.ao-lang-sel{font-family:var(--M);font-size:11px;padding:4px 10px;border:1px solid var(--gbr);border-radius:20px;background:var(--bg);color:var(--m);cursor:pointer;outline:none;-webkit-appearance:none;appearance:none;max-width:140px;}
+.ao-lang-sel:focus{border-color:var(--g);}
 .ao-close{font-family:var(--M);font-size:12px;padding:6px 14px;background:var(--bg);border:1px solid var(--gbr);border-radius:20px;cursor:pointer;color:var(--m);display:flex;align-items:center;gap:5px;transition:all .2s;}
 .ao-close:hover{border-color:var(--g);color:var(--g);}
 .ao-body{flex:1;position:relative;overflow:hidden;}
@@ -568,10 +572,21 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
     <a href="#languages" id="nl-lang">Languages</a>
     <a href="#impact" id="nl-impact">Impact</a>
     <div class="lang-sw">
-      <span class="lsw on" onclick="pgLang('en',this)">EN</span>
-      <span class="lsw" onclick="pgLang('fa',this)">دری</span>
-      <span class="lsw" onclick="pgLang('ps',this)">پښتو</span>
-      <span class="lsw" onclick="pgLang('nl',this)">NL</span>
+      <select class="lang-sel" id="pg-lang-sel" onchange="pgLang(this.value,null)" title="Language">
+        <option value="en">EN 🌍</option>
+        <option value="fa">دری 🇦🇫</option>
+        <option value="ps">پښتو 🇦🇫</option>
+        <option value="ar">عربي 🇸🇦</option>
+        <option value="ur">اردو 🇵🇰</option>
+        <option value="hi">हिन्दी 🇮🇳</option>
+        <option value="bn">বাংলা 🇧🇩</option>
+        <option value="sw">SW 🇰🇪</option>
+        <option value="es">ES 🇪🇸</option>
+        <option value="fr">FR 🇫🇷</option>
+        <option value="nl">NL 🇳🇱</option>
+        <option value="am">አማ 🇪🇹</option>
+        <option value="pt">PT 🇧🇷</option>
+      </select>
     </div>
   </div>
   <a href="/officer.html" class="nav-officer" id="nl-officer">Officer Dashboard</a>
@@ -632,32 +647,32 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
         <div style="background:rgba(22,163,74,.07);border:1px solid rgba(22,163,74,.25);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:14px">
           <span style="font-size:28px">🇦🇫</span>
           <div style="flex:1"><div style="font-weight:700;font-size:13px;color:#f1f5f9">Afghanistan</div><div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px">Wheat · Saffron · Flax · Dari · Pashto</div></div>
-          <span style="font-family:var(--M);font-size:10px;color:#4ade80;white-space:nowrap">● Live</span>
+          <span style="font-family:var(--M);font-size:10px;color:#4ade80;white-space:nowrap">🛰️ Satellite Active</span>
         </div>
-        <div style="background:rgba(217,119,6,.05);border:1px solid rgba(217,119,6,.2);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:14px">
+        <div style="background:rgba(22,163,74,.07);border:1px solid rgba(22,163,74,.25);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:14px">
           <span style="font-size:28px">🇮🇷</span>
           <div style="flex:1"><div style="font-weight:700;font-size:13px;color:#f1f5f9">Iran</div><div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px">Wheat · Saffron · Pistachios · Farsi</div></div>
-          <span style="font-family:var(--M);font-size:10px;color:#f59e0b;white-space:nowrap">◐ In development</span>
+          <span style="font-family:var(--M);font-size:10px;color:#4ade80;white-space:nowrap">🛰️ Satellite Active</span>
         </div>
-        <div style="background:rgba(217,119,6,.05);border:1px solid rgba(217,119,6,.2);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:14px">
+        <div style="background:rgba(22,163,74,.07);border:1px solid rgba(22,163,74,.25);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:14px">
           <span style="font-size:28px">🇵🇰</span>
           <div style="flex:1"><div style="font-weight:700;font-size:13px;color:#f1f5f9">Pakistan</div><div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px">Wheat · Rice · Cotton · Urdu · Pashto</div></div>
-          <span style="font-family:var(--M);font-size:10px;color:#f59e0b;white-space:nowrap">◐ In development</span>
+          <span style="font-family:var(--M);font-size:10px;color:#4ade80;white-space:nowrap">🛰️ Satellite Active</span>
         </div>
-        <div style="background:rgba(107,114,128,.05);border:1px solid rgba(107,114,128,.15);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:14px">
+        <div style="background:rgba(22,163,74,.07);border:1px solid rgba(22,163,74,.25);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:14px">
           <span style="font-size:28px">🇪🇹</span>
           <div style="flex:1"><div style="font-weight:700;font-size:13px;color:#f1f5f9">Ethiopia</div><div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px">Coffee · Teff · Maize · Amharic</div></div>
-          <span style="font-family:var(--M);font-size:10px;color:rgba(255,255,255,.3);white-space:nowrap">○ Planned</span>
+          <span style="font-family:var(--M);font-size:10px;color:#4ade80;white-space:nowrap">🛰️ Satellite Active</span>
         </div>
-        <div style="background:rgba(107,114,128,.05);border:1px solid rgba(107,114,128,.15);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:14px">
+        <div style="background:rgba(22,163,74,.07);border:1px solid rgba(22,163,74,.25);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:14px">
           <span style="font-size:28px">🇹🇯</span>
           <div style="flex:1"><div style="font-weight:700;font-size:13px;color:#f1f5f9">Tajikistan</div><div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px">Cotton · Wheat · Dari speakers</div></div>
-          <span style="font-family:var(--M);font-size:10px;color:rgba(255,255,255,.3);white-space:nowrap">○ Planned</span>
+          <span style="font-family:var(--M);font-size:10px;color:#4ade80;white-space:nowrap">🛰️ Satellite Active</span>
         </div>
-        <div style="background:rgba(107,114,128,.05);border:1px solid rgba(107,114,128,.15);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:14px">
+        <div style="background:rgba(22,163,74,.07);border:1px solid rgba(22,163,74,.25);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:14px">
           <span style="font-size:28px">🌍</span>
-          <div style="flex:1"><div style="font-weight:700;font-size:13px;color:#f1f5f9">+ Many more</div><div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px">Any country with smallholder farmers — open to partnerships</div></div>
-          <span style="font-family:var(--M);font-size:10px;color:rgba(255,255,255,.3);white-space:nowrap">○ Open</span>
+          <div style="flex:1"><div style="font-weight:700;font-size:13px;color:#f1f5f9">Any country</div><div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px">Sentinel-2 covers the entire planet — open to any farming community</div></div>
+          <span style="font-family:var(--M);font-size:10px;color:#4ade80;white-space:nowrap">🌐 Global</span>
         </div>
       </div>
       <div class="region-list" id="region-list"></div>
@@ -855,19 +870,19 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
   <h2 class="sh" id="la-h">Speaks your language</h2>
   <p class="ss" id="la-sub" style="max-width:520px;margin:0 auto;text-align:center">13 languages live now. Satellite intelligence in every major agricultural language.</p>
   <div class="lang-cards" style="grid-template-columns:repeat(4,1fr)">
-    <div class="lc on" onclick="setLangDemo('en',this)"><div class="lcf">🇬🇧</div><div class="lcn">English</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
-    <div class="lc" onclick="setLangDemo('fa',this)"><div class="lcf">🇦🇫</div><div class="lcn">دری · Dari</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
-    <div class="lc" onclick="setLangDemo('ps',this)"><div class="lcf">🇦🇫</div><div class="lcn">پښتو · Pashto</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
-    <div class="lc"><div class="lcf">🇮🇷</div><div class="lcn">فارسی · Farsi</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
-    <div class="lc"><div class="lcf">🇵🇰</div><div class="lcn">اردو · Urdu</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
-    <div class="lc"><div class="lcf">🇧🇩</div><div class="lcn">বাংলা · Bengali</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
-    <div class="lc"><div class="lcf">🇮🇳</div><div class="lcn">हिंदी · Hindi</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
-    <div class="lc"><div class="lcf">🇪🇹</div><div class="lcn">አማርኛ · Amharic</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
-    <div class="lc"><div class="lcf">🌍</div><div class="lcn">Kiswahili</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
-    <div class="lc"><div class="lcf">🌎</div><div class="lcn">Español</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
-    <div class="lc"><div class="lcf">🌍</div><div class="lcn">Français</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
-    <div class="lc"><div class="lcf">🇳🇱</div><div class="lcn">Nederlands</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
-    <div class="lc"><div class="lcf">🌍</div><div class="lcn">العربية · Arabic</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
+    <div class="lc on" data-lang="en" onclick="setLangDemo('en',this)"><div class="lcf">🇬🇧</div><div class="lcn">English</div><div class="lcs">Voice · Text</div></div>
+    <div class="lc" data-lang="fa" onclick="setLangDemo('fa',this)"><div class="lcf">🇦🇫</div><div class="lcn">دری · Dari</div><div class="lcs">Voice · Text</div></div>
+    <div class="lc" data-lang="ps" onclick="setLangDemo('ps',this)"><div class="lcf">🇦🇫</div><div class="lcn">پښتو · Pashto</div><div class="lcs">Voice · Text</div></div>
+    <div class="lc" data-lang="ar" onclick="setLangDemo('ar',this)"><div class="lcf">🇸🇦</div><div class="lcn">العربية · Arabic</div><div class="lcs">Voice · Text</div></div>
+    <div class="lc" data-lang="ur" onclick="setLangDemo('ur',this)"><div class="lcf">🇵🇰</div><div class="lcn">اردو · Urdu</div><div class="lcs">Voice · Text</div></div>
+    <div class="lc" data-lang="hi" onclick="setLangDemo('hi',this)"><div class="lcf">🇮🇳</div><div class="lcn">हिन्दी · Hindi</div><div class="lcs">Voice · Text</div></div>
+    <div class="lc" data-lang="bn" onclick="setLangDemo('bn',this)"><div class="lcf">🇧🇩</div><div class="lcn">বাংলা · Bengali</div><div class="lcs">Voice · Text</div></div>
+    <div class="lc" data-lang="sw" onclick="setLangDemo('sw',this)"><div class="lcf">🇰🇪</div><div class="lcn">Kiswahili</div><div class="lcs">Voice · Text</div></div>
+    <div class="lc" data-lang="es" onclick="setLangDemo('es',this)"><div class="lcf">🇪🇸</div><div class="lcn">Español</div><div class="lcs">Voice · Text</div></div>
+    <div class="lc" data-lang="fr" onclick="setLangDemo('fr',this)"><div class="lcf">🇫🇷</div><div class="lcn">Français</div><div class="lcs">Voice · Text</div></div>
+    <div class="lc" data-lang="nl" onclick="setLangDemo('nl',this)"><div class="lcf">🇳🇱</div><div class="lcn">Nederlands</div><div class="lcs">Voice · Text</div></div>
+    <div class="lc" data-lang="am" onclick="setLangDemo('am',this)"><div class="lcf">🇪🇹</div><div class="lcn">አማርኛ · Amharic</div><div class="lcs">Voice · Text</div></div>
+    <div class="lc" data-lang="pt" onclick="setLangDemo('pt',this)"><div class="lcf">🇧🇷</div><div class="lcn">Português</div><div class="lcs">Voice · Text</div></div>
   </div>
   <div class="ldemo">
     <div class="lq" id="lq">Does my field have enough water this season?</div>
@@ -886,14 +901,15 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
             <option value="en">🌍 English</option>
             <option value="fa">🇦🇫 دری — Dari</option>
             <option value="ps">🇦🇫 پښتو — Pashto</option>
-            <option value="ar">🌍 العربية — Arabic</option>
+            <option value="ar">🇸🇦 العربية — Arabic</option>
             <option value="ur">🇵🇰 اردو — Urdu</option>
-            <option value="hi">🇮🇳 हिंदी — Hindi</option>
+            <option value="hi">🇮🇳 हिन्दी — Hindi</option>
             <option value="bn">🇧🇩 বাংলা — Bengali</option>
-            <option value="sw">🌍 Kiswahili — Swahili</option>
-            <option value="es">🌍 Español — Spanish</option>
-            <option value="fr">🌍 Français — French</option>
-            <option value="pt">🌍 Português — Portuguese</option>
+            <option value="sw">🇰🇪 Swahili</option>
+            <option value="es">🇪🇸 Español</option>
+            <option value="fr">🇫🇷 Français</option>
+            <option value="nl">🇳🇱 Nederlands</option>
+            <option value="pt">🇧🇷 Português</option>
             <option value="am">🇪🇹 አማርኛ — Amharic</option>
           </select>
         </div>
@@ -1045,9 +1061,21 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
         <button class="ao-user-sw" onclick="logoutFarmer()" title="Switch account">Switch</button>
       </div>
       <div class="ao-lang">
-        <button class="on" onclick="appLangSet('en',this)">EN</button>
-        <button onclick="appLangSet('fa',this)">دری</button>
-        <button onclick="appLangSet('ps',this)">پښتو</button>
+        <select id="ao-lang-sel" class="ao-lang-sel" onchange="appLangSet(this.value,null)" title="Language / زبان / ژبه">
+          <option value="en">🌍 English</option>
+          <option value="fa">🇦🇫 دری</option>
+          <option value="ps">🇦🇫 پښتو</option>
+          <option value="ar">🇸🇦 العربية</option>
+          <option value="ur">🇵🇰 اردو</option>
+          <option value="hi">🇮🇳 हिन्दी</option>
+          <option value="bn">🇧🇩 বাংলা</option>
+          <option value="sw">🇰🇪 Swahili</option>
+          <option value="es">🇪🇸 Español</option>
+          <option value="fr">🇫🇷 Français</option>
+          <option value="nl">🇳🇱 Nederlands</option>
+          <option value="am">🇪🇹 አማርኛ</option>
+          <option value="pt">🇧🇷 Português</option>
+        </select>
       </div>
       <button class="ao-close" onclick="closeApp()">✕ Close</button>
     </div>
@@ -1588,6 +1616,12 @@ const T={
   },
   ps:{dir:'rtl',hero_tag:'ژوندی · د ماهواره‌ای معلومات · نړیوال',ht1:'ځمکه',ht2:'هوښمند',ht3:'هوښمند کرهڼه · د ځمکې هر کرنکي لپاره',hero_desc:'د هر ځمکې لپاره واقعي ماهواره‌ای معلومات. دري، پښتو، انګلیسي AI سپارښتنې.',hb1:'ZaminAI خلاصول — وړیا →',hb2:'د مزرعې ګټه حساب کول',sl1:'ماهواره‌ای',sl2:'هیوادونه · ژوندي',sl3:'د معلوماتو کلونه',sl4:'ژبې',sl5:'د معلوماتو سرچینې','nl-global':'نړیوال','nl-features':'ځانګړتیاوې','nl-calc':'حساب','nl-lang':'ژبې','nl-impact':'اغیز','nl-cta':'اپ خلاصول →','nl-officer':'د افسر ډشبورډ','nl-book':'📅 ناسته وټاکئ','hb3':'📅 ۳۰ دقیقې ناسته وټاکئ','g-eye':'اوس ژوندی · نړیوال پراخیدل','g-h':'یو پلتفورم.<br>هر هیواد.','g-sub':'ورته ماهواره. ورته AI. بیله ژبه، بیل محصول، بیل هیواد.','g2-eye':'نړیواله فرصت','g2-h':'۵۰۰ میلیون دهقانان.<br>صفر دیجیتال مرسته.','g2-d1':'نن ورځ، ۵۰۰ میلیون کوچني دهقانان پرته له ماهواره‌ای معلوماتو پرېکړې کوي.','g2-d2':'ZaminAI هر دهقان ته د ځمکې هر ځای کې هماغه کیفیت زراعتي هوش ورکوي. وړیا.',gs1:'د نړۍ کوچني دهقانان',gs2:'د کوچني زراعت پورې اړه لرونکي خلک',gs3:'د کوم دیجیتال زراعتي خدمت لاسرسی لري',gs4:'د دهقانانو لپاره لګښت — تل وړیا','pl-eye':'د پلتفورم جوړښت','pl-h':'درې پوستې. یو پلتفورم.','pl-sub':'د ماهواره‌ای معلومات + د دهقانانو ډیټابیس + AI.',pat1:'🛰️ د ماهواره پوسته',pat2:'👤 د دهقانانو ډیټابیس',pat3:'🤖 AI + لید پوسته','f-eye':'ZaminAI څه کوي','f-h':'هر هغه شی چې کرنکي ورته اړتیا لري',ff1:'د ځمکې تحلیل',fd1:'خپله ځمکه د ماهواره نقشه کې رسم کړئ. ستاسو دقیقو مختصاتو لپاره واقعي NDVI، د اوبو شاخص، باران — هره ۵ ورځ تازه کیږي.',ff2:'حاصل + ګټه',fd2:'له NDVI او د اوبو معلوماتو نه حاصل وړاندوي. د کرلو دمخه ټول د نهاده لګښتونه او خالص ګټه محاسبه کوي.',ff3:'هره ژبه',fd3:'دري، پښتو یا انګلیسي کې وپوښتئ. غږ ورکول، غږ اخیستل. واقعي ماهواره‌ای معلومات د هر ځواب شاته دي.',ff4:'YOLO تشخیص',fd4:'د نبات عکس اپلوډ کړئ. AI د ستاسو تلیفون له کیمرې نه له ۹۰٪+ دقت سره ناروغي او آفات تشخیصوي.',ff5:'د اوبو لارښود',fd5:'ټول ۵ سیستمونه پرتله شوي. ستاسو دقیق د اوبو شتون لپاره د ماهواره پر بنسټ سپارښتنه.',ff6:'تخم + بازار',fd6:'ستاسو خاورې لپاره غوره د تخم ډولونه. د بازار اوسنۍ نرخونه. چیرته وپلورئ. د NGO پروګرامونه.','h-eye':'دا څنګه کار کوي','h-h':'څلور ګامونه. واقعي پایلې.',s1t:'تلیفون خلاص کړئ',s1d:'GPS ستاسو موقعیت د ځمکې هر ځای کې موندي. د ماهواره نقشه سمدستي بارېږي.',s2t:'خپله ځمکه رسم کړئ',s2d:'د ځمکې کونجونه نقشه کې ووهئ. سیستم دقیق مساحت جریب او هکتار کې محاسبه کوي.',s3t:'ماهواره تحلیلوي',s3d:'ستاسو دقیقې ځمکې لپاره واقعي Sentinel-2 معلومات بارېږي — NDVI، اوبه، باران، روند ۲۰۱۹–۲۰۲۵.',s4t:'هر شی وپوښتئ',s4d:'خپلې ژبې کې وغږیږئ. AI ستاسو واقعي معلومات لولي او د ځانګړو سپارښتنو سره لوړ غږ ځواب ورکوي.','ca-eye':'د مزرعې هوښیار حساب','ca-h':'د کرلو دمخه خپل شمیرې وپیژنئ','ca-sub':'د مزرعې توضیحات دننه کړئ.',lc:'محصول',ll:'د ځمکې اندازه (جریب)',lw:'د اوبو شتون',li:'د اوبو سیستم',lf:'کود',lm:'ماشینري','calc-btn':'🛰️ د ماهواره معلوماتو سره حساب','res-lbl':'د ماهواره پر بنسټ محاسبې پایلې','cb-lbl':'بشپړ د لګښت توضیح',th1:'توکی',th2:'فی جریب',th3:'ستاسو مجموع',wo1:'ښه — نږدې سیند یا کانال',wo2:'متوسط — موسمي اوبه',wo3:'لږ — د خشکسالۍ شرایط',rl1:'متوقع حاصل کیلوګرام',rl2:'مجموعي عاید افغاني',rl3:'ټول لګښتونه افغاني',rl4:'خالص ګټه افغاني','la-eye':'ژبې','la-h':'ستاسو ژبه غږیږي','la-sub':'اوس ۳ ژبو کې ژوندی.',lq:'ایا زما ځمکه پدې فصل کې کافي اوبه لري؟',lt:'پښتو · Pashto · پوښتنه ولیکئ یا ووایئ','yo-eye':'د کمپیوتر لید','yo-h':'YOLO هغه ویني چې<br>سترګه یې نه ویني',yf1t:'د ناروغۍ تشخیص',yf1d:'YOLO د تلیفون له عکس نه د گندم زنګ تشخیصوي.',yf2t:'د آفاتو پیژندنه',yf2d:'شنه بیا، ملخ — موندل او شمیرل.',yf3t:'د حاصل اټکل',yf3d:'د محصول سر عکس → AI د بلوغ مرحله او غوره د برداشت وخت اټکلوي، د ماهواره NDVI معلوماتو سره تایید کیږي.',yf4t:'د خاورې روغتیا',yf4d:'د خاورې عکس → ډول، لندبل، فشار ستونزې.','rm-eye':'د پراختیا نقشه','rm-h':'درې مرحلې.<br>یوه ماموریت.','rm-p1':'مرحله ۱ · اوس فعال','rm-t1':'افغانستان','rm-p2':'مرحله ۲ · د پراختیا لاندې','rm-t2':'مرکزي آسیا + خاورمیانه','rm-p3':'مرحله ۳ · پلان شوی','rm-t3':'افریقا + سویلي آسیا','rml1-0':'۳۴ ولایتونه د ماهواره پوښنه لاندې','rml1-1':'واقعي Sentinel-2 معلومات','rml1-2':'دري او پښتو آوازي مرستیال','rml1-3':'د ځمکې GPS رسم','rml1-4':'د اوبو، ماشینري لارښود','rml1-5':'د دهقانانو ډیټابیس — Supabase','rml2-0':'ایران — فارسي','rml2-1':'پاکستان — اردو + پښتو','rml2-2':'تاجیکستان — دري','rml2-3':'ازبکستان — د اوبو بحران','rml2-4':'یمن — شخړه + خشکسالي','rml2-5':'هر هیواد ځایي ډیټابیس','rml3-0':'ایتیوپیا — قهوه + امهري','rml3-1':'نایجیریا — کاساوا + هوسا','rml3-2':'بنګلادیش — وریجې + سیلاب','rml3-3':'مالي + نیجر — ساحل','rml3-4':'هند — کوچني کرنکي','rml3-5':'د ځایي شریک سره هر هیواد','sdg-eye':'نړیوال اغیز','sdg-h':'۶ هدفونه. ۱ پلتفورم.',sdg1:'بې فقره',sdg2:'صفر لوږه',sdg3:'پاک اوبه',sdg4:'د اقلیم عمل',sdg5:'ځمکه کې ژوند',sdg6:'ملګرتیاوې',st1:'د کندز د کرهڼي ځمکې سقوط ۲۰۱۹→۲۰۲۲',st2:'د ۲۰۲۲ خشکسالۍ کې د اوبو کمښت',st3:'د نړۍ کوچني دهقانان چې پرته له کوم معلوماتو پرېکړه کوي','cta-h':'هوښیار<br>کرنه<br>وکړئ','cta-sub':'ZaminAI خلاص کړئ. خپله ځمکه رسم کړئ. وړیا، تل.','cta-btn':'ZaminAI خلاصول — وړیا →','cta-book':'📅 ناسته وټاکئ',
     regions:[{flag:'🇦🇫',name:'افغانستان',detail:'گندم · کتان · زعفران · دري · پښتو',status:'● ژوندی',cls:'st-live'},{flag:'🇮🇷',name:'ایران',detail:'گندم · زعفران · پسته · فارسي',status:'◐ د پراختیا لاندې',cls:'st-dev'},{flag:'🇵🇰',name:'پاکستان',detail:'گندم · وریجې · پنبه · اردو',status:'○ پلان شوی',cls:'st-plan'},{flag:'🇹🇯',name:'تاجیکستان',detail:'پنبه · گندم · دري ژبې',status:'○ پلان شوی',cls:'st-plan'},{flag:'🇪🇹',name:'ایتیوپیا',detail:'قهوه · تیف · جوار · امهري',status:'○ پلان شوی',cls:'st-plan'},{flag:'🌍',name:'+ نور ډیر',detail:'د کوچنیو کرنکیو لرونکي هر هیواد',status:'○ خلاص',cls:'st-plan'}]
+  },
+  hi:{dir:'ltr',hero_tag:'लाइव · रियल सैटेलाइट डेटा · विश्वव्यापी',ht1:'ज़मीन',ht2:'AI',ht3:'स्मार्ट खेती इंटेलिजेंस · धरती के हर किसान के लिए',hero_desc:'हर खेत के लिए असली सैटेलाइट डेटा। AI सिफारिशें हिंदी, दरी, पश्तो, अंग्रेजी में।',hb1:'ZaminAI खोलें — मुफ्त →',hb2:'खेत का मुनाफा निकालें',sl1:'सैटेलाइट',sl2:'देश',sl3:'डेटा के साल',sl4:'भाषाएं',sl5:'डेटा स्रोत','nl-global':'वैश्विक','nl-features':'सुविधाएं','nl-calc':'कैलकुलेटर','nl-lang':'भाषाएं','nl-impact':'प्रभाव','nl-cta':'ऐप खोलें →','nl-officer':'अधिकारी डैशबोर्ड','nl-book':'📅 मीटिंग बुक करें','hb3':'📅 30 मिनट की मीटिंग बुक करें','g-eye':'अभी लाइव · वैश्विक विस्तार','g-h':'एक प्लेटफॉर्म।<br>हर देश।','g-sub':'वही सैटेलाइट। वही AI। अलग भाषा, अलग फसल, अलग देश।','g2-eye':'वैश्विक अवसर','g2-h':'50 करोड़ किसान।<br>शून्य डिजिटल सहायता।','g2-d1':'आज, 50 करोड़ छोटे किसान बिना किसी सैटेलाइट डेटा के फैसले करते हैं।','g2-d2':'ZaminAI हर किसान को वही कृषि बुद्धिमत्ता देता है जो बड़े व्यावसायिक खेत हजारों में खरीदते हैं। मुफ्त। उनकी भाषा में।',gs1:'दुनिया भर के छोटे किसान',gs2:'छोटी खेती पर निर्भर लोग',gs3:'किसी डिजिटल कृषि सेवा तक पहुंच',gs4:'किसानों के लिए लागत — हमेशा मुफ्त','pl-eye':'प्लेटफॉर्म आर्किटेक्चर','pl-h':'तीन परतें। एक प्लेटफॉर्म।','pl-sub':'सैटेलाइट डेटा + किसान डेटाबेस + AI — एक वैश्विक कृषि बुद्धिमत्ता प्रणाली में जुड़े।',pat1:'🛰️ सैटेलाइट परत',pat2:'👤 किसान डेटाबेस',pat3:'🤖 AI + विज़न परत','f-eye':'ZaminAI क्या करता है','f-h':'किसान को जो चाहिए वह सब',ff1:'खेत विश्लेषण',fd1:'सैटेलाइट मैप पर अपना खेत बनाएं। आपके सटीक निर्देशांकों के लिए असली NDVI, पानी सूचकांक, वर्षा — हर 5 दिन अपडेट।',ff2:'उपज + मुनाफा',fd2:'NDVI और पानी के डेटा से उपज का अनुमान लगाता है। बोने से पहले सभी लागत और शुद्ध मुनाफा निकालता है।',ff3:'13 भाषाएं',fd3:'हिंदी, दरी, पश्तो, अंग्रेजी में पूछें। आवाज़ में, आवाज़ से। हर जवाब के पीछे असली सैटेलाइट डेटा।',ff4:'YOLO रोग निदान',fd4:'पौधे की फोटो अपलोड करें। AI आपके फोन कैमरे से 90%+ सटीकता से रोग और कीट पहचानता है।',ff5:'सिंचाई मार्गदर्शिका',fd5:'सभी 5 सिस्टम की तुलना। आपकी सटीक पानी उपलब्धता के लिए सैटेलाइट-आधारित सिफारिश।',ff6:'बीज + बाज़ार',fd6:'आपकी मिट्टी के लिए सबसे अच्छी बीज किस्में। मौजूदा बाज़ार कीमतें। कहां बेचें। NGO कार्यक्रम।','h-eye':'यह कैसे काम करता है','h-h':'चार चरण। असली नतीजे.',s1t:'फोन पर खोलें',s1d:'GPS पृथ्वी पर कहीं भी आपकी स्थिति ढूंढता है।',s2t:'अपना खेत बनाएं',s2d:'मैप पर खेत के कोने टैप करें।',s3t:'सैटेलाइट विश्लेषण',s3d:'आपके सटीक खेत के लिए असली Sentinel-2 डेटा लोड होता है।',s4t:'कुछ भी पूछें',s4d:'अपनी भाषा में बोलें। AI आपका असली डेटा पढ़ता है।','ca-eye':'खेत बुद्धिमत्ता कैलकुलेटर','ca-h':'बोने से पहले<br>अपने नंबर जानें','ca-sub':'खेत की जानकारी दर्ज करें। ZaminAI अपेक्षित उपज, सभी लागत और शुद्ध मुनाफा निकालता है।',lc:'फसल',ll:'भूमि का आकार',lw:'पानी की उपलब्धता',li:'सिंचाई प्रणाली',lf:'उर्वरक',lm:'मशीनरी','calc-btn':'🛰️ सैटेलाइट डेटा से गणना','res-lbl':'सैटेलाइट-आधारित गणना परिणाम','cb-lbl':'पूरा लागत विवरण',th1:'वस्तु',th2:'प्रति इकाई',th3:'आपका कुल',wo1:'अच्छा — नदी या नहर पास',wo2:'मध्यम — मौसमी पानी',wo3:'कम — सूखे की स्थिति',rl1:'अपेक्षित उपज किग्रा',rl2:'कुल आय',rl3:'कुल लागत',rl4:'शुद्ध मुनाफा','la-eye':'भाषाएं','la-h':'आपकी भाषा बोलता है','la-sub':'13 भाषाएं अभी लाइव।',lq:'क्या मेरे खेत में इस मौसम में पर्याप्त पानी है?',lt:'हिन्दी · टाइप करें या बोलें','yo-eye':'कंप्यूटर विज़न','yo-h':'YOLO वह देखता है जो<br>आंख चूक जाती है',yf1t:'रोग पहचान',yf1d:'YOLO गेहूं का जंग, पत्ती का झुलसा और 50+ फसल रोग पहचानता है।',yf2t:'कीट पहचान',yf2d:'एफिड, टिड्डे — पहचाने और गिने। AI कीटनाशक की सिफारिश करता है।',yf3t:'उपज अनुमान',yf3d:'फसल के सिर की फोटो → AI परिपक्वता अवस्था और इष्टतम कटाई खिड़की का अनुमान लगाता है।',yf4t:'मिट्टी का स्वास्थ्य',yf4d:'मिट्टी की फोटो → मिट्टी का प्रकार, नमी, संघनन की पहचान।','rm-eye':'विस्तार रोडमैप','rm-h':'तीन चरण।<br>एक मिशन.','rm-p1':'चरण 1 · अभी लाइव','rm-t1':'अफगानिस्तान','rm-p2':'चरण 2 · विकास में','rm-t2':'मध्य एशिया + MENA','rm-p3':'चरण 3 · नियोजित','rm-t3':'अफ्रीका + दक्षिण एशिया','sdg-eye':'वैश्विक प्रभाव','sdg-h':'6 SDG। 1 प्लेटफॉर्म.',sdg1:'गरीबी नहीं',sdg2:'शून्य भूख',sdg3:'स्वच्छ पानी',sdg4:'जलवायु कार्रवाई',sdg5:'भूमि पर जीवन',sdg6:'साझेदारी',st1:'कुंदुज में खेती की जमीन का पतन 2019→2022',st2:'2022 सूखे में पानी की सतह में गिरावट',st3:'बिना किसी डेटा के फैसले करते छोटे किसान','cta-h':'आज<br>स्मार्ट<br>खेती करें','cta-sub':'ZaminAI खोलें। अपना खेत बनाएं। मुफ्त, हमेशा।','cta-btn':'ZaminAI खोलें — मुफ्त →','cta-book':'📅 मीटिंग बुक करें',
+    regions:[{flag:'🇦🇫',name:'अफगानिस्तान',detail:'गेहूं · केसर · अलसी · दरी · पश्तो',status:'● लाइव',cls:'st-live'},{flag:'🇮🇷',name:'ईरान',detail:'गेहूं · केसर · पिस्ता · फारसी',status:'🛰️ उपग्रह सक्रिय',cls:'st-live'},{flag:'🇵🇰',name:'पाकिस्तान',detail:'गेहूं · चावल · कपास · उर्दू · पश्तो',status:'🛰️ उपग्रह सक्रिय',cls:'st-live'},{flag:'🇪🇹',name:'इथियोपिया',detail:'कॉफी · टेफ · मक्का · अम्हारिक',status:'🛰️ उपग्रह सक्रिय',cls:'st-live'},{flag:'🇹🇯',name:'ताजिकिस्तान',detail:'कपास · गेहूं · दरी वक्ता',status:'🛰️ उपग्रह सक्रिय',cls:'st-live'},{flag:'🌍',name:'कोई भी देश',detail:'Sentinel-2 पूरे ग्रह को कवर करता है',status:'🌐 वैश्विक',cls:'st-live'}]
+  },
+  ur:{dir:'rtl',hero_tag:'لائیو · حقیقی سیٹلائٹ ڈیٹا · دنیا بھر',ht1:'زمین',ht2:'AI',ht3:'ذہین زراعت · دنیا کے ہر کسان کے لیے',hero_desc:'ہر کھیت کے لیے حقیقی سیٹلائٹ ڈیٹا۔ اردو، دری، پشتو، انگریزی میں AI سفارشات۔',hb1:'ZaminAI کھولیں — مفت →',hb2:'فارم کا منافع حساب کریں',sl1:'سیٹلائٹس',sl2:'ممالک',sl3:'ڈیٹا کے سال',sl4:'زبانیں',sl5:'ڈیٹا کے ذرائع','nl-global':'عالمی','nl-features':'خصوصیات','nl-calc':'کیلکولیٹر','nl-lang':'زبانیں','nl-impact':'اثر','nl-cta':'ایپ کھولیں →','nl-officer':'آفیسر ڈیش بورڈ','nl-book':'📅 میٹنگ بک کریں','hb3':'📅 30 منٹ کی میٹنگ بک کریں','g-eye':'ابھی لائیو · عالمی توسیع','g-h':'ایک پلیٹ فارم۔<br>ہر ملک۔','g-sub':'وہی سیٹلائٹ۔ وہی AI۔ مختلف زبان، مختلف فصل، مختلف ملک۔','g2-eye':'عالمی موقع','g2-h':'50 کروڑ کسان۔<br>صفر ڈیجیٹل مدد۔','g2-d1':'آج، 50 کروڑ چھوٹے کسان بغیر کسی سیٹلائٹ ڈیٹا کے فیصلے کرتے ہیں۔','g2-d2':'ZaminAI ہر کسان کو وہی زرعی ذہانت دیتا ہے۔ مفت۔ ان کی زبان میں۔',gs1:'دنیا بھر کے چھوٹے کسان',gs2:'چھوٹی زراعت پر انحصار کرنے والے لوگ',gs3:'کسی بھی ڈیجیٹل زرعی خدمت تک رسائی',gs4:'کسانوں کے لیے لاگت — ہمیشہ مفت','pl-eye':'پلیٹ فارم آرکیٹیکچر','pl-h':'تین پرتیں۔ ایک پلیٹ فارم۔','pl-sub':'سیٹلائٹ ڈیٹا + کسان ڈیٹابیس + AI۔',pat1:'🛰️ سیٹلائٹ پرت',pat2:'👤 کسان ڈیٹابیس',pat3:'🤖 AI + وژن پرت','f-eye':'ZaminAI کیا کرتا ہے','f-h':'کسان کو جو چاہیے وہ سب',ff1:'کھیت کا تجزیہ',fd1:'سیٹلائٹ نقشے پر اپنا کھیت بنائیں۔ آپ کے درست کوآرڈینیٹس کے لیے حقیقی NDVI، پانی انڈیکس، بارش — ہر 5 دن اپڈیٹ۔',ff2:'پیداوار + منافع',fd2:'NDVI اور پانی کے ڈیٹا سے پیداوار کا اندازہ لگاتا ہے۔ بوائی سے پہلے تمام لاگت اور خالص منافع نکالتا ہے۔',ff3:'13 زبانیں',fd3:'اردو، ہندی، دری، پشتو، انگریزی میں پوچھیں۔ آواز میں، آواز سے۔',ff4:'YOLO تشخیص',fd4:'پودے کی تصویر اپلوڈ کریں۔ AI آپ کے فون کیمرے سے 90%+ درستگی سے بیماری پہچانتا ہے۔',ff5:'آبپاشی گائیڈ',fd5:'تمام 5 نظاموں کا موازنہ۔ آپ کی پانی دستیابی کے لیے سیٹلائٹ پر مبنی سفارش۔',ff6:'بیج + بازار',fd6:'آپ کی مٹی کے لیے بہترین بیج اقسام۔ موجودہ بازار قیمتیں۔','h-eye':'یہ کیسے کام کرتا ہے','h-h':'چار مراحل۔ حقیقی نتائج.',s1t:'فون پر کھولیں',s1d:'GPS زمین پر کہیں بھی آپ کی پوزیشن ڈھونڈتا ہے۔',s2t:'اپنا کھیت بنائیں',s2d:'نقشے پر کھیت کے کونے ٹیپ کریں۔',s3t:'سیٹلائٹ تجزیہ',s3d:'آپ کے درست کھیت کے لیے حقیقی Sentinel-2 ڈیٹا لوڈ ہوتا ہے۔',s4t:'کچھ بھی پوچھیں',s4d:'اپنی زبان میں بولیں۔ AI آپ کا حقیقی ڈیٹا پڑھتا ہے۔','ca-eye':'فارم انٹیلیجنس کیلکولیٹر','ca-h':'بوائی سے پہلے<br>اپنے نمبر جانیں','ca-sub':'فارم کی تفصیلات درج کریں۔ ZaminAI متوقع پیداوار، تمام لاگت اور خالص منافع نکالتا ہے۔',lc:'فصل',ll:'زمین کا سائز',lw:'پانی کی دستیابی',li:'آبپاشی نظام',lf:'کھاد',lm:'مشینری','calc-btn':'🛰️ سیٹلائٹ ڈیٹا سے حساب','res-lbl':'سیٹلائٹ پر مبنی حساب نتائج','cb-lbl':'مکمل لاگت تفصیل',th1:'مد',th2:'فی اکائی',th3:'آپ کا کل',wo1:'اچھا — قریب دریا یا نہر',wo2:'متوسط — موسمی پانی',wo3:'کم — خشک سالی حالات',rl1:'متوقع پیداوار کلوگرام',rl2:'مجموعی آمدنی',rl3:'کل لاگت',rl4:'خالص منافع','la-eye':'زبانیں','la-h':'آپ کی زبان بولتا ہے','la-sub':'13 زبانیں ابھی لائیو۔',lq:'کیا میرے کھیت میں اس موسم میں کافی پانی ہے؟',lt:'اردو · ٹائپ کریں یا بولیں','yo-eye':'کمپیوٹر وژن','yo-h':'YOLO وہ دیکھتا ہے جو<br>آنکھ چھوڑ جاتی ہے',yf1t:'بیماری کی پہچان',yf1d:'YOLO گندم کی زنگ اور 50+ فصلی بیماریاں پہچانتا ہے۔',yf2t:'کیڑوں کی پہچان',yf2d:'مکڑی، ٹڈی — پہچانے اور گنے۔',yf3t:'پیداوار کا اندازہ',yf3d:'فصل کے سر کی تصویر → AI پختگی مرحلہ اور بہترین کٹائی وقت کا اندازہ لگاتا ہے۔',yf4t:'مٹی کی صحت',yf4d:'مٹی کی تصویر → قسم، نمی، تراکم مسائل۔','rm-eye':'توسیع روڈمیپ','rm-h':'تین مراحل۔<br>ایک مشن.','rm-p1':'مرحلہ 1 · ابھی لائیو','rm-t1':'افغانستان','rm-p2':'مرحلہ 2 · ترقی میں','rm-t2':'وسط ایشیا + MENA','rm-p3':'مرحلہ 3 · منصوبہ بند','rm-t3':'افریقہ + جنوبی ایشیا','sdg-eye':'عالمی اثر','sdg-h':'6 SDG۔ 1 پلیٹ فارم.',sdg1:'کوئی غربت نہیں',sdg2:'صفر بھوک',sdg3:'صاف پانی',sdg4:'موسمیاتی عمل',sdg5:'زمین پر زندگی',sdg6:'شراکت داری',st1:'کندوز میں زرعی زمین کا خاتمہ 2019→2022',st2:'2022 خشک سالی میں پانی کی سطح میں کمی',st3:'بغیر کسی ڈیٹا کے فیصلے کرتے چھوٹے کسان','cta-h':'آج<br>ذہین<br>کھیتی کریں','cta-sub':'ZaminAI کھولیں۔ اپنا کھیت بنائیں۔ مفت، ہمیشہ۔','cta-btn':'ZaminAI کھولیں — مفت →','cta-book':'📅 میٹنگ بک کریں',
+    regions:[{flag:'🇦🇫',name:'افغانستان',detail:'گندم · زعفران · السی · دری · پشتو',status:'● لائیو',cls:'st-live'},{flag:'🇮🇷',name:'ایران',detail:'گندم · زعفران · پستہ · فارسی',status:'🛰️ سیٹلائٹ فعال',cls:'st-live'},{flag:'🇵🇰',name:'پاکستان',detail:'گندم · چاول · کپاس · اردو · پشتو',status:'🛰️ سیٹلائٹ فعال',cls:'st-live'},{flag:'🇪🇹',name:'ایتھوپیا',detail:'کافی · ٹیف · مکئی · امہاری',status:'🛰️ سیٹلائٹ فعال',cls:'st-live'},{flag:'🇹🇯',name:'تاجکستان',detail:'کپاس · گندم · دری بولنے والے',status:'🛰️ سیٹلائٹ فعال',cls:'st-live'},{flag:'🌍',name:'کوئی بھی ملک',detail:'Sentinel-2 پوری دنیا کو کور کرتا ہے',status:'🌐 عالمی',cls:'st-live'}]
   }
 };
 
@@ -1597,12 +1631,26 @@ const LANG_DEMO_DATA={
   en:{q:'Does my field have enough water this season?',t:'English · Type or speak your question',dir:'ltr'},
   fa:{q:'آیا زمین من آب کافی برای این فصل دارد؟',t:'دری · Dari · پرسش بنویسید یا بگویید',dir:'rtl'},
   ps:{q:'ایا زما ځمکه پدې فصل کې کافي اوبه لري؟',t:'پښتو · Pashto · پوښتنه ولیکئ یا ووایئ',dir:'rtl'},
-  nl:{q:'Heeft mijn veld genoeg water dit seizoen?',t:'Nederlands · Typ of spreek uw vraag',dir:'ltr'}
+  ar:{q:'هل يوجد في حقلي ما يكفي من المياه هذا الموسم؟',t:'العربية · اكتب أو تحدث',dir:'rtl'},
+  ur:{q:'کیا میرے کھیت میں اس موسم میں کافی پانی ہے؟',t:'اردو · لکھیں یا بولیں',dir:'rtl'},
+  hi:{q:'क्या मेरे खेत में इस मौसम में पर्याप्त पानी है?',t:'हिन्दी · टाइप करें या बोलें',dir:'ltr'},
+  bn:{q:'আমার মাঠে কি এই মৌসুমে যথেষ্ট পানি আছে?',t:'বাংলা · টাইপ করুন বা বলুন',dir:'ltr'},
+  sw:{q:'Je, shamba langu lina maji ya kutosha msimu huu?',t:'Swahili · Andika au sema swali lako',dir:'ltr'},
+  es:{q:'¿Tiene mi campo suficiente agua esta temporada?',t:'Español · Escriba o hable su pregunta',dir:'ltr'},
+  fr:{q:'Mon champ a-t-il assez d\'eau cette saison?',t:'Français · Tapez ou parlez votre question',dir:'ltr'},
+  nl:{q:'Heeft mijn veld genoeg water dit seizoen?',t:'Nederlands · Typ of spreek uw vraag',dir:'ltr'},
+  am:{q:'የእኔ ማሳ በዚህ ወቅት በቂ ውሃ አለው?',t:'አማርኛ · ይጻፉ ወይም ይናገሩ',dir:'ltr'},
+  pt:{q:'Meu campo tem água suficiente nesta temporada?',t:'Português · Escreva ou fale sua pergunta',dir:'ltr'}
 };
 
 function pgLang(l,el){
   pgCurrentLang=l;
-  const lswLabels={en:'EN',fa:'دری',ps:'پښتو',nl:'NL'};
+  if(typeof appLang!=='undefined')appLang=l;
+  if(typeof _fwLang!=='undefined')_fwLang=l;
+  if(typeof _ydLang!=='undefined')_ydLang=l;
+  var aoSel=document.getElementById('ao-lang-sel'); if(aoSel)aoSel.value=l;
+  var pgSel=document.getElementById('pg-lang-sel'); if(pgSel)pgSel.value=l;
+  const lswLabels={en:'EN',fa:'دری',ps:'پښتو',nl:'NL',ar:'عر',ur:'اردو',hi:'हि',bn:'বাং',sw:'SW',es:'ES',fr:'FR',am:'አማ',pt:'PT'};
   document.querySelectorAll('.lsw').forEach(b=>{
     b.classList.toggle('on', b.textContent.trim()===lswLabels[l]);
   });
@@ -1637,10 +1685,10 @@ function applyTranslations(l){
   const lqEl=document.getElementById('lq'),ltEl=document.getElementById('lt');
   if(lqEl){lqEl.textContent=ld.q;lqEl.style.direction=ld.dir;}
   if(ltEl)ltEl.textContent=ld.t;
-  // sync language card active state
-  const lcs=document.querySelectorAll('.lc');
-  const lcIdx={en:0,fa:1,ps:2};
-  lcs.forEach((c,i)=>c.classList.toggle('on',i===lcIdx[l]));
+  // sync language card active state by data-lang attribute
+  document.querySelectorAll('.lc').forEach(c=>{
+    c.classList.toggle('on',c.dataset&&c.dataset.lang===l);
+  });
   // re-translate login modal text if it is currently open
   const modal=document.getElementById('loginModal');
   if(modal&&modal.style.display==='flex')translateLoginModal();
@@ -1652,7 +1700,7 @@ function renderRegions(l){
   const regs=(T[l]||T.en).regions||T.en.regions;
   list.innerHTML=regs.map(r=>`<div class="region"><div class="rflag">${r.flag}</div><div class="rinfo"><div class="rname">${r.name}</div><div class="rdetail">${r.detail}</div></div><span class="rstatus ${r.cls}">${r.status}</span></div>`).join('');
 }
-renderRegions('en');
+renderRegions(typeof pgCurrentLang!=='undefined'?pgCurrentLang:'en');
 setTimeout(()=>{if(typeof calcUpdateCountry==='function')calcUpdateCountry();},100);
 
 // ── CALCULATOR ────────────────────────────────────────────────────────────────
@@ -3474,7 +3522,8 @@ const AT_UI={
     chatPlaceholder:'Ask about your field...',
     welcome:'Hello! Analyse your field first, then ask me anything about water, crops, or profit.',
     analysing:'Analysing satellite data…', loadingS2:'Loading Sentinel-2', calcNDVI:'Calculating NDVI · Water · Rainfall',
-    drawFirst:'Draw a field and click Analyse', weatherTitle:'🌤️ Weather forecast', tiles:'Map'
+    drawFirst:'Draw a field and click Analyse', weatherTitle:'🌤️ Weather forecast', tiles:'Map',
+    qr:['💧 Irrigation?','🌾 Best crop?','💰 Profit estimate?','🌱 Fertilizer?','📈 Recovery?']
   },
   fa:{
     draw:'رسم زمین', myfields:'زمین‌های من', gps:'موقعیت', clear:'پاک کردن', analyse:'تحلیل', reanalyse:'تحلیل دوباره',
@@ -3486,12 +3535,12 @@ const AT_UI={
     chatPlaceholder:'درباره زمین خود بپرسید...',
     welcome:'سلام! اول زمین خود را تحلیل کنید، سپس درباره آب، محصول یا فایده بپرسید.',
     analysing:'در حال تحلیل داده ماهواره…', loadingS2:'بارگذاری Sentinel-2', calcNDVI:'محاسبه NDVI · آب · باران',
-    drawFirst:'زمین را رسم کنید و تحلیل را بزنید', weatherTitle:'🌤️ پیش‌بینی هوا', tiles:'نقشه'
+    drawFirst:'زمین را رسم کنید و تحلیل را بزنید', weatherTitle:'🌤️ پیش‌بینی هوا', tiles:'نقشه',
+    qr:['💧 آبیاری؟','🌾 بهترین محصول؟','💰 فایده؟','🌱 کود؟','📈 بهبود؟']
   },
   ps:{
     draw:'ځمکه رسم کول', myfields:'زما ځمکې', gps:'موقعیت', clear:'پاکول', analyse:'تحلیل', reanalyse:'بیا تحلیل',
-    close:'بندول', assistant:'هوشمند مرستیال', report:'هوشمند راپور'
-, fieldAnalysis:'د ځمکې تحلیل',
+    close:'بندول', assistant:'هوشمند مرستیال', report:'هوشمند راپور', fieldAnalysis:'د ځمکې تحلیل',
     fpTitle:'زما ځمکې', fpEmpty:'خپله لومړۍ ځمکه په نقشه کې رسم کړئ.<br>دلته به ښکاره شي.',
     drawTip:'د رسمولو لپاره په نقشه کلیک وکړئ · د پای لپاره دوه ځله کلیک وکړئ',
     gmTitle:'ځمکه په اتومات ډول رسم کول', gmTip:'📱 ګوګل مپ خلاص کړئ ← په ځمکه فشار ورکړئ ← کوارډینېټونه کاپي کړئ',
@@ -3499,23 +3548,154 @@ const AT_UI={
     chatPlaceholder:'د خپلې ځمکې په اړه پوښتنه وکړئ...',
     welcome:'سلام! لومړی خپله ځمکه تحلیل کړئ، بیا د اوبو، محصول یا ګټې په اړه پوښتنه وکړئ.',
     analysing:'د ماهواره معلومات تحلیلیږي…', loadingS2:'Sentinel-2 بارېږي', calcNDVI:'NDVI · اوبه · باران محاسبه کیږي',
-    drawFirst:'ځمکه رسم کړئ او تحلیل کلیک کړئ', weatherTitle:'🌤️ د هوا وړاندوینه', tiles:'نقشه'
+    drawFirst:'ځمکه رسم کړئ او تحلیل کلیک کړئ', weatherTitle:'🌤️ د هوا وړاندوینه', tiles:'نقشه',
+    qr:['💧 اوبه ورکول؟','🌾 غوره محصول؟','💰 ګټه؟','🌱 سره؟','📈 بهتریدل؟']
+  },
+  ar:{
+    draw:'رسم الحقل', myfields:'حقولي', gps:'الموقع', clear:'مسح', analyse:'تحليل', reanalyse:'إعادة التحليل',
+    close:'إغلاق', assistant:'مساعد ZaminAI', report:'تقرير ZaminAI', fieldAnalysis:'تحليل الحقل',
+    fpTitle:'حقولي', fpEmpty:'ارسم حقلك الأول على الخريطة.<br>سيظهر هنا.',
+    drawTip:'انقر على الخريطة للرسم · انقر مرتين للإنهاء',
+    gmTitle:'رسم الحقل تلقائياً', gmTip:'📱 افتح خرائط جوجل ← اضغط مطولاً على حقلك ← انسخ الإحداثيات',
+    gmCoords:'إحداثيات GPS', gmSize:'حجم الحقل', gmBtn:'📍 ارسم على الخريطة ←',
+    chatPlaceholder:'اسأل عن حقلك...',
+    welcome:'مرحباً! حلل حقلك أولاً، ثم اسألني عن الماء أو المحاصيل أو الأرباح.',
+    analysing:'جارٍ تحليل بيانات الأقمار الاصطناعية…', loadingS2:'تحميل Sentinel-2', calcNDVI:'حساب NDVI · الماء · المطر',
+    drawFirst:'ارسم حقلاً وانقر تحليل', weatherTitle:'🌤️ توقعات الطقس', tiles:'الخريطة',
+    qr:['💧 الري؟','🌾 أفضل محصول؟','💰 تقدير الربح؟','🌱 الأسمدة؟','📈 التعافي؟']
+  },
+  ur:{
+    draw:'کھیت بنائیں', myfields:'میرے کھیت', gps:'مقام', clear:'صاف کریں', analyse:'تجزیہ', reanalyse:'دوبارہ تجزیہ',
+    close:'بند کریں', assistant:'ZaminAI معاون', report:'ZaminAI رپورٹ', fieldAnalysis:'کھیت کا تجزیہ',
+    fpTitle:'میرے کھیت', fpEmpty:'نقشے پر اپنا پہلا کھیت بنائیں۔<br>یہاں ظاہر ہوگا۔',
+    drawTip:'بنانے کے لیے نقشے پر کلک کریں · ختم کرنے کے لیے ڈبل کلک',
+    gmTitle:'خودکار کھیت بنائیں', gmTip:'📱 گوگل میپس کھولیں ← کھیت پر دبائیں ← کوآرڈینیٹس کاپی کریں',
+    gmCoords:'GPS کوآرڈینیٹس', gmSize:'کھیت کا سائز', gmBtn:'📍 نقشے پر بنائیں ←',
+    chatPlaceholder:'اپنے کھیت کے بارے میں پوچھیں...',
+    welcome:'السلام علیکم! پہلے اپنا کھیت تجزیہ کریں، پھر پانی، فصل یا منافع کے بارے میں پوچھیں۔',
+    analysing:'سیٹلائٹ ڈیٹا کا تجزیہ ہو رہا ہے…', loadingS2:'Sentinel-2 لوڈ ہو رہا ہے', calcNDVI:'NDVI · پانی · بارش کا حساب',
+    drawFirst:'کھیت بنائیں اور تجزیہ پر کلک کریں', weatherTitle:'🌤️ موسم کی پیشگوئی', tiles:'نقشہ',
+    qr:['💧 آبپاشی؟','🌾 بہترین فصل؟','💰 منافع؟','🌱 کھاد؟','📈 بہتری؟']
+  },
+  hi:{
+    draw:'खेत बनाएं', myfields:'मेरे खेत', gps:'स्थान', clear:'साफ़ करें', analyse:'विश्लेषण', reanalyse:'फिर विश्लेषण',
+    close:'बंद करें', assistant:'ZaminAI सहायक', report:'ZaminAI रिपोर्ट', fieldAnalysis:'खेत विश्लेषण',
+    fpTitle:'मेरे खेत', fpEmpty:'नक्शे पर अपना पहला खेत बनाएं।<br>यहाँ दिखाई देगा।',
+    drawTip:'बनाने के लिए नक्शे पर क्लिक करें · समाप्त करने के लिए डबल क्लिक',
+    gmTitle:'खेत स्वचालित बनाएं', gmTip:'📱 Google Maps खोलें → खेत पर देर तक दबाएं → निर्देशांक कॉपी करें',
+    gmCoords:'GPS निर्देशांक', gmSize:'खेत का आकार', gmBtn:'📍 नक्शे पर बनाएं →',
+    chatPlaceholder:'अपने खेत के बारे में पूछें...',
+    welcome:'नमस्ते! पहले अपना खेत विश्लेषण करें, फिर पानी, फसल या मुनाफे के बारे में पूछें।',
+    analysing:'उपग्रह डेटा का विश्लेषण हो रहा है…', loadingS2:'Sentinel-2 लोड हो रहा है', calcNDVI:'NDVI · पानी · वर्षा गणना',
+    drawFirst:'खेत बनाएं और विश्लेषण क्लिक करें', weatherTitle:'🌤️ मौसम पूर्वानुमान', tiles:'नक्शा',
+    qr:['💧 सिंचाई?','🌾 सबसे अच्छी फसल?','💰 मुनाफा?','🌱 खाद?','📈 सुधार?']
+  },
+  bn:{
+    draw:'মাঠ আঁকুন', myfields:'আমার মাঠ', gps:'অবস্থান', clear:'মুছুন', analyse:'বিশ্লেষণ', reanalyse:'পুনরায় বিশ্লেষণ',
+    close:'বন্ধ করুন', assistant:'ZaminAI সহকারী', report:'ZaminAI রিপোর্ট', fieldAnalysis:'মাঠ বিশ্লেষণ',
+    fpTitle:'আমার মাঠ', fpEmpty:'মানচিত্রে আপনার প্রথম মাঠ আঁকুন।<br>এখানে দেখা যাবে।',
+    drawTip:'আঁকতে মানচিত্রে ক্লিক করুন · শেষ করতে ডাবল ক্লিক',
+    gmTitle:'মাঠ স্বয়ংক্রিয়ভাবে আঁকুন', gmTip:'📱 Google Maps খুলুন → মাঠে দীর্ঘ চাপ → স্থানাঙ্ক কপি করুন',
+    gmCoords:'GPS স্থানাঙ্ক', gmSize:'মাঠের আকার', gmBtn:'📍 মানচিত্রে আঁকুন →',
+    chatPlaceholder:'আপনার মাঠ সম্পর্কে জিজ্ঞাসা করুন...',
+    welcome:'নমস্কার! প্রথমে আপনার মাঠ বিশ্লেষণ করুন, তারপর জল, ফসল বা লাভ সম্পর্কে জিজ্ঞাসা করুন।',
+    analysing:'স্যাটেলাইট ডেটা বিশ্লেষণ হচ্ছে…', loadingS2:'Sentinel-2 লোড হচ্ছে', calcNDVI:'NDVI · জল · বৃষ্টি গণনা',
+    drawFirst:'মাঠ আঁকুন এবং বিশ্লেষণ ক্লিক করুন', weatherTitle:'🌤️ আবহাওয়া পূর্বাভাস', tiles:'মানচিত্র',
+    qr:['💧 সেচ?','🌾 সেরা ফসল?','💰 মুনাফা?','🌱 সার?','📈 উন্নতি?']
+  },
+  sw:{
+    draw:'Chora shamba', myfields:'Mashamba yangu', gps:'Mahali', clear:'Futa', analyse:'Changanua', reanalyse:'Changanua tena',
+    close:'Funga', assistant:'Msaidizi wa ZaminAI', report:'Ripoti ya ZaminAI', fieldAnalysis:'Uchambuzi wa shamba',
+    fpTitle:'Mashamba yangu', fpEmpty:'Chora shamba lako la kwanza kwenye ramani.<br>Litaonekana hapa.',
+    drawTip:'Bonyeza ramani kuchora · Bonyeza mara mbili kumaliza',
+    gmTitle:'Chora shamba kiotomatiki', gmTip:'📱 Fungua Google Maps → bonyeza shamba kwa muda → nakili kuratibu',
+    gmCoords:'Kuratibu za GPS', gmSize:'Ukubwa wa shamba', gmBtn:'📍 Chora kwenye ramani →',
+    chatPlaceholder:'Uliza kuhusu shamba lako...',
+    welcome:'Habari! Kwanza changanua shamba lako, kisha niulize kuhusu maji, mazao, au faida.',
+    analysing:'Kuchakata data ya setilaiti…', loadingS2:'Inapakia Sentinel-2', calcNDVI:'Kuhesabu NDVI · Maji · Mvua',
+    drawFirst:'Chora shamba na ubonyeze Changanua', weatherTitle:'🌤️ Utabiri wa hali ya hewa', tiles:'Ramani',
+    qr:['💧 Umwagiliaji?','🌾 Zao bora?','💰 Faida?','🌱 Mbolea?','📈 Uboreshaji?']
+  },
+  es:{
+    draw:'Dibujar campo', myfields:'Mis campos', gps:'Ubicación', clear:'Limpiar', analyse:'Analizar', reanalyse:'Re-analizar',
+    close:'Cerrar', assistant:'Asistente ZaminAI', report:'Informe ZaminAI', fieldAnalysis:'Análisis de campo',
+    fpTitle:'Mis campos', fpEmpty:'Dibuja tu primer campo en el mapa.<br>Aparecerá aquí.',
+    drawTip:'Haz clic en el mapa para dibujar · Doble clic para terminar',
+    gmTitle:'Dibujar campo automáticamente', gmTip:'📱 Abre Google Maps → mantén presionado → copia coordenadas',
+    gmCoords:'Coordenadas GPS', gmSize:'Tamaño del campo', gmBtn:'📍 Dibujar en el mapa →',
+    chatPlaceholder:'Pregunta sobre tu campo...',
+    welcome:'¡Hola! Primero analiza tu campo, luego pregúntame sobre agua, cultivos o ganancias.',
+    analysing:'Analizando datos satelitales…', loadingS2:'Cargando Sentinel-2', calcNDVI:'Calculando NDVI · Agua · Lluvia',
+    drawFirst:'Dibuja un campo y haz clic en Analizar', weatherTitle:'🌤️ Pronóstico del tiempo', tiles:'Mapa',
+    qr:['💧 ¿Riego?','🌾 ¿Mejor cultivo?','💰 ¿Ganancia?','🌱 ¿Fertilizante?','📈 ¿Recuperación?']
+  },
+  fr:{
+    draw:'Dessiner le champ', myfields:'Mes champs', gps:'Localisation', clear:'Effacer', analyse:'Analyser', reanalyse:'Ré-analyser',
+    close:'Fermer', assistant:'Assistant ZaminAI', report:'Rapport ZaminAI', fieldAnalysis:'Analyse du champ',
+    fpTitle:'Mes champs', fpEmpty:'Dessinez votre premier champ sur la carte.<br>Il apparaîtra ici.',
+    drawTip:'Cliquez sur la carte pour dessiner · Double-clic pour terminer',
+    gmTitle:'Dessiner automatiquement', gmTip:'📱 Ouvrez Google Maps → appuyez longuement → copiez les coordonnées',
+    gmCoords:'Coordonnées GPS', gmSize:'Taille du champ', gmBtn:'📍 Dessiner sur la carte →',
+    chatPlaceholder:'Posez une question sur votre champ...',
+    welcome:"Bonjour ! Analysez votre champ, puis posez vos questions sur l'eau, les cultures ou les bénéfices.",
+    analysing:'Analyse des données satellitaires…', loadingS2:'Chargement de Sentinel-2', calcNDVI:'Calcul NDVI · Eau · Pluie',
+    drawFirst:'Dessinez un champ et cliquez sur Analyser', weatherTitle:'🌤️ Prévisions météo', tiles:'Carte',
+    qr:['💧 Irrigation?','🌾 Meilleure culture?','💰 Bénéfice?','🌱 Engrais?','📈 Amélioration?']
+  },
+  nl:{
+    draw:'Veld tekenen', myfields:'Mijn velden', gps:'Locatie', clear:'Wissen', analyse:'Analyseren', reanalyse:'Opnieuw analyseren',
+    close:'Sluiten', assistant:'ZaminAI Assistent', report:'ZaminAI Rapport', fieldAnalysis:'Veldanalyse',
+    fpTitle:'Mijn velden', fpEmpty:'Teken uw eerste veld op de kaart.<br>Het verschijnt hier.',
+    drawTip:'Klik op de kaart om te tekenen · Dubbelklik om te voltooien',
+    gmTitle:'Veld automatisch tekenen', gmTip:'📱 Open Google Maps → druk lang op uw veld → coördinaten kopiëren',
+    gmCoords:'GPS-coördinaten', gmSize:'Veldgrootte', gmBtn:'📍 Tekenen op kaart →',
+    chatPlaceholder:'Stel een vraag over uw veld...',
+    welcome:'Goeiedag! Analyseer eerst uw veld, dan kunt u vragen stellen over water, gewassen of winst.',
+    analysing:'Satellietgegevens analyseren…', loadingS2:'Sentinel-2 laden', calcNDVI:'NDVI · Water · Regen berekenen',
+    drawFirst:'Teken een veld en klik op Analyseren', weatherTitle:'🌤️ Weersvoorspelling', tiles:'Kaart',
+    qr:['💧 Irrigatie?','🌾 Beste gewas?','💰 Winst?','🌱 Meststof?','📈 Herstel?']
+  },
+  am:{
+    draw:'ማሳ ይሳሉ', myfields:'የእኔ ማሳዎች', gps:'አካባቢ', clear:'አጽዱ', analyse:'ይተንትኑ', reanalyse:'እንደገና ይተንትኑ',
+    close:'ዝጋ', assistant:'ZaminAI ረዳት', report:'ZaminAI ሪፖርት', fieldAnalysis:'የማሳ ትንተና',
+    fpTitle:'የእኔ ማሳዎች', fpEmpty:'በካርታ ላይ የመጀመሪያ ማሳዎን ይሳሉ።<br>እዚህ ይታያል።',
+    drawTip:'ለመሳል ካርታ ላይ ጠቅ ያድርጉ · ለማጠናቀቅ ሁለቴ ጠቅ ያድርጉ',
+    gmTitle:'ማሳ በራስ-ሰር ይሳሉ', gmTip:'📱 Google Maps ይክፈቱ → ማሳዎን ይጫኑ → ወደ ኮርዲኔቶች ይቅዱ',
+    gmCoords:'GPS መጋጠሚያዎች', gmSize:'የማሳ መጠን', gmBtn:'📍 በካርታ ላይ ይሳሉ →',
+    chatPlaceholder:'ስለ ማሳዎ ይጠይቁ...',
+    welcome:'ሰላም! መጀመሪያ ማሳዎን ይተንትኑ፣ ከዚያ ስለ ውሃ፣ ሰብሎች ወይም ትርፍ ይጠይቁ።',
+    analysing:'የሳተላይት ዳታ እየተተነተነ ነው…', loadingS2:'Sentinel-2 እየተጫነ ነው', calcNDVI:'NDVI · ውሃ · ዝናብ ማስሊያ',
+    drawFirst:'ማሳ ይሳሉ እና ይተንትኑ ጠቅ ያድርጉ', weatherTitle:'🌤️ የአየር ሁኔታ ትንበያ', tiles:'ካርታ',
+    qr:['💧 መስኖ?','🌾 ምርጥ ሰብል?','💰 ትርፍ?','🌱 ማዳበሪያ?','📈 ማሻሻያ?']
+  },
+  pt:{
+    draw:'Desenhar campo', myfields:'Meus campos', gps:'Localização', clear:'Limpar', analyse:'Analisar', reanalyse:'Re-analisar',
+    close:'Fechar', assistant:'Assistente ZaminAI', report:'Relatório ZaminAI', fieldAnalysis:'Análise do campo',
+    fpTitle:'Meus campos', fpEmpty:'Desenhe seu primeiro campo no mapa.<br>Aparecerá aqui.',
+    drawTip:'Clique no mapa para desenhar · Clique duplo para terminar',
+    gmTitle:'Desenhar campo automaticamente', gmTip:'📱 Abra o Google Maps → pressione seu campo → copie as coordenadas',
+    gmCoords:'Coordenadas GPS', gmSize:'Tamanho do campo', gmBtn:'📍 Desenhar no mapa →',
+    chatPlaceholder:'Pergunte sobre seu campo...',
+    welcome:'Olá! Analise seu campo primeiro, depois pergunte sobre água, culturas ou lucro.',
+    analysing:'Analisando dados de satélite…', loadingS2:'Carregando Sentinel-2', calcNDVI:'Calculando NDVI · Água · Chuva',
+    drawFirst:'Desenhe um campo e clique em Analisar', weatherTitle:'🌤️ Previsão do tempo', tiles:'Mapa',
+    qr:['💧 Irrigação?','🌾 Melhor cultura?','💰 Lucro?','🌱 Fertilizante?','📈 Recuperação?']
   }
 };
 function aui(k){var t=AT_UI[appLang]||AT_UI.en;return (t[k]!=null?t[k]:AT_UI.en[k]);}
 
 // Apply all static app-UI text + direction for the current appLang
 function applyAppLang(){
-  var rtl=(appLang==='fa'||appLang==='ps');
-  var ov=document.getElementById('appOverlay'); if(ov)ov.dir=rtl?'rtl':'ltr';
+  var rtl=_RTL_LANGS.has(appLang);
+  var ov=document.getElementById('appOverlay');
+  if(ov){ov.dir=rtl?'rtl':'ltr'; ov.style.fontFamily=appLang==='am'?'sans-serif':'';}
   var rb=document.getElementById('rp-body'); if(rb)rb.dir=rtl?'rtl':'ltr';
   // toolbar
   var set=function(id,val){var e=document.getElementById(id);if(e)e.textContent=val;};
   set('tbd',aui('draw')); set('tbf',aui('myfields')); set('tbg',aui('gps'));
   set('tbc',aui('clear'));
   var tba=document.getElementById('tba'); if(tba)tba.textContent=(fieldData?aui('reanalyse'):aui('analyse'));
-  // close button keeps icon
-  var closeBtn=document.querySelector('.ao-close'); if(closeBtn)closeBtn.innerHTML='✕ '+aui('close');
+  var closeBtn=document.querySelector('.ao-close'); if(closeBtn)closeBtn.innerHTML=(rtl?aui('close')+' ✕':'✕ '+aui('close'));
   // panels & modal
   set('fp-title-txt',aui('fpTitle'));
   set('ai-title-txt',aui('assistant'));
@@ -3525,21 +3705,23 @@ function applyAppLang(){
   var gmtip=document.getElementById('gmtip'); if(gmtip)gmtip.textContent=aui('gmTip');
   set('gmc',aui('gmCoords')); set('gms',aui('gmSize'));
   var gmb=document.getElementById('gmb'); if(gmb)gmb.textContent=aui('gmBtn');
-  var ci=document.getElementById('chat-inp'); if(ci)ci.placeholder=aui('chatPlaceholder');
+  var ci=document.getElementById('chat-inp'); if(ci){ci.placeholder=aui('chatPlaceholder');ci.dir=rtl?'rtl':'ltr';}
+  var fwi=document.getElementById('fw-inp'); if(fwi)fwi.dir=rtl?'rtl':'ltr';
   var dt=document.getElementById('drawTip'); if(dt&&!dt.classList.contains('show'))dt.textContent=aui('drawTip');
-  // app language buttons highlight
-  var btns=document.querySelectorAll('.ao-lang button');
-  btns.forEach(function(b){b.classList.remove('on');});
-  if(btns[0]&&appLang==='en')btns[0].classList.add('on');
-  if(btns[1]&&appLang==='fa')btns[1].classList.add('on');
-  if(btns[2]&&appLang==='ps')btns[2].classList.add('on');
+  // Sync YOLO and farmer-widget language
+  if(typeof _ydLang!=='undefined')_ydLang=appLang;
+  if(typeof _fwLang!=='undefined')_fwLang=appLang;
+  // app language dropdown highlight
+  var sel=document.getElementById('ao-lang-sel'); if(sel)sel.value=appLang;
+  // sync landing page switcher
+  pgCurrentLang=appLang;
 }
 
 function appLangSet(l,el){
   appLang=l;
   applyAppLang();
-  // quick replies
-  var QR={en:['💧 Irrigation?','🌾 Best crop?','💰 Profit?','🌱 Fertilizer?','📈 Recovery?'],fa:['💧 آبیاری؟','🌾 بهترین محصول؟','💰 فایده؟','🌱 کود؟','📈 بهبود؟'],ps:['💧 اوبه ورکول؟','🌾 غوره محصول؟','💰 ګټه؟','🌱 سره؟','📈 بهتریدل؟']}[l]||[];
+  // quick replies from AT_UI
+  var QR=(AT_UI[l]||AT_UI.en).qr||[];
   var QS=['How urgent is irrigation?','Best crop for my field?','Profit estimate?','What fertilizer do I need?','Is my NDVI recovering?'];
   var qrEl=document.getElementById('quick-r');
   if(qrEl)qrEl.innerHTML=QR.map(function(lbl,i){return '<button class="qr" onclick="sendQ(\''+QS[i]+'\')">'+lbl+'</button>';}).join('');
@@ -3557,10 +3739,13 @@ function notify(m,d=3000){const n=document.getElementById('notif');n.textContent
 <!-- ── Floating AI Chat Widget ─────────────────────────────────────────── -->
 <style>
 #ai-fab{position:fixed;bottom:1.5rem;right:1.5rem;z-index:1000;
-  width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#16a34a,#22c55e);
-  border:none;color:#fff;font-size:1.5rem;cursor:pointer;
-  box-shadow:0 4px 16px rgba(22,163,74,.5);transition:transform .2s}
-#ai-fab:hover{transform:scale(1.1)}
+  width:60px;height:60px;border-radius:50%;
+  background:linear-gradient(135deg,#065f46,#16a34a,#4ade80);
+  border:none;color:#fff;font-size:1.6rem;cursor:pointer;
+  box-shadow:0 6px 24px rgba(22,163,74,.55),0 2px 8px rgba(0,0,0,.3);
+  transition:transform .25s,box-shadow .25s;
+  display:flex;align-items:center;justify-content:center;}
+#ai-fab:hover{transform:scale(1.12) translateY(-2px);box-shadow:0 10px 32px rgba(22,163,74,.7),0 4px 12px rgba(0,0,0,.3);}
 #ai-chat-widget{
   position:fixed;bottom:0;left:50%;transform:translateX(-50%) translateY(100%);
   z-index:995;width:min(600px,100vw);max-height:80vh;
@@ -3613,7 +3798,7 @@ function notify(m,d=3000){const n=document.getElementById('notif');n.textContent
 }
 </style>
 
-<button id="ai-fab" onclick="toggleWidget()" title="Ask AI Agent">🤖</button>
+<button id="ai-fab" onclick="toggleWidget()" title="Ask ZaminAI">🌾</button>
 
 <!-- ── Full-screen chat panel (slides up from bottom) ── -->
 <div id="fw-overlay" onclick="toggleWidget()"
@@ -3640,10 +3825,20 @@ function notify(m,d=3000){const n=document.getElementById('notif');n.textContent
       <button class="fw-chip" onclick="fwQuick('Rainfall forecast for next 2 weeks?')">🌧️ Rain forecast</button>
     </div>
   </div>
-  <div style="padding:.2rem .6rem;display:flex;gap:.3rem;border-top:1px solid #163352;background:#040d1a">
+  <div style="padding:.2rem .6rem;display:flex;gap:.3rem;flex-wrap:wrap;border-top:1px solid #163352;background:#040d1a;overflow-x:auto">
     <button class="fw-lb active" data-lang="en" onclick="fwSetLang('en',this)">EN</button>
     <button class="fw-lb" data-lang="fa" onclick="fwSetLang('fa',this)">دری</button>
     <button class="fw-lb" data-lang="ps" onclick="fwSetLang('ps',this)">پښتو</button>
+    <button class="fw-lb" data-lang="ar" onclick="fwSetLang('ar',this)">عربي</button>
+    <button class="fw-lb" data-lang="ur" onclick="fwSetLang('ur',this)">اردو</button>
+    <button class="fw-lb" data-lang="hi" onclick="fwSetLang('hi',this)">हिन्दी</button>
+    <button class="fw-lb" data-lang="bn" onclick="fwSetLang('bn',this)">বাংলা</button>
+    <button class="fw-lb" data-lang="sw" onclick="fwSetLang('sw',this)">SW</button>
+    <button class="fw-lb" data-lang="es" onclick="fwSetLang('es',this)">ES</button>
+    <button class="fw-lb" data-lang="fr" onclick="fwSetLang('fr',this)">FR</button>
+    <button class="fw-lb" data-lang="nl" onclick="fwSetLang('nl',this)">NL</button>
+    <button class="fw-lb" data-lang="am" onclick="fwSetLang('am',this)">አማ</button>
+    <button class="fw-lb" data-lang="pt" onclick="fwSetLang('pt',this)">PT</button>
   </div>
   <div class="fw-input-row">
     <button id="fw-mic-btn" onclick="fwToggleMic()"
@@ -3667,7 +3862,7 @@ let _fwSession = 'farmer_' + Date.now();
 let _fwLang    = 'en';
 
 // Speech language codes per app language
-const SPEECH_LANG = { en:'en-US', fa:'fa-IR', ps:'ps-AF' };
+const SPEECH_LANG = { en:'en-US', fa:'fa-IR', ps:'ps-AF', ar:'ar-SA', ur:'ur-PK', hi:'hi-IN', bn:'bn-BD', sw:'sw-KE', es:'es-ES', fr:'fr-FR', nl:'nl-NL', am:'am-ET', pt:'pt-BR' };
 
 function fwSetLang(l, btn){
   _fwLang = l;
