@@ -571,6 +571,7 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
       <span class="lsw on" onclick="pgLang('en',this)">EN</span>
       <span class="lsw" onclick="pgLang('fa',this)">دری</span>
       <span class="lsw" onclick="pgLang('ps',this)">پښتو</span>
+      <span class="lsw" onclick="pgLang('nl',this)">NL</span>
     </div>
   </div>
   <a href="/officer.html" class="nav-officer" id="nl-officer">Officer Dashboard</a>
@@ -583,7 +584,7 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
   <div class="hc">
     <div class="htag"><span class="pd"></span><span id="hero_tag">LIVE · REAL SATELLITE DATA · WORLDWIDE</span></div>
     <h1 class="htitle"><span class="t1" id="ht1">ZAMIN</span><span class="t2" id="ht2">AI</span><span class="t3" id="ht3">Smart Farming Intelligence · For Every Farmer on Earth</span></h1>
-    <p class="hdesc" id="hero_desc">Real satellite data for every field. AI recommendations in Dari, Pashto, English. Built for 500 million smallholder farmers who make decisions without any digital support.</p>
+    <p class="hdesc" id="hero_desc">Real satellite data for every field. AI in 12 languages. Built for 608 million smallholder farmers — 90% without any digital agricultural support. <span style="font-size:11px;opacity:.6">Source: FAO 2022, World Bank 2023</span></p>
     <div class="hbtns">
       <button class="btn-p" onclick="openApp()"><span id="hb1">Open ZaminAI — Free →</span></button>
       <a href="#calculator" class="btn-s" id="hb2">Calculate farm profit</a>
@@ -627,18 +628,50 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
       <div class="eye" id="g-eye">Live now · Expanding globally</div>
       <h2 class="sh" id="g-h">One platform.<br>Every country.</h2>
       <p class="ss" id="g-sub" style="margin-bottom:2rem">Same satellite. Same AI. Different language, different crop, different country.</p>
+      <div class="country-cards" style="display:flex;flex-direction:column;gap:10px;margin-bottom:1.5rem">
+        <div style="background:rgba(22,163,74,.07);border:1px solid rgba(22,163,74,.25);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:14px">
+          <span style="font-size:28px">🇦🇫</span>
+          <div style="flex:1"><div style="font-weight:700;font-size:13px;color:#f1f5f9">Afghanistan</div><div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px">Wheat · Saffron · Flax · Dari · Pashto</div></div>
+          <span style="font-family:var(--M);font-size:10px;color:#4ade80;white-space:nowrap">● Live</span>
+        </div>
+        <div style="background:rgba(217,119,6,.05);border:1px solid rgba(217,119,6,.2);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:14px">
+          <span style="font-size:28px">🇮🇷</span>
+          <div style="flex:1"><div style="font-weight:700;font-size:13px;color:#f1f5f9">Iran</div><div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px">Wheat · Saffron · Pistachios · Farsi</div></div>
+          <span style="font-family:var(--M);font-size:10px;color:#f59e0b;white-space:nowrap">◐ In development</span>
+        </div>
+        <div style="background:rgba(217,119,6,.05);border:1px solid rgba(217,119,6,.2);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:14px">
+          <span style="font-size:28px">🇵🇰</span>
+          <div style="flex:1"><div style="font-weight:700;font-size:13px;color:#f1f5f9">Pakistan</div><div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px">Wheat · Rice · Cotton · Urdu · Pashto</div></div>
+          <span style="font-family:var(--M);font-size:10px;color:#f59e0b;white-space:nowrap">◐ In development</span>
+        </div>
+        <div style="background:rgba(107,114,128,.05);border:1px solid rgba(107,114,128,.15);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:14px">
+          <span style="font-size:28px">🇪🇹</span>
+          <div style="flex:1"><div style="font-weight:700;font-size:13px;color:#f1f5f9">Ethiopia</div><div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px">Coffee · Teff · Maize · Amharic</div></div>
+          <span style="font-family:var(--M);font-size:10px;color:rgba(255,255,255,.3);white-space:nowrap">○ Planned</span>
+        </div>
+        <div style="background:rgba(107,114,128,.05);border:1px solid rgba(107,114,128,.15);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:14px">
+          <span style="font-size:28px">🇹🇯</span>
+          <div style="flex:1"><div style="font-weight:700;font-size:13px;color:#f1f5f9">Tajikistan</div><div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px">Cotton · Wheat · Dari speakers</div></div>
+          <span style="font-family:var(--M);font-size:10px;color:rgba(255,255,255,.3);white-space:nowrap">○ Planned</span>
+        </div>
+        <div style="background:rgba(107,114,128,.05);border:1px solid rgba(107,114,128,.15);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:14px">
+          <span style="font-size:28px">🌍</span>
+          <div style="flex:1"><div style="font-weight:700;font-size:13px;color:#f1f5f9">+ Many more</div><div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px">Any country with smallholder farmers — open to partnerships</div></div>
+          <span style="font-family:var(--M);font-size:10px;color:rgba(255,255,255,.3);white-space:nowrap">○ Open</span>
+        </div>
+      </div>
       <div class="region-list" id="region-list"></div>
     </div>
     <div>
       <div class="eye" id="g2-eye">The global opportunity</div>
-      <h2 class="sh" id="g2-h">500 million farmers.<br>Zero digital support.</h2>
-      <p class="ss" id="g2-d1" style="margin-bottom:1rem">Today, 500 million smallholder farmers make planting and irrigation decisions with no satellite data, no AI, no digital tools.</p>
-      <p class="ss" id="g2-d2">ZaminAI gives any farmer anywhere on earth the same quality of agricultural intelligence that large commercial farms pay thousands for. Free. In their language. On their phone.</p>
+      <h2 class="sh" id="g2-h">608 million farms.<br>One satellite for all.</h2>
+      <p class="ss" id="g2-d1" style="margin-bottom:1rem">According to the FAO (2022), there are 608 million farms worldwide — 90% are smallholders under 2 hectares, producing 35% of global food. Only 10% have access to any digital agricultural service. (World Bank, 2023)</p>
+      <p class="ss" id="g2-d2">ZaminAI gives every farmer the same satellite intelligence that precision-agriculture companies charge thousands for — free, in their language, on any phone with a browser.</p>
       <div class="gstats">
-        <div class="gs"><div class="gs-v">500M</div><div class="gs-l" id="gs1">Smallholder farmers worldwide</div></div>
-        <div class="gs"><div class="gs-v">2B</div><div class="gs-l" id="gs2">People dependent on smallholder farming</div></div>
-        <div class="gs"><div class="gs-v">5%</div><div class="gs-l" id="gs3">Have any digital agricultural service</div></div>
-        <div class="gs"><div class="gs-v">€0</div><div class="gs-l" id="gs4">Cost for farmers — free forever</div></div>
+        <div class="gs"><div class="gs-v">608M</div><div class="gs-l" id="gs1">Farms worldwide · FAO 2022</div></div>
+        <div class="gs"><div class="gs-v">3.5B</div><div class="gs-l" id="gs2">People fed by smallholder farmers · FAO</div></div>
+        <div class="gs"><div class="gs-v">10%</div><div class="gs-l" id="gs3">Have digital agri services · World Bank 2023</div></div>
+        <div class="gs"><div class="gs-v">€0</div><div class="gs-l" id="gs4">Cost to any farmer — free forever</div></div>
       </div>
     </div>
   </div>
@@ -685,7 +718,7 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
   <div class="feat-grid">
     <div class="fc"><span class="fi">🛰️</span><div class="fn">01 · Satellite</div><div class="ft" id="ff1">Field Analysis</div><p class="fd" id="fd1">Draw your field on satellite map. Real NDVI, water index, rainfall for your exact coordinates — updated every 5 days.</p><span class="ftag live">● Live</span></div>
     <div class="fc"><span class="fi">📊</span><div class="fn">02 · Economics</div><div class="ft" id="ff2">Yield + Profit</div><p class="fd" id="fd2">Predicts yield from NDVI and water data. Calculates all input costs and net profit before you plant.</p><span class="ftag live">● Live</span></div>
-    <div class="fc"><span class="fi">🤖</span><div class="fn">03 · AI</div><div class="ft" id="ff3">Any Language</div><p class="fd" id="fd3">Ask in Dari, Pashto, or English. Voice in, voice out. Real satellite data powers every answer.</p><span class="ftag live">● Live</span></div>
+    <div class="fc"><span class="fi">🤖</span><div class="fn">03 · AI</div><div class="ft" id="ff3">13 Languages</div><p class="fd" id="fd3">Ask in Dari, Pashto, English, Urdu, Hindi, Bengali, Arabic, Farsi, Amharic, Swahili, Spanish, French, or Dutch. Voice in, voice out. Real satellite data powers every answer.</p><span class="ftag live">● Live</span></div>
     <div class="fc"><span class="fi">📸</span><div class="fn">04 · Vision</div><div class="ft" id="ff4">YOLO Diagnosis</div><p class="fd" id="fd4">Upload plant photo. AI detects disease and pests with 90%+ accuracy from your phone camera.</p><span class="ftag live">● Live</span></div>
     <div class="fc"><span class="fi">💧</span><div class="fn">05 · Water</div><div class="ft" id="ff5">Irrigation Guide</div><p class="fd" id="fd5">All 5 systems compared — drip, furrow, flood, sprinkler, karez. Satellite-based recommendation for your exact water availability.</p><span class="ftag live">● Live</span></div>
     <div class="fc"><span class="fi">🌱</span><div class="fn">06 · Knowledge</div><div class="ft" id="ff6">Seeds + Market</div><p class="fd" id="fd6">Best seed varieties for your soil. Current market prices. Where to sell. Government and NGO programs.</p><span class="ftag live">● Live</span></div>
@@ -709,6 +742,17 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
   <p class="ss" id="ca-sub" style="max-width:580px;margin-bottom:.5rem">Enter your farm details. ZaminAI calculates expected yield, all costs, and net profit.</p>
   <div class="calc-wrap">
     <div class="calc-form">
+      <div class="ci"><label>Country</label>
+        <select id="calcCountry" onchange="calcUpdateCountry()">
+          <option value="AF">🇦🇫 Afghanistan (AFN · jereb)</option>
+          <option value="PK">🇵🇰 Pakistan (PKR · kanal)</option>
+          <option value="IR">🇮🇷 Iran (IRR · hectare)</option>
+          <option value="ET">🇪🇹 Ethiopia (ETB · timad)</option>
+          <option value="KE">🇰🇪 Kenya (KES · acre)</option>
+          <option value="IN">🇮🇳 India (INR · bigha)</option>
+          <option value="BD">🇧🇩 Bangladesh (BDT · bigha)</option>
+          <option value="NL">🇳🇱 Netherlands (EUR · hectare)</option>
+        </select></div>
       <div class="ci"><label id="lc">Crop</label>
         <select id="crop" onchange="calcFarm()">
           <option value="wheat">Wheat / گندم</option><option value="flax">Flax / کتان</option>
@@ -716,7 +760,7 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
           <option value="vegetables">Vegetables / سبزیجات</option><option value="cotton">Cotton / پنبه</option>
           <option value="almonds">Almonds / بادام</option><option value="maize">Maize / ذرت</option>
         </select></div>
-      <div class="ci"><label id="ll">Land size (jereb)</label>
+      <div class="ci"><label id="ll">Land size (<span id="unitLabel">jereb</span>)</label>
         <input type="range" id="land" min="1" max="30" value="5" oninput="updLand()">
         <div class="rv"><span id="lv">5</span> jereb <span style="font-size:16px;color:var(--m2)" id="lh">(1.0 ha)</span></div></div>
       <div class="ci"><label id="lw">Water availability</label>
@@ -752,9 +796,9 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
         <div class="res-lbl" id="res-lbl">Satellite-based calculation results</div>
         <div class="res-grid">
           <div class="ri"><div class="rv2" id="r1">—</div><div class="rl" id="rl1">Expected yield kg</div></div>
-          <div class="ri"><div class="rv2" id="r2">—</div><div class="rl" id="rl2">Gross income AFN</div></div>
-          <div class="ri"><div class="rv2" id="r3">—</div><div class="rl" id="rl3">Total costs AFN</div></div>
-          <div class="ri"><div class="rv2" id="r4">—</div><div class="rl" id="rl4">Net profit AFN</div></div>
+          <div class="ri"><div class="rv2" id="r2">—</div><div class="rl" id="rl2">Gross income <span id="currLabel">AFN</span></div></div>
+          <div class="ri"><div class="rv2" id="r3">—</div><div class="rl" id="rl3">Total costs <span id="currLabel2">AFN</span></div></div>
+          <div class="ri"><div class="rv2" id="r4">—</div><div class="rl" id="rl4">Net profit <span id="currLabel3">AFN</span></div></div>
         </div>
         <div class="rec-box" id="rec">Select crop and land size above to calculate.</div>
       </div>
@@ -766,15 +810,64 @@ footer{padding:2.5rem 5rem;border-top:1px solid var(--gbr);display:flex;justify-
   </div>
 </section>
 
+<section class="global" id="farmtech" style="background:var(--c2)">
+  <div class="eye">Smart Farm Technology</div>
+  <h2 class="sh">Right technology<br>for every farm</h2>
+  <p class="ss" style="max-width:580px;margin-bottom:2.5rem">Not every farm needs a tractor. ZaminAI recommends the right technology for each country's context — from SMS alerts to drone scouting to precision sensors.</p>
+  <div class="global-grid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="gc" style="border-left:3px solid var(--g)">
+      <div style="font-size:2rem;margin-bottom:.75rem">📱</div>
+      <div class="gcn">Mobile-First Intelligence</div>
+      <div class="gcd" style="margin-top:.5rem;font-size:13px;line-height:1.6;color:rgba(255,255,255,.65)">
+        For Afghanistan, Ethiopia, Bangladesh — any phone with a browser. No app download. Satellite data, AI answers, voice in/out. Works on 2G connections.
+        <div style="margin-top:.65rem;font-family:var(--M);font-size:10px;color:var(--g)">🇦🇫 🇪🇹 🇧🇩 🇵🇰 🇾🇪 → Primary tech</div>
+      </div>
+    </div>
+    <div class="gc" style="border-left:3px solid var(--b)">
+      <div style="font-size:2rem;margin-bottom:.75rem">🚁</div>
+      <div class="gcn">Drone Scouting</div>
+      <div class="gcd" style="margin-top:.5rem;font-size:13px;line-height:1.6;color:rgba(255,255,255,.65)">
+        For larger farms in Pakistan, Iran, India — affordable consumer drones generate crop health maps in minutes. ZaminAI auto-plans lawnmower spray missions from satellite NDVI data.
+        <div style="margin-top:.65rem;font-family:var(--M);font-size:10px;color:var(--b)">🇵🇰 🇮🇷 🇮🇳 🇰🇪 → Drone-ready</div>
+      </div>
+    </div>
+    <div class="gc" style="border-left:3px solid var(--a)">
+      <div style="font-size:2rem;margin-bottom:.75rem">💧</div>
+      <div class="gcn">Smart Irrigation Sensors</div>
+      <div class="gcd" style="margin-top:.5rem;font-size:13px;line-height:1.6;color:rgba(255,255,255,.65)">
+        Soil moisture sensors + Telegram alerts. ZaminAI sends push notifications when satellite detects water stress — before the crop shows visible symptoms. Low-cost IoT for water-scarce regions.
+        <div style="margin-top:.65rem;font-family:var(--M);font-size:10px;color:var(--a)">🇦🇫 🇮🇷 🇪🇹 → Water-critical</div>
+      </div>
+    </div>
+    <div class="gc" style="border-left:3px solid var(--p)">
+      <div style="font-size:2rem;margin-bottom:.75rem">🛰️</div>
+      <div class="gcn">Precision Agriculture</div>
+      <div class="gcd" style="margin-top:.5rem;font-size:13px;line-height:1.6;color:rgba(255,255,255,.65)">
+        For Netherlands, advanced India/Kenya farms — variable-rate fertilizer, yield mapping, tractor GPS auto-steer. ZaminAI integrates with farm management software via API for enterprise-scale analytics.
+        <div style="margin-top:.65rem;font-family:var(--M);font-size:10px;color:var(--p)">🇳🇱 🇮🇳 🇰🇪 → Enterprise-ready</div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="lang" id="languages">
   <div class="eye" id="la-eye">Languages</div>
   <h2 class="sh" id="la-h">Speaks your language</h2>
-  <p class="ss" id="la-sub" style="max-width:520px;margin:0 auto;text-align:center">Live in 3 languages now. Expanding to 15+ as we grow globally.</p>
-  <div class="lang-cards">
+  <p class="ss" id="la-sub" style="max-width:520px;margin:0 auto;text-align:center">13 languages live now. Satellite intelligence in every major agricultural language.</p>
+  <div class="lang-cards" style="grid-template-columns:repeat(4,1fr)">
     <div class="lc on" onclick="setLangDemo('en',this)"><div class="lcf">🇬🇧</div><div class="lcn">English</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
     <div class="lc" onclick="setLangDemo('fa',this)"><div class="lcf">🇦🇫</div><div class="lcn">دری · Dari</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
     <div class="lc" onclick="setLangDemo('ps',this)"><div class="lcf">🇦🇫</div><div class="lcn">پښتو · Pashto</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
-    <div class="lc" style="opacity:.6"><div class="lcf">🌍</div><div class="lcn">+12 more</div><div class="lcs">Farsi · Urdu · Amharic</div><div style="font-family:var(--M);font-size:10px;color:var(--a);margin-top:5px">◐ Coming</div></div>
+    <div class="lc"><div class="lcf">🇮🇷</div><div class="lcn">فارسی · Farsi</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
+    <div class="lc"><div class="lcf">🇵🇰</div><div class="lcn">اردو · Urdu</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
+    <div class="lc"><div class="lcf">🇧🇩</div><div class="lcn">বাংলা · Bengali</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
+    <div class="lc"><div class="lcf">🇮🇳</div><div class="lcn">हिंदी · Hindi</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
+    <div class="lc"><div class="lcf">🇪🇹</div><div class="lcn">አማርኛ · Amharic</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
+    <div class="lc"><div class="lcf">🌍</div><div class="lcn">Kiswahili</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
+    <div class="lc"><div class="lcf">🌎</div><div class="lcn">Español</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
+    <div class="lc"><div class="lcf">🌍</div><div class="lcn">Français</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
+    <div class="lc"><div class="lcf">🇳🇱</div><div class="lcn">Nederlands</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
+    <div class="lc"><div class="lcf">🌍</div><div class="lcn">العربية · Arabic</div><div class="lcs">Voice · Text</div><div style="font-family:var(--M);font-size:10px;color:var(--g);margin-top:5px">● Live</div></div>
   </div>
   <div class="ldemo">
     <div class="lq" id="lq">Does my field have enough water this season?</div>
@@ -1140,7 +1233,7 @@ document.querySelectorAll('a,button,[onclick]').forEach(el=>{
 
 // ── COUNTERS ──────────────────────────────────────────────────────────────────
 function cnt(id,t,d=0){setTimeout(()=>{const el=document.getElementById(id);if(!el)return;let v=0;const iv=setInterval(()=>{v+=t/80;if(v>=t){v=t;clearInterval(iv);}el.textContent=Math.floor(v);},18);},d);}
-function _runCounters(){cnt('c1',4,0);cnt('c2',196,120);cnt('c3',13,240);cnt('c4',12,360);cnt('c5',4,480);}
+function _runCounters(){cnt('c1',4,0);cnt('c2',196,120);cnt('c3',13,240);cnt('c4',13,360);cnt('c5',4,480);}
 const obs=new IntersectionObserver(en=>{if(en[0].isIntersecting){_runCounters();obs.disconnect();}},{threshold:.1});
 const hs=document.querySelector('.hstats');if(hs)obs.observe(hs);
 // Fallback: fire after 1.2s if observer never triggers (above-fold on mobile)
@@ -1503,12 +1596,13 @@ let pgCurrentLang='en';
 const LANG_DEMO_DATA={
   en:{q:'Does my field have enough water this season?',t:'English · Type or speak your question',dir:'ltr'},
   fa:{q:'آیا زمین من آب کافی برای این فصل دارد؟',t:'دری · Dari · پرسش بنویسید یا بگویید',dir:'rtl'},
-  ps:{q:'ایا زما ځمکه پدې فصل کې کافي اوبه لري؟',t:'پښتو · Pashto · پوښتنه ولیکئ یا ووایئ',dir:'rtl'}
+  ps:{q:'ایا زما ځمکه پدې فصل کې کافي اوبه لري؟',t:'پښتو · Pashto · پوښتنه ولیکئ یا ووایئ',dir:'rtl'},
+  nl:{q:'Heeft mijn veld genoeg water dit seizoen?',t:'Nederlands · Typ of spreek uw vraag',dir:'ltr'}
 };
 
 function pgLang(l,el){
   pgCurrentLang=l;
-  const lswLabels={en:'EN',fa:'دری',ps:'پښتو'};
+  const lswLabels={en:'EN',fa:'دری',ps:'پښتو',nl:'NL'};
   document.querySelectorAll('.lsw').forEach(b=>{
     b.classList.toggle('on', b.textContent.trim()===lswLabels[l]);
   });
@@ -1559,23 +1653,90 @@ function renderRegions(l){
   list.innerHTML=regs.map(r=>`<div class="region"><div class="rflag">${r.flag}</div><div class="rinfo"><div class="rname">${r.name}</div><div class="rdetail">${r.detail}</div></div><span class="rstatus ${r.cls}">${r.status}</span></div>`).join('');
 }
 renderRegions('en');
+setTimeout(()=>{if(typeof calcUpdateCountry==='function')calcUpdateCountry();},100);
 
 // ── CALCULATOR ────────────────────────────────────────────────────────────────
 // Yield baselines (kg/jereb), farm-gate prices (AFN/kg), seed cost (AFN/jereb) — 2024 Afghanistan market
-const CROPS={
-  wheat:     {yb:280, price:30,    seed:600},   // 280 kg/jereb avg, 30 AFN/kg
-  flax:      {yb:120, price:45,    seed:650},   // 45 AFN/kg seed market
-  saffron:   {yb:0.9, price:45000, seed:10000}, // 0.9 kg dried/jereb; 45,000 AFN/kg farm gate (~$500/kg)
-  chickpeas: {yb:140, price:42,    seed:500},
-  vegetables:{yb:1000,price:30,    seed:2000},  // mixed veg, 30 AFN/kg conservative
-  cotton:    {yb:180, price:38,    seed:600},
-  almonds:   {yb:200, price:280,   seed:7000},  // 280 AFN/kg shelled
-  maize:     {yb:450, price:22,    seed:600}
+const CALC_COUNTRIES={
+  AF:{curr:'AFN',unit:'jereb',haFactor:.2,crops:{
+    wheat:     {n:'Wheat · گندم',      yb:280, price:30,    seed:600},
+    flax:      {n:'Flax · کتان',       yb:120, price:45,    seed:650},
+    saffron:   {n:'Saffron · زعفران',  yb:0.9, price:45000, seed:10000},
+    chickpeas: {n:'Chickpeas · نخود',  yb:140, price:42,    seed:500},
+    vegetables:{n:'Vegetables · سبزیجات',yb:1000,price:30,  seed:2000},
+    cotton:    {n:'Cotton · پنبه',     yb:180, price:38,    seed:600},
+    almonds:   {n:'Almonds · بادام',   yb:200, price:280,   seed:7000},
+    maize:     {n:'Maize · ذرت',       yb:450, price:22,    seed:600}
+  }},
+  PK:{curr:'PKR',unit:'kanal',haFactor:.05,crops:{
+    wheat:     {n:'Wheat · گندم',      yb:165, price:65,    seed:1200},
+    rice:      {n:'Rice · چاول',       yb:220, price:95,    seed:2000},
+    cotton:    {n:'Cotton · کپاس',     yb:90,  price:200,   seed:1500},
+    sugarcane: {n:'Sugarcane · گنا',   yb:2000,price:8,     seed:3000},
+    maize:     {n:'Maize · مکئی',      yb:280, price:45,    seed:900},
+    vegetables:{n:'Vegetables · سبزی', yb:600, price:60,    seed:3000}
+  }},
+  IR:{curr:'IRR',unit:'hectare',haFactor:1,crops:{
+    wheat:     {n:'Wheat · گندم',      yb:3500,price:18000, seed:4000000},
+    saffron:   {n:'Saffron · زعفران',  yb:4,   price:5000000,seed:50000000},
+    pistachios:{n:'Pistachios · پسته', yb:1200,price:120000,seed:0},
+    barley:    {n:'Barley · جو',       yb:2200,price:14000, seed:3000000},
+    vegetables:{n:'Vegetables · سبزیجات',yb:15000,price:8000,seed:8000000}
+  }},
+  ET:{curr:'ETB',unit:'timad',haFactor:.25,crops:{
+    teff:      {n:'Teff · ጤፍ',        yb:180, price:45,    seed:200},
+    maize:     {n:'Maize · ቆሎ',        yb:350, price:22,    seed:500},
+    coffee:    {n:'Coffee · ቡና',       yb:120, price:280,   seed:600},
+    wheat:     {n:'Wheat · ስንዴ',       yb:220, price:28,    seed:600},
+    sorghum:   {n:'Sorghum · ማሽላ',    yb:280, price:18,    seed:400}
+  }},
+  KE:{curr:'KES',unit:'acre',haFactor:.405,crops:{
+    maize:     {n:'Maize · Mahindi',   yb:900, price:45,    seed:3500},
+    tea:       {n:'Tea · Chai',        yb:1200,price:60,    seed:0},
+    coffee:    {n:'Coffee · Kahawa',   yb:600, price:150,   seed:0},
+    sugarcane: {n:'Sugarcane · Miwa',  yb:12000,price:5,    seed:8000},
+    vegetables:{n:'Vegetables · Mboga',yb:4000,price:20,    seed:5000}
+  }},
+  IN:{curr:'INR',unit:'bigha',haFactor:.133,crops:{
+    wheat:     {n:'Wheat · गेहूँ',     yb:440, price:22,    seed:2500},
+    rice:      {n:'Rice · चावल',       yb:380, price:28,    seed:3000},
+    cotton:    {n:'Cotton · कपास',     yb:120, price:65,    seed:2000},
+    sugarcane: {n:'Sugarcane · गन्ना', yb:3200,price:3,     seed:5000},
+    vegetables:{n:'Vegetables · सब्जियाँ',yb:800,price:25,  seed:4000}
+  }},
+  BD:{curr:'BDT',unit:'bigha',haFactor:.067,crops:{
+    rice:      {n:'Rice · ধান',        yb:320, price:35,    seed:2000},
+    jute:      {n:'Jute · পাট',        yb:180, price:55,    seed:1500},
+    vegetables:{n:'Vegetables · সবজি', yb:500, price:40,    seed:3000},
+    mustard:   {n:'Mustard · সরিষা',   yb:80,  price:90,    seed:1000},
+    wheat:     {n:'Wheat · গম',        yb:220, price:30,    seed:1800}
+  }},
+  NL:{curr:'EUR',unit:'hectare',haFactor:1,crops:{
+    wheat:     {n:'Wheat · Tarwe',     yb:8500,price:0.22,  seed:180},
+    potatoes:  {n:'Potatoes · Aardappelen',yb:45000,price:0.10,seed:1200},
+    sugar_beet:{n:'Sugar beet · Suikerbiet',yb:75000,price:0.04,seed:250},
+    onions:    {n:'Onions · Uien',     yb:55000,price:0.08, seed:300},
+    tulips:    {n:'Tulips · Tulpen',   yb:0,   price:0,     seed:25000}
+  }}
 };
+let _calcCC='AF';
+function calcUpdateCountry(){
+  _calcCC=document.getElementById('calcCountry').value;
+  const cc=CALC_COUNTRIES[_calcCC];
+  const cropSel=document.getElementById('crop');
+  cropSel.innerHTML=Object.entries(cc.crops).map(([k,v])=>`<option value="${k}">${v.n}</option>`).join('');
+  const ul=document.getElementById('unitLabel');if(ul)ul.textContent=cc.unit;
+  ['currLabel','currLabel2','currLabel3'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=cc.curr;});
+  const ll=document.getElementById('ll');if(ll)ll.childNodes[0].textContent=`Land size (${cc.unit}) `;
+  calcFarm();
+}
+const CROPS=CALC_COUNTRIES.AF.crops;
 function fmt(n){if(typeof n!=='number'||isNaN(n))return'—';if(Math.abs(n)>=1e6)return(Math.round(n/1e5)/10)+'M';if(Math.abs(n)>=1000)return(Math.round(n/100)/10)+'K';return Math.round(n).toString();}
 function updLand(){const v=parseInt(document.getElementById('land').value);document.getElementById('lv').textContent=v;document.getElementById('lh').textContent='('+Math.round(v*.2*10)/10+' ha)';calcFarm();}
 function calcFarm(){
-  const c=CROPS[document.getElementById('crop').value];
+  const cc=CALC_COUNTRIES[_calcCC]||CALC_COUNTRIES.AF;
+  const c=cc.crops[document.getElementById('crop').value]||Object.values(cc.crops)[0];
+  const curr=cc.curr;
   const land=parseInt(document.getElementById('land').value);
   const w=document.getElementById('water').value;
   const irr=document.getElementById('irr').value;
@@ -1585,23 +1746,28 @@ function calcFarm(){
   const im=irr==='drip'?1.15:irr==='furrow'?1.0:irr==='flood'?.85:1.08;
   const fm=fert==='full'?1.2:fert==='basic'?1.0:fert==='organic'?.9:.7;
   const yld=Math.round(c.yb*wm*im*fm*land),inc=Math.round(yld*c.price);
-  // Costs per jereb per season — 2024 Afghanistan rates (AFN)
-  const sc=c.seed,fc={full:4000,basic:2200,organic:1000,none:0}[fert],ic={drip:1500,furrow:600,flood:350,sprinkler:1200}[irr],mc={tractor:2000,partial:1000,manual:500}[mach],lc2=1000,oc=500;
+  const fertBase={AFN:{full:4000,basic:2200,organic:1000,none:0},PKR:{full:8000,basic:4500,organic:2000,none:0},IRR:{full:8000000,basic:4000000,organic:1500000,none:0},ETB:{full:600,basic:350,organic:150,none:0},KES:{full:4500,basic:2500,organic:1000,none:0},INR:{full:4000,basic:2200,organic:1000,none:0},BDT:{full:3500,basic:2000,organic:800,none:0},EUR:{full:250,basic:140,organic:60,none:0}};
+  const irrBase={AFN:{drip:1500,furrow:600,flood:350,sprinkler:1200},PKR:{drip:3000,furrow:1200,flood:700,sprinkler:2500},IRR:{drip:3000000,furrow:1200000,flood:700000,sprinkler:2500000},ETB:{drip:300,furrow:120,flood:70,sprinkler:250},KES:{drip:2000,furrow:800,flood:450,sprinkler:1600},INR:{drip:2000,furrow:800,flood:450,sprinkler:1500},BDT:{drip:1500,furrow:600,flood:350,sprinkler:1200},EUR:{drip:120,furrow:50,flood:30,sprinkler:100}};
+  const machBase={AFN:{tractor:2000,partial:1000,manual:500},PKR:{tractor:4000,partial:2000,manual:800},IRR:{tractor:4000000,partial:2000000,manual:800000},ETB:{tractor:400,partial:200,manual:80},KES:{tractor:3500,partial:1750,manual:700},INR:{tractor:2500,partial:1200,manual:500},BDT:{tractor:2000,partial:1000,manual:400},EUR:{tractor:300,partial:150,manual:60}};
+  const labBase={AFN:1000,PKR:2000,IRR:2000000,ETB:150,KES:1500,INR:1200,BDT:1000,EUR:80};
+  const othBase={AFN:500,PKR:1000,IRR:1000000,ETB:100,KES:800,INR:600,BDT:500,EUR:40};
+  const sc=c.seed,fc=(fertBase[curr]||fertBase.AFN)[fert]||0,ic=(irrBase[curr]||irrBase.AFN)[irr]||0,mc=(machBase[curr]||machBase.AFN)[mach]||0,lc2=labBase[curr]||1000,oc=othBase[curr]||500;
   const tc=Math.round((sc+fc+ic+mc+lc2+oc)*land),np=inc-tc;
   document.getElementById('r1').textContent=fmt(yld)+' kg';
-  document.getElementById('r2').textContent=fmt(inc)+' AFN';
-  document.getElementById('r3').textContent=fmt(tc)+' AFN';
-  document.getElementById('r4').textContent=(np>=0?'+':'')+fmt(np)+' AFN';
+  document.getElementById('r2').textContent=fmt(inc)+' '+curr;
+  document.getElementById('r3').textContent=fmt(tc)+' '+curr;
+  document.getElementById('r4').textContent=(np>=0?'+':'')+fmt(np)+' '+curr;
   document.getElementById('r4').style.color=np>=0?'#4ade80':'#f87171';
+  ['currLabel','currLabel2','currLabel3'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=curr;});
   const l=pgCurrentLang;
   const TL={en:{s:'Seeds',f:'Fertilizer',i:'Irrigation',l:'Labour',o:'Other',tot:'Total costs',g:'Gross income',p:'NET PROFIT'},fa:{s:'تخم',f:'کود',i:'آبیاری',l:'کارگر',o:'سایر',tot:'مجموع مصرف',g:'عاید مجموعی',p:'فایده خالص'},ps:{s:'تخم',f:'کود',i:'اوبه',l:'کارګر',o:'نور',tot:'ټول لګښتونه',g:'مجموعي عاید',p:'خالص ګټه'}}[l]||{s:'Seeds',f:'Fertilizer',i:'Irrigation',l:'Labour',o:'Other',tot:'Total costs',g:'Gross income',p:'NET PROFIT'};
   const rows=[[TL.s,sc,sc*land,'neg'],[TL.f,fc,fc*land,'neg'],[TL.i,ic,ic*land,'neg'],[TL.l,lc2,lc2*land,'neg'],[TL.o,oc,oc*land,'neg'],['<b>'+TL.tot+'</b>',(sc+fc+ic+mc+lc2+oc),tc,'neg'],['<b>'+TL.g+'</b>','—',inc,'pos'],['<b>'+TL.p+'</b>','—',np,np>=0?'pos':'neg']];
-  document.getElementById('ctbl').innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td>${typeof r[1]==='number'?fmt(r[1])+' AFN':r[1]}</td><td class="${r[3]}">${r[3]==='pos'?'+':''}${fmt(r[2])} AFN</td></tr>`).join('');
+  document.getElementById('ctbl').innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td>${typeof r[1]==='number'?fmt(r[1])+' '+curr:r[1]}</td><td class="${r[3]}">${r[3]==='pos'?'+':''}${fmt(r[2])} ${curr}</td></tr>`).join('');
   let rec='';
   const cv=document.getElementById('crop').value;
-  if(w==='low'&&(cv==='cotton'||cv==='vegetables'))rec='⚠️ This crop needs more water than available. Consider saffron (300mm) or flax (350mm).';
+  if(w==='low'&&(cv==='cotton'||cv==='vegetables'))rec='⚠️ This crop needs more water than available. Consider a drought-tolerant crop for your region.';
   else if(np>0)rec='✅ Good profitability. Drip irrigation could add 15% yield and reduce water use 40%.';
-  else rec='⚠️ Costs exceed income. Consider switching to saffron — 50x more value per mm of water.';
+  else rec='⚠️ Costs exceed income. Consider a higher-value crop for your region or improve irrigation efficiency.';
   document.getElementById('rec').textContent=rec;
 }
 updLand();
@@ -3436,6 +3602,10 @@ function notify(m,d=3000){const n=document.getElementById('notif');n.textContent
   color:#5a8fc0;font-size:.7rem;padding:.15rem .45rem;cursor:pointer;transition:all .15s}
 .fw-lb.active,.fw-lb:hover{border-color:#22c55e;color:#22c55e}
 #fw-mic-btn:hover{border-color:#ef4444;color:#ef4444}
+.fw-chips{display:flex;flex-wrap:wrap;gap:.35rem;padding:.25rem 0 .1rem}
+.fw-chip{background:#061a30;border:1px solid #163352;border-radius:12px;
+  color:#5a8fc0;font-size:.72rem;padding:.28rem .6rem;cursor:pointer;transition:all .15s;white-space:nowrap}
+.fw-chip:hover{border-color:#22c55e;color:#22c55e;background:#061a0e}
 #fw-speak-btn.speaking{border-color:#22c55e;animation:pulse-green 1s infinite}
 @keyframes pulse-green{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.4)}50%{box-shadow:0 0 0 6px rgba(34,197,94,0)}}
 @media(max-width:480px){
@@ -3459,11 +3629,15 @@ function notify(m,d=3000){const n=document.getElementById('notif');n.textContent
   <div class="fw-messages" id="fw-messages">
     <div class="fw-bubble bot">
       👋 سلام! Hi! I can answer any farming question.<br>
-      Ask me about your field, crops, weather, irrigation, or any place in the world.<br><br>
-      <strong>Try:</strong><br>
-      • "What is the NDVI in Kunduz right now?"<br>
-      • "When should I plant wheat in Balkh?"<br>
-      • "Is there drought in Helmand province?"
+      Ask me about your field, crops, weather, irrigation, or any place in the world.
+    </div>
+    <div class="fw-chips" id="fw-chips">
+      <button class="fw-chip" onclick="fwQuick('NDVI in Kunduz right now?')">🛰️ Kunduz NDVI</button>
+      <button class="fw-chip" onclick="fwQuick('When to plant wheat in Balkh?')">🌾 Wheat planting</button>
+      <button class="fw-chip" onclick="fwQuick('Drought risk in Helmand?')">💧 Drought risk</button>
+      <button class="fw-chip" onclick="fwQuick('Best crop for my field this season?')">🌱 Best crop</button>
+      <button class="fw-chip" onclick="fwQuick('How much fertilizer do I need?')">🌿 Fertilizer</button>
+      <button class="fw-chip" onclick="fwQuick('Rainfall forecast for next 2 weeks?')">🌧️ Rain forecast</button>
     </div>
   </div>
   <div style="padding:.2rem .6rem;display:flex;gap:.3rem;border-top:1px solid #163352;background:#040d1a">
@@ -3684,11 +3858,21 @@ function fwMarkdown(t){
     .replace(/\n{2,}/g,'<br><br>').replace(/\n/g,'<br>');
 }
 
+function fwQuick(text){
+  const chips=document.getElementById('fw-chips');
+  if(chips)chips.style.display='none';
+  const inp=document.getElementById('fw-inp');
+  if(inp){inp.value=text;}
+  fwSend();
+}
+
 async function fwSend(){
   const inp = document.getElementById('fw-inp');
   const q   = inp.value.trim();
   if(!q || _fwRunning) return;
   inp.value = '';
+  const chips=document.getElementById('fw-chips');
+  if(chips)chips.style.display='none';
 
   const msgs = document.getElementById('fw-messages');
 
@@ -3786,8 +3970,8 @@ async function fwSend(){
 
     // Poll
     let data=null;
-    for(let i=0;i<50&&!data;i++){
-      await new Promise(res=>setTimeout(res,4000));
+    for(let i=0;i<120&&!data;i++){
+      await new Promise(res=>setTimeout(res,1500));
       const poll=await fetch(`${FW_API}/agent/result/${init.task_id}`);
       const pd=await poll.json();
       if(pd.status==='done') data=pd;
