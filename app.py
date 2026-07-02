@@ -26,7 +26,7 @@
 ╚══════════════════════════════════════════════════════════════════════════════╝
 """
 
-import os, json, math, logging, requests, threading, uuid, base64
+import os, json, math, logging, requests, threading, uuid, base64, time
 from datetime import datetime
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, send_from_directory, Response
@@ -847,6 +847,87 @@ def smart_fallback(question,ndvi,water,rain,area_j,lang,province="Afghanistan"):
                     else f"د {rain}mm: ۱) گندم. ۲) سبزیجات — ۳ ځله ګټه. ۳) کتان.")
         if is_fert: return f"NDVI {ndvi} — سرې ته اړتیا ده. یوریا: {fert} کیلوګرام."
         return f"ستاسو {area_j} جریب — NDVI {ndvi}, اوبه {water}, باران {rain}mm. پوښتنه؟"
+    elif lang=="ar":
+        if is_irr:
+            return (f"🚨 ري عاجل — مؤشر المياه {water}. اسقِ الأرض خلال {days}–{days+2} أيام. التكلفة: ~{cost} أفغاني." if water<-0.05
+                    else f"المياه معتدلة. اسقِ خلال 7–10 أيام. هطول الأمطار: {rain}mm/سنة.")
+        if is_crop:
+            return (f"مع {rain}mm أمطار قليلة: ١) الزعفران — ٥٠ ضعف أرباح القمح. ٢) الكتان. ٣) الحمص." if rain<200
+                    else f"مع {rain}mm: ١) القمح. ٢) الخضروات — ٣ أضعاف الدخل. ٣) الكتان.")
+        if is_fert: return f"NDVI {ndvi} — أضف اليوريا: {fert}كجم + DAP: {round(area_j*20)}كجم/جريب."
+        return f"أرضك {area_j} جريب — NDVI {ndvi}، مياه {water}، أمطار {rain}mm. سؤال؟"
+    elif lang=="ur":
+        if is_irr:
+            return (f"🚨 فوری آبپاشی — پانی کا اشاریہ {water}۔ {days}–{days+2} دنوں میں آبپاشی کریں۔ لاگت: ~{cost} افغانی۔" if water<-0.05
+                    else f"پانی اوسط ہے۔ 7–10 دنوں میں آبپاشی کریں۔ سالانہ بارش: {rain}mm۔")
+        if is_crop:
+            return (f"{rain}mm کم بارش: 1) زعفران — گندم سے 50 گنا منافع۔ 2) السی۔ 3) چنا۔" if rain<200
+                    else f"{rain}mm کے ساتھ: 1) گندم۔ 2) سبزیاں — 3 گنا آمدنی۔ 3) السی۔")
+        if is_fert: return f"NDVI {ndvi} — یوریا: {fert}کلو + DAP: {round(area_j*20)}کلو ڈالیں۔"
+        return f"آپ کا {area_j} جریب — NDVI {ndvi}، پانی {water}، بارش {rain}mm۔ سوال؟"
+    elif lang=="hi":
+        if is_irr:
+            return (f"🚨 तुरंत सिंचाई — जल सूचकांक {water}। {days}–{days+2} दिनों में सिंचाई करें। लागत: ~{cost} AFN।" if water<-0.05
+                    else f"पानी मध्यम है। 7–10 दिनों में सिंचाई करें। वार्षिक वर्षा: {rain}mm।")
+        if is_crop:
+            return (f"कम वर्षा ({rain}mm): 1) केसर — गेहूं से 50 गुना लाभ। 2) अलसी। 3) चना।" if rain<200
+                    else f"{rain}mm वर्षा: 1) गेहूं। 2) सब्जियां — 3 गुना आय। 3) अलसी।")
+        if is_fert: return f"NDVI {ndvi} — यूरिया: {fert}किग्रा + DAP: {round(area_j*20)}किग्रा डालें।"
+        return f"आपका {area_j} जरीब — NDVI {ndvi}, जल {water}, वर्षा {rain}mm। प्रश्न?"
+    elif lang=="bn":
+        if is_irr:
+            return (f"🚨 জরুরি সেচ — জলের সূচক {water}। {days}–{days+2} দিনের মধ্যে সেচ দিন।" if water<-0.05
+                    else f"জল মাঝারি। ৭–১০ দিনের মধ্যে সেচ দিন। বার্ষিক বৃষ্টিপাত: {rain}mm।")
+        if is_crop:
+            return (f"কম বৃষ্টি ({rain}mm): ১) জাফরান — গমের ৫০ গুণ লাভ। ২) তিসি। ৩) ছোলা।" if rain<200
+                    else f"{rain}mm বৃষ্টি: ১) গম। ২) সবজি — ৩ গুণ আয়। ৩) তিসি।")
+        if is_fert: return f"NDVI {ndvi} — ইউরিয়া: {fert}কেজি + DAP: {round(area_j*20)}কেজি দিন।"
+        return f"আপনার {area_j} জেরিব — NDVI {ndvi}, জল {water}, বৃষ্টি {rain}mm। প্রশ্ন?"
+    elif lang=="sw":
+        if is_irr:
+            return (f"🚨 Umwagiliaji wa haraka — kiwango cha maji {water}. Mwagilia shamba ndani ya siku {days}–{days+2}." if water<-0.05
+                    else f"Maji ni wastani. Mwagilia ndani ya siku 7–10. Mvua ya mwaka: {rain}mm.")
+        if is_crop:
+            return (f"Mvua kidogo ({rain}mm): 1) Zafarani — faida mara 50 ya ngano. 2) Kitani. 3) Dengu." if rain<200
+                    else f"Mvua {rain}mm: 1) Ngano. 2) Mboga — faida mara 3. 3) Kitani.")
+        if is_fert: return f"NDVI {ndvi} — weka Urea: {fert}kg + DAP: {round(area_j*20)}kg/jerib."
+        return f"Shamba lako {area_j} jerib — NDVI {ndvi}, maji {water}, mvua {rain}mm. Swali?"
+    elif lang=="es":
+        if is_irr:
+            return (f"🚨 Riego urgente — índice hídrico {water}. Riegue en {days}–{days+2} días. Costo: ~{cost} AFN." if water<-0.05
+                    else f"Agua moderada. Riegue en 7–10 días. Precipitación anual: {rain}mm.")
+        if is_crop:
+            return (f"Poca agua ({rain}mm): 1) Azafrán — 50× ganancia del trigo. 2) Lino. 3) Garbanzos." if rain<200
+                    else f"Con {rain}mm: 1) Trigo. 2) Verduras — 3× ingresos. 3) Lino.")
+        if is_fert: return f"NDVI {ndvi} — aplique Urea: {fert}kg + DAP: {round(area_j*20)}kg/jerib."
+        return f"Su campo {area_j} jerib — NDVI {ndvi}, agua {water}, lluvia {rain}mm. ¿Pregunta?"
+    elif lang=="fr":
+        if is_irr:
+            return (f"🚨 Irrigation urgente — indice eau {water}. Irriguez dans {days}–{days+2} jours. Coût: ~{cost} AFN." if water<-0.05
+                    else f"Eau modérée. Irriguez dans 7–10 jours. Précipitations: {rain}mm/an.")
+        if is_crop:
+            return (f"Peu d'eau ({rain}mm): 1) Safran — 50× profit du blé. 2) Lin. 3) Pois chiche." if rain<200
+                    else f"Avec {rain}mm: 1) Blé. 2) Légumes — 3× revenus. 3) Lin.")
+        if is_fert: return f"NDVI {ndvi} — appliquer Urée: {fert}kg + DAP: {round(area_j*20)}kg/jerib."
+        return f"Votre champ {area_j} jerib — NDVI {ndvi}, eau {water}, pluie {rain}mm. Question?"
+    elif lang=="pt":
+        if is_irr:
+            return (f"🚨 Irrigação urgente — índice hídrico {water}. Irrigue em {days}–{days+2} dias. Custo: ~{cost} AFN." if water<-0.05
+                    else f"Água moderada. Irrigue em 7–10 dias. Precipitação: {rain}mm/ano.")
+        if is_crop:
+            return (f"Pouca água ({rain}mm): 1) Açafrão — 50× lucro do trigo. 2) Linho. 3) Grão-de-bico." if rain<200
+                    else f"Com {rain}mm: 1) Trigo. 2) Vegetais — 3× renda. 3) Linho.")
+        if is_fert: return f"NDVI {ndvi} — aplique Ureia: {fert}kg + DAP: {round(area_j*20)}kg/jerib."
+        return f"Seu campo {area_j} jerib — NDVI {ndvi}, água {water}, chuva {rain}mm. Pergunta?"
+    elif lang=="am":
+        if is_irr:
+            return (f"🚨 አስቸኳይ መስኖ — የውሃ ጠቋሚ {water}። በ{days}–{days+2} ቀናት ውስጥ ያጠጡ።" if water<-0.05
+                    else f"ውሃ መካከለኛ ነው። በ7–10 ቀናት ያጠጡ። የዓመታዊ ዝናብ: {rain}mm።")
+        if is_crop:
+            return (f"{rain}mm ትንሽ ዝናብ: 1) ኩርኩም — ከስንዴ 50 እጥፍ ትርፍ። 2) ተልባ። 3) ሽምብራ።" if rain<200
+                    else f"{rain}mm ዝናብ: 1) ስንዴ። 2) አትክልቶች — 3 እጥፍ ገቢ። 3) ተልባ።")
+        if is_fert: return f"NDVI {ndvi} — ዩሪያ: {fert}ኪሎ + DAP: {round(area_j*20)}ኪሎ ይጠቀሙ።"
+        return f"እርስዎ {area_j} ጀሪብ — NDVI {ndvi}, ውሃ {water}, ዝናብ {rain}mm። ጥያቄ?"
     else:
         if is_irr:
             return (f"🚨 Irrigate within {days}–{days+2} days — water index {water} is low. Cost: ~{cost:,} AFN." if water<-0.05
@@ -1605,33 +1686,44 @@ def analyse():
                         _farmer_analyse_tasks[task_id] = {"status": "done", "data": cached}
                         return
                 if gee_ok:
-                    try:
-                        result = gee_analyse(coords, year, clat, clon)
-                        reg = get_regional_data(clat, clon)
-                        result.update({"label":label,"area_ha":area_ha,"area_jereb":area_jereb,
-                                       "status":"success","province":reg["province"]})
-                        result["crops"] = detect_crop(result["ndvi"],result["evi"],result["savi"],
-                            result["mndwi"],result["lswi"],month,reg["province"])
-                        result["season"] = get_current_season_advice(reg["province"],result["ndvi"],result["mndwi"])
-                        result["monthly_rain"] = get_monthly_rain(result["rain"] or reg["rain"],reg["province"])
-                        result["soil"] = get_soil_data(clat,clon,reg["province"])
-                        result["weather_forecast"] = get_weather_forecast(clat, clon)
-                        if result.get("trend"):
-                            tv=[v for v in result["trend"].values() if v]
-                            if tv:
-                                h_min=min(tv); h_max=max(tv); cur=result["ndvi"] or 0
-                                result["vci"] = round((cur-h_min)/(h_max-h_min+0.001)*100,1) if h_max>h_min else None
-                        if farmer_id and field_id:
-                            db_save_analysis(field_id, farmer_id, result)
-                        _farmer_analyse_tasks[task_id] = {"status":"done","data":result}
-                        return
-                    except Exception as e:
-                        log.error(f"GEE failed in /analyse worker: {e}")
+                    gee_exc = None
+                    for _attempt in range(3):
+                        try:
+                            result = gee_analyse(coords, year, clat, clon)
+                            reg = get_regional_data(clat, clon)
+                            result.update({"label":label,"area_ha":area_ha,"area_jereb":area_jereb,
+                                           "status":"success","province":reg["province"],
+                                           "data_source": result.get("source","gee_satellite")})
+                            result["crops"] = detect_crop(result["ndvi"],result["evi"],result["savi"],
+                                result["mndwi"],result["lswi"],month,reg["province"])
+                            result["season"] = get_current_season_advice(reg["province"],result["ndvi"],result["mndwi"])
+                            result["monthly_rain"] = get_monthly_rain(result["rain"] or reg["rain"],reg["province"])
+                            result["soil"] = get_soil_data(clat,clon,reg["province"])
+                            result["weather_forecast"] = get_weather_forecast(clat, clon)
+                            if result.get("trend"):
+                                tv=[v for v in result["trend"].values() if v]
+                                if tv:
+                                    h_min=min(tv); h_max=max(tv); cur=result["ndvi"] or 0
+                                    result["vci"] = round((cur-h_min)/(h_max-h_min+0.001)*100,1) if h_max>h_min else None
+                            log.info(f"GEE ok (attempt {_attempt+1}) — source: {result.get('data_source')}")
+                            if farmer_id and field_id:
+                                db_save_analysis(field_id, farmer_id, result)
+                            _farmer_analyse_tasks[task_id] = {"status":"done","data":result}
+                            return
+                        except Exception as e:
+                            gee_exc = e
+                            if _attempt < 2:
+                                wait = 2 ** _attempt
+                                log.warning(f"GEE attempt {_attempt+1}/3 failed: {e} — retrying in {wait}s")
+                                time.sleep(wait)
+                            else:
+                                log.error(f"GEE failed after 3 attempts: {e}")
 
                 # Regional fallback
                 reg = get_regional_data(clat, clon)
                 result = {
                     "label":label,"status":"success","source":reg["source"],
+                    "data_source":reg["source"],
                     "province":reg["province"],"ndvi":reg["ndvi"],"evi":reg["evi"],
                     "savi":reg["savi"],"mndwi":reg["mndwi"],"water":reg["mndwi"],
                     "lswi":reg["lswi"],"rain":reg["rain"],"area_ha":area_ha,

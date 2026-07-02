@@ -14,6 +14,9 @@ pushes, verifies production, then marks it DONE.
 
 ## Priority 1 — Core reliability
 
+- [x] **YOLO11 upgrade** — crop_vision.py upgraded to support YOLOv8 + YOLO11 via env vars.
+        YOLO_MODEL_REPO/FILE/PATH/CONF/IOU all configurable. Expanded CLASS_NAMES to 56 classes
+        (wheat, rice, cassava, coffee, sorghum added). YOLO11 classification probs path supported.
 - [x] Fix /diagnose 502 timeout — add 55s Claude timeout + warm-up ping
 - [x] Globalise: 12 languages, country detection, dynamic land units
 - [x] Fix disease name parser ("Analysis complete" bug)
@@ -21,7 +24,7 @@ pushes, verifies production, then marks it DONE.
 - [x] **Cache GEE results** — save satellite analysis per field_id + date in Supabase
         `analyses` table already exists; add 24h cache check before calling GEE.
         Avoids repeated API calls for same field. Fallback: call GEE if no cached row.
-- [ ] **Retry on GEE failure** — currently returns regional fallback immediately.
+- [x] **Retry on GEE failure** — currently returns regional fallback immediately.
         Try Sentinel-2 → Landsat → Sentinel-1 → MODIS → regional in sequence.
         Log which source succeeded to `analyses.data_source` column.
 
@@ -53,9 +56,10 @@ pushes, verifies production, then marks it DONE.
         Parse: if Claude says "likely", "possibly", "may be" → medium/low.
         Show as a small badge next to the severity pill in the UI.
 
-- [ ] **Multi-language /ask smart fallback** — current smart_fallback() only returns English.
+- [x] **Multi-language /ask smart fallback** — current smart_fallback() only returns English.
         Add translations for irrigation, fertiliser, and crop-choice answers in
         FA, PS, AR, HI, SW so offline fallback still works for farmers without data.
+        Extended to all 12 languages: AR, UR, HI, BN, SW, ES, FR, PT, AM added.
 
 - [ ] **RAG expansion** — seed 20 more knowledge chunks covering:
         - East Africa (Kenya, Ethiopia, Tanzania) crop calendars
