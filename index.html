@@ -1149,6 +1149,8 @@ const io=new IntersectionObserver(es=>{es.forEach((e,i)=>{if(e.isIntersecting)se
 
 // ── YOLO CROP DIAGNOSIS ──────────────────────────────────────────────────────
 const YAPI=window.location.hostname==='localhost'||window.location.hostname==='127.0.0.1'
+  ?`${window.location.protocol}//${window.location.hostname}:5000`
+  :API;
 
 // ── Offline field cache (localStorage) ──────────────────────────────────────
 const _CACHE_KEY = 'zaminai_field_cache_v1';
@@ -1188,8 +1190,6 @@ function _showOfflineBanner(ts) {
     + 'style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px">✕</button>';
   document.body.prepend(bar);
 }
-  ?`${window.location.protocol}//${window.location.hostname}:5000`
-  :API;
 
 // ── Disease detection state ────────────────────────────────────────────────
 let _ydLang = 'en';
@@ -2797,7 +2797,7 @@ function renderReport(){
     '<div class="rep-sec"><button onclick="openAIPanel()" style="width:100%;padding:13px;background:var(--gd);color:#4ade80;border:none;border-radius:8px;font-family:var(--M);font-size:13px;cursor:pointer;letter-spacing:.04em">'+rt('askAI')+'</button>'+
     '<button onclick="closeRp();tbDraw()" style="width:100%;padding:11px;background:var(--bg);color:var(--g);border:1px solid var(--gbr);border-radius:8px;font-family:var(--M);font-size:12px;cursor:pointer;letter-spacing:.04em;margin-top:8px">'+rt('drawNew')+'</button>'+
     '<button onclick="downloadReport()" style="width:100%;padding:11px;background:#fff;color:#0284c7;border:2px solid #0284c7;border-radius:8px;font-family:var(--M);font-size:12px;cursor:pointer;letter-spacing:.04em;margin-top:6px">'+rt('dlReport')+'</button>'+
-    (fieldData&&fieldData.field_id?'<button onclick="window.open(\''+YAPI+'/report/'+fieldData.field_id+'?lang='+(pgCurrentLang||\'en\')+'\',\'_blank\')" style="width:100%;padding:11px;background:#f0fdf4;color:#16a34a;border:2px solid #16a34a;border-radius:8px;font-family:var(--M);font-size:12px;cursor:pointer;letter-spacing:.04em;margin-top:6px">🔗 Share Report Link</button>':'')+
+    (fieldData&&fieldData.field_id?'<button onclick="window.open(\''+YAPI+'/report/'+fieldData.field_id+'?lang='+(pgCurrentLang||'en')+'\',\'_blank\')" style="width:100%;padding:11px;background:#f0fdf4;color:#16a34a;border:2px solid #16a34a;border-radius:8px;font-family:var(--M);font-size:12px;cursor:pointer;letter-spacing:.04em;margin-top:6px">🔗 Share Report Link</button>':'')+
     '</div>';
 
   setTimeout(initMiniMap,1000);
